@@ -13,6 +13,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using NBitcoin;
 using NBitcoin.DataEncoders;
 using NBitcoin.Protocol;
@@ -27,6 +28,8 @@ using Stratis.Bitcoin.Features.Miner;
 using Stratis.Bitcoin.Features.RPC;
 using Stratis.Bitcoin.Features.Wallet;
 using Stratis.Bitcoin.Features.Wallet.Interfaces;
+using Stratis.Bitcoin.P2P.Peer;
+using Stratis.Bitcoin.P2P.Protocol.Payloads;
 using Stratis.Bitcoin.Utilities;
 using static Stratis.Bitcoin.BlockPulling.BlockPuller;
 
@@ -531,6 +534,10 @@ namespace Stratis.Bitcoin.IntegrationTests
     public class CoreNode
     {
         private readonly NodeBuilder builder;
+
+        /// <summary>Factory for creating P2P network peers.</summary>
+        private readonly INetworkPeerFactory networkPeerFactory;
+
         private int[] ports;
         private INodeRunner runner;
         private readonly NetworkCredential creds;
@@ -558,6 +565,7 @@ namespace Stratis.Bitcoin.IntegrationTests
             this.State = CoreNodeState.Stopped;
             if (cleanfolders)
                 this.CleanFolder();
+
             Directory.CreateDirectory(folder);
             this.DataFolder = Path.Combine(folder, "data");
             Directory.CreateDirectory(this.DataFolder);
@@ -567,6 +575,7 @@ namespace Stratis.Bitcoin.IntegrationTests
             this.ConfigParameters.Import(builder.ConfigParameters);
             this.ports = new int[2];
             this.FindPorts(this.ports);
+            this.networkPeerFactory = new NetworkPeerFactory(DateTimeProvider.Default, new LoggerFactory());
         }
 
         /// <summary>Get stratis full node if possible.</summary>
@@ -586,8 +595,6 @@ namespace Stratis.Bitcoin.IntegrationTests
             NodeBuilder.CleanupTestFolder(this.Folder);
         }
 
-#if !NOSOCKET
-
         public void Sync(CoreNode node, bool keepConnection = false)
         {
             var rpc = this.CreateRPCClient();
@@ -600,8 +607,6 @@ namespace Stratis.Bitcoin.IntegrationTests
             if (!keepConnection)
                 rpc.RemoveNode(node.Endpoint);
         }
-
-#endif
 
         public CoreNodeState State { get; private set; }
 
@@ -631,19 +636,15 @@ namespace Stratis.Bitcoin.IntegrationTests
             return new RestClient(new Uri("http://127.0.0.1:" + this.ports[1].ToString() + "/"));
         }
 
-#if !NOSOCKET
-
-        public Node CreateNodeClient()
+        public NetworkPeer CreateNodeClient()
         {
-            return Node.Connect(Network.RegTest, "127.0.0.1:" + this.ports[0].ToString());
+            return this.networkPeerFactory.CreateConnectedNetworkPeer(Network.RegTest, "127.0.0.1:" + this.ports[0].ToString());
         }
 
-        public Node CreateNodeClient(NodeConnectionParameters parameters)
+        public NetworkPeer CreateNodeClient(NetworkPeerConnectionParameters parameters)
         {
-            return Node.Connect(Network.RegTest, "127.0.0.1:" + this.ports[0].ToString(), parameters);
+            return this.networkPeerFactory.CreateConnectedNetworkPeer(Network.RegTest, "127.0.0.1:" + this.ports[0].ToString(), parameters);
         }
-
-#endif
 
         public async Task StartAsync()
         {
@@ -935,7 +936,7 @@ namespace Stratis.Bitcoin.IntegrationTests
             }
         }
 
-        public void BroadcastBlocks(Block[] blocks, Node node)
+        public void BroadcastBlocks(Block[] blocks, NetworkPeer node)
         {
             Block lastSent = null;
             foreach (var block in blocks)
