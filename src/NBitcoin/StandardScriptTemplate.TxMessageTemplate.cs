@@ -103,6 +103,38 @@ namespace NBitcoin
             return pushDataList.ToArray();
         }
 
+        public string GetMessage(Script scriptPubKey)
+        {
+            if (scriptPubKey.Length < 13) throw new Exception("This ScriptPubKey is not a valid Wanted System message.");
+
+            byte[] scriptPubKeyBytes = scriptPubKey.ToBytes();
+            byte[] nopnopreturn = scriptPubKeyBytes.Take<byte>(3).ToArray();
+            ushort pushdataLength = BitConverter.ToUInt16(scriptPubKeyBytes, 3);
+
+            byte[] pushData = new byte[scriptPubKeyBytes.Length - 5];
+            Array.Copy(scriptPubKeyBytes, 5, pushData, 0, pushData.Length);
+
+            if ((nopnopreturn[0] != 0x61) || (nopnopreturn[1] != 0x61) || (nopnopreturn[2] != 0x6a)) throw new Exception("This ScriptPubKey is not a valid Wanted System message.");
+
+            byte[] header = pushData.Take<byte>(3).ToArray();
+            byte version = pushData[3];
+            byte compression = pushData[4];
+            byte checksumType = pushData[5];
+            ushort metadataLength = BitConverter.ToUInt16(pushData, 6);
+            ushort messageLength = BitConverter.ToUInt16(pushData, 8);
+
+            byte[] compressedMetadata = new byte[metadataLength];
+            byte[] compressedMessage = new byte[messageLength];
+
+            Array.Copy(pushData, 10, compressedMetadata, 0, metadataLength);
+            Array.Copy(pushData, 10 + metadataLength, compressedMessage, 0, messageLength);
+
+            byte[] uncompressedMetadata = DecompressByteArray(compressedMetadata);
+            byte[] uncompressedMessage = DecompressByteArray(compressedMessage);
+
+            return System.Text.Encoding.UTF8.GetString(uncompressedMessage);
+        }
+
         private static byte[] CompressByteArray(byte[] uncompressed)
         {
             using (var msi = new MemoryStream(uncompressed))
@@ -111,6 +143,19 @@ namespace NBitcoin
                 using (var gs = new GZipStream(mso, CompressionLevel.Optimal))
                 {
                     msi.CopyTo(gs);
+                }
+                return mso.ToArray();
+            }
+        }
+
+        private static byte[] DecompressByteArray(byte[] compressed)
+        {
+            using (var msi = new MemoryStream(compressed))
+            using (var mso = new MemoryStream())
+            {
+                using (var gs = new GZipStream(msi, CompressionMode.Decompress))
+                {
+                    gs.CopyTo(mso);
                 }
                 return mso.ToArray();
             }
