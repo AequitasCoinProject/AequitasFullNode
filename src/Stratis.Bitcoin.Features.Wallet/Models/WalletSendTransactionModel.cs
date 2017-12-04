@@ -38,5 +38,11 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         /// </summary>
         [JsonProperty(PropertyName = "amount")]
         public Money Amount { get; set; }
+
+        /// <summary>
+        /// The binary message in the pushdata.
+        /// </summary>
+        [JsonProperty(PropertyName = "pushdata")]
+        public string PushData { get; set; }
     }
 }
