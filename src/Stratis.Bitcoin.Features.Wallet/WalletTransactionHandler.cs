@@ -480,11 +480,6 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// Message to send as tip
         /// </summary>
         public string TipMessage { get; set; }
-
-        /// <summary>
-        /// Generated push data for the TX_NULL_DATA (OP_RETURN) output
-        /// </summary>
-        public byte[] PushData { get; internal set; }
     }
 
     /// <summary>
@@ -506,5 +501,5 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// An indicator if the fee is subtracted from the current recipient.
         /// </summary>
         public bool SubtractFeeFromAmount { get; set; }
-    }    
+    }
 }
