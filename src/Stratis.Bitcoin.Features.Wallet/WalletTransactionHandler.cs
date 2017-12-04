@@ -68,21 +68,12 @@ namespace Stratis.Bitcoin.Features.Wallet
             // build transaction
             context.Transaction = context.TransactionBuilder.BuildTransaction(context.Sign);
 
-            // add pushdata
-            if (context.PushData != null)
-            {
-                //context.PushData = context.PushData.Take<byte>(80).ToArray();
+            // TODO: move this into a TransactionBuilder
+            // add the message to the transaction
+            context.Transaction.Outputs.Add(new TxOut() { ScriptPubKey = TxMessageTemplate.Instance.GenerateScriptPubKey(context.TipMessage), Value = new Money(4950, MoneyUnit.Satoshi) });
 
-                // TODO: create a TipMessageDataTemplate similarly to TxNullDataTemplate.Instance.GenerateScriptPubKey(context.PushData)
-                context.Transaction.Outputs.Add(new TxOut() { ScriptPubKey = new Script() + OpcodeType.OP_RETURN + context.PushData, Value = new Money(0) });
-                //context.Transaction.Outputs.Add(new TxOut() { ScriptPubKey = TxNullDataTemplate.Instance.GenerateScriptPubKey(context.PushData), Value = new Money(0) });
-
-                // we need to sign the transaction again, otherwise we will get a NullFail or EvalFalse @ TransactionBuilder.Verify
-                context.TransactionBuilder.SignTransactionInPlace(context.Transaction, SigHash.All);
-
-                // Allow TX_NULL_DATA
-                //context.TransactionBuilder.StandardTransactionPolicy.ScriptVerify &= ~ScriptVerify.NullFail;
-            }
+            // we need to sign the transaction again, otherwise we will get a NullFail or EvalFalse @ TransactionBuilder.Verify
+            context.TransactionBuilder.SignTransactionInPlace(context.Transaction, SigHash.All);
 
             if (!context.TransactionBuilder.Verify(context.Transaction, out TransactionPolicyError[] errors))
             {
@@ -212,68 +203,11 @@ namespace Stratis.Bitcoin.Features.Wallet
 
             context.TransactionBuilder = new TransactionBuilder();
 
-            this.AddTipMessage(context);
             this.AddRecipients(context);
             this.AddCoins(context);
             this.AddSecrets(context);
             this.FindChangeAddress(context);
             this.AddFee(context);
-        }
-
-        private void AddTipMessage(TransactionBuildContext context)
-        {
-            if (string.IsNullOrWhiteSpace(context.TipMessage))
-            {
-                context.PushData = null;                
-            }
-            else
-            {
-                context.PushData = GenerateTipMessagePushData(context.TipMessage);
-            }
-        }
-
-        private byte[] GenerateTipMessagePushData(string message)
-        {
-            string metadata = "{\"compression\": \"gzip\", \"encryption\": \"none\", \"reward-address\": \"\", signature-type: \"ECDSA\", \"message-hash\": \"\", \"message-signature\": \"\", \"reply-to-tx\": \"\"}";
-            byte[] uncompressedMetadata = System.Text.Encoding.UTF8.GetBytes(metadata);
-            byte[] compressedMetadata = CompressByteArray(uncompressedMetadata);
-
-            byte[] uncompressedMessage = System.Text.Encoding.UTF8.GetBytes(message);
-            byte[] compressedMessage = CompressByteArray(uncompressedMessage);
-
-            byte[] header = System.Text.Encoding.UTF8.GetBytes("TWS");
-            byte version = 1;
-            byte compression = 1;
-            byte checksumType = 0;
-            ushort metadataLength = (ushort)compressedMetadata.Length;
-            ushort messageLength = (ushort)compressedMessage.Length;
-
-            List<byte> pushDataList = new List<byte>();
-            pushDataList.AddRange(header);
-            pushDataList.Add(version);
-            pushDataList.Add(compression);
-            pushDataList.Add(checksumType);
-            pushDataList.AddRange(BitConverter.GetBytes(metadataLength));
-            pushDataList.AddRange(BitConverter.GetBytes(messageLength));
-            pushDataList.AddRange(compressedMetadata);
-            pushDataList.AddRange(compressedMessage);
-
-            if (pushDataList.Count > 16*1024) throw new Exception("Push data can't be bigger than 16 kbytes.");
-
-            return pushDataList.ToArray();
-        }
-
-        private static byte[] CompressByteArray(byte[] uncompressed)
-        {
-            using (var msi = new MemoryStream(uncompressed))
-            using (var mso = new MemoryStream())
-            {
-                using (var gs = new System.IO.Compression.GZipStream(mso, System.IO.Compression.CompressionLevel.Optimal))
-                {
-                    msi.CopyTo(gs);
-                }
-                return mso.ToArray();
-            }
         }
 
         /// <summary>
