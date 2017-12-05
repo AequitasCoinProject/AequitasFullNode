@@ -19,7 +19,7 @@ namespace Stratis.Bitcoin.Features.Wallet
     /// TODO: Implement lockUnspents
     /// TODO: Implement subtractFeeFromOutputs
     /// </remarks>
-    public class WalletTransactionHandler : IWalletTransactionHandler
+    public partial class WalletTransactionHandler : IWalletTransactionHandler
     {
         /// <summary>A threshold that if possible will limit the amount of UTXO sent to the <see cref="ICoinSelector"/>.</summary>
         /// <remarks>
@@ -67,13 +67,6 @@ namespace Stratis.Bitcoin.Features.Wallet
 
             // build transaction
             context.Transaction = context.TransactionBuilder.BuildTransaction(context.Sign);
-
-            // TODO: move this into a TransactionBuilder
-            // add the message to the transaction
-            context.Transaction.Outputs.Add(new TxOut() { ScriptPubKey = TxMessageTemplate.Instance.GenerateScriptPubKey(context.TipMessage), Value = new Money(4950, MoneyUnit.Satoshi) });
-
-            // we need to sign the transaction again, otherwise we will get a NullFail or EvalFalse @ TransactionBuilder.Verify
-            context.TransactionBuilder.SignTransactionInPlace(context.Transaction, SigHash.All);
 
             if (!context.TransactionBuilder.Verify(context.Transaction, out TransactionPolicyError[] errors))
             {
@@ -208,6 +201,7 @@ namespace Stratis.Bitcoin.Features.Wallet
             this.AddSecrets(context);
             this.FindChangeAddress(context);
             this.AddFee(context);
+            this.AddMessage(context);
         }
 
         /// <summary>
@@ -477,9 +471,9 @@ namespace Stratis.Bitcoin.Features.Wallet
         public bool Shuffle { get; set; }
 
         /// <summary>
-        /// Message to send as tip
+        /// Message to embed in the transaction
         /// </summary>
-        public string TipMessage { get; set; }
+        public string Message { get; set; }
     }
 
     /// <summary>

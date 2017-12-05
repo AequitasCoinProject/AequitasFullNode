@@ -88,7 +88,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     FeeType = FeeType.Low,
                     MinConfirmations = 0,
                     Shuffle = false,
-                    TipMessage = request.Message
+                    Message = request.Message
                 };
 
                 var transactionResult = this.walletTransactionHandler.BuildTransaction(context);
