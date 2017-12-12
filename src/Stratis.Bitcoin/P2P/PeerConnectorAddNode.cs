@@ -14,26 +14,29 @@ namespace Stratis.Bitcoin.P2P
     /// </summary>
     public sealed class PeerConnectorAddNode : PeerConnector
     {
+        /// <summary>Constructor for dependency injection.</summary
+        public PeerConnectorAddNode(
+            IAsyncLoopFactory asyncLoopFactory,
+            ILoggerFactory loggerFactory,
+            Network network,
+            INetworkPeerFactory networkPeerFactory,
+            INodeLifetime nodeLifetime,
+            NodeSettings nodeSettings,
+            IPeerAddressManager peerAddressManager)
+            :
+            base(asyncLoopFactory, loggerFactory, network, networkPeerFactory, nodeLifetime, nodeSettings, peerAddressManager)
+        {
+        }
+
         /// <summary>Constructor used for unit testing.</summary>
         public PeerConnectorAddNode(NodeSettings nodeSettings, IPeerAddressManager peerAddressManager)
             : base(nodeSettings, peerAddressManager)
         {
         }
 
-        /// <summary>Constructor used by <see cref="Connection.ConnectionManager"/>.</summary>
-        public PeerConnectorAddNode(
-            IAsyncLoopFactory asyncLoopFactory,
-            ILogger logger,
-            Network network,
-            INetworkPeerFactory networkPeerFactory,
-            INodeLifetime nodeLifeTime,
-            NodeSettings nodeSettings,
-            NetworkPeerConnectionParameters parameters,
-            IPeerAddressManager peerAddressManager)
-            :
-            base(asyncLoopFactory, logger, network, networkPeerFactory, nodeLifeTime, nodeSettings, parameters, peerAddressManager)
+        /// <inheritdoc/>
+        public override void OnInitialize()
         {
-            this.CurrentParameters.PeerAddressManagerBehaviour().Mode = PeerAddressManagerBehaviourMode.AdvertiseDiscover;
             this.GroupSelector = WellKnownPeerConnectorSelectors.ByEndpoint;
             this.MaximumNodeConnections = this.NodeSettings.ConnectionManager.AddNode.Count;
 
@@ -43,18 +46,30 @@ namespace Stratis.Bitcoin.P2P
                 RequiredServices = NetworkPeerServices.Nothing
             };
 
-            foreach (var endPoint in this.NodeSettings.ConnectionManager.AddNode)
+            foreach (var ipEndpoint in this.NodeSettings.ConnectionManager.AddNode)
             {
-                this.peerAddressManager.AddPeer(new NetworkAddress(endPoint.MapToIpv6()), IPAddress.Loopback);
+                this.peerAddressManager.AddPeer(new NetworkAddress(ipEndpoint.MapToIpv6()), IPAddress.Loopback);
             }
+        }
+
+        /// <summary>This connector is always started </summary>
+        public override bool CanStartConnect
+        {
+            get { return true; }
+        }
+
+        /// <inheritdoc/>
+        public override void OnStartConnectAsync()
+        {
+            this.CurrentParameters.PeerAddressManagerBehaviour().Mode = PeerAddressManagerBehaviourMode.AdvertiseDiscover;
         }
 
         /// <inheritdoc/>
         public override NetworkAddress FindPeerToConnectTo()
         {
-            foreach (var endPoint in this.NodeSettings.ConnectionManager.AddNode)
+            foreach (var ipEndpoint in this.NodeSettings.ConnectionManager.AddNode)
             {
-                PeerAddress peerAddress = this.peerAddressManager.FindPeer(endPoint);
+                PeerAddress peerAddress = this.peerAddressManager.FindPeer(ipEndpoint);
                 if (peerAddress != null && !this.IsPeerConnected(peerAddress.NetworkAddress.Endpoint))
                     return peerAddress.NetworkAddress;
             }
