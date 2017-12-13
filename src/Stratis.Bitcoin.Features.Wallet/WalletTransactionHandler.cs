@@ -474,6 +474,11 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// Message to embed in the transaction
         /// </summary>
         public string Message { get; set; }
+
+        /// <summary>
+        /// Should we encrypt the message?
+        /// </summary>
+        public bool EncryptMessage { get; set; }
     }
 
     /// <summary>

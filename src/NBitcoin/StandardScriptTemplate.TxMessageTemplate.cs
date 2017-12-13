@@ -1,12 +1,15 @@
-﻿using NBitcoin.Crypto;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.IO;
 using System.IO.Compression;
+using System.Security.Cryptography;
+using System.Numerics;
 
 namespace NBitcoin
 {
+    public enum MessageEncryption { None, RSAOaepSHA256 }
+
     public class TxMessageTemplate : TxNullDataTemplate
     {
         public TxMessageTemplate(int maxScriptSize) : base(maxScriptSize)
@@ -40,9 +43,19 @@ namespace NBitcoin
 
         public const int MAX_MESSAGELENGTH_RELAY = 3 + 2 + 16 * 1024; //! bytes (+3 for OP_NOP OP_NOP OP_RETURN, +2 for the pushdata opcodes)
 
-        public Script GenerateScriptPubKey(string message)
+        public Script GenerateScriptPubKey(string message, bool encryptMessage, string recipientPublicKey)
         {
-            return GenerateScriptPubKey(GenerateTipMessagePushData(message));
+            byte[] pushData = null;
+            if (encryptMessage)
+            {
+                pushData = GenerateTipMessagePushData(message, MessageEncryption.RSAOaepSHA256, recipientPublicKey);
+            }
+            else
+            {
+                pushData = GenerateTipMessagePushData(message, MessageEncryption.None, null);
+            }
+
+            return GenerateScriptPubKey(pushData);
         }
 
         public new Script GenerateScriptPubKey(params byte[][] data)
@@ -72,13 +85,17 @@ namespace NBitcoin
         }
 
 
-        private byte[] GenerateTipMessagePushData(string message)
+        private byte[] GenerateTipMessagePushData(string message, MessageEncryption messageEncryption, string recipientPublicKey)
         {
             string metadata = "{\"compression\": \"gzip\", \"encryption\": \"none\", \"reward-address\": \"\", signature-type: \"ECDSA\", \"message-hash\": \"\", \"message-signature\": \"\", \"reply-to-tx\": \"\"}";
             byte[] uncompressedMetadata = System.Text.Encoding.UTF8.GetBytes(metadata);
             byte[] compressedMetadata = CompressByteArray(uncompressedMetadata);
 
             byte[] uncompressedMessage = System.Text.Encoding.UTF8.GetBytes(message);
+            if (messageEncryption == MessageEncryption.RSAOaepSHA256)
+            {
+                uncompressedMessage = EncryptByteArray(recipientPublicKey, uncompressedMessage);
+            }
             byte[] compressedMessage = CompressByteArray(uncompressedMessage);
 
             byte[] header = System.Text.Encoding.UTF8.GetBytes("TWS");
@@ -160,5 +177,166 @@ namespace NBitcoin
                 return mso.ToArray();
             }
         }
+
+        private static byte[] EncryptByteArray(string recipientPublicKey, byte[] message)
+        {
+            //byte[] publicKey1024bit = {214,46,220,83,160,73,40,39,201,155,19,202,3,11,191,178,56,
+            //                           74,90,36,248,103,18,144,170,163,145,87,54,61,34,220,222,
+            //                           207,137,149,173,14,92,120,206,222,158,28,40,24,30,16,175,
+            //                           108,128,35,230,118,40,121,113,125,216,130,11,24,90,48,194,
+            //                           240,105,44,76,34,57,249,228,125,80,38,9,136,29,117,207,139,
+            //                           168,181,85,137,126,10,126,242,120,247,121,8,100,12,201,171,
+            //                           38,226,193,180,190,117,177,87,143,242,213,11,44,180,113,93,
+            //                           106,99,179,68,175,211,164,116,64,148,226,254,172,147};
+
+            //byte[] publicKey512bit  = {214,46,220,83,160,73,40,39,201,155,19,202,3,11,191,178,56,
+            //                           168,181,85,137,126,10,126,242,120,247,121,8,100,12,201,171,
+            //                           38,226,193,180,190,117,177,87,143,242,213,11,44,180,113,93,
+            //                           106,99,179,68,175,211,164,116,64,148,226,254,172,147,99};
+
+            //byte[] publicKey256bit =  {214,46,220,83,160,73,40,39,201,155,19,202,3,11,191,178,56,
+            //                            106,99,179,68,175,211,164,116,64,148,226,254,172,147,88};
+
+            byte[] publicKey = HexadecimalStringToByteArray(recipientPublicKey);
+
+            //Cryptograph crypto = new Cryptograph();
+            //RSAParameters[] keys = crypto.GenarateRSAKeyPairs();
+
+            //BitcoinSecret bs = key.GetWif(Network.StratisTest);
+            //byte[] secretBytes = bs.ToBytes();
+
+
+            byte[] result = null;
+            using (var rsa = RSA.Create())
+            {
+                RSAParameters rsaParameters = new RSAParameters();
+                rsaParameters.Exponent = new byte[] { 1, 0, 1 };
+                rsaParameters.Modulus = publicKey;
+                rsa.ImportParameters(rsaParameters);
+
+                if (message.Count() > publicKey.Length - 11)
+                {
+                    throw new Exception("The RSA message must be shorter than the length of the public key.");
+                }
+
+                result = rsa.Encrypt(message, RSAEncryptionPadding.Pkcs1);
+
+                // TODO: import the private key as well
+                rsaParameters = new RSAParameters();
+                rsaParameters.Exponent = new byte[] { 1, 0, 1 };
+                rsaParameters.Modulus = publicKey;
+                // 27973517125342290378675678262653234003318278536918332997583208559282895632480                
+                rsaParameters.D = new byte[] { 0x3d, 0xd8, 0x73, 0x19, 0xc6, 0xdc, 0x0f, 0xea, 0xd2, 0xed, 0x30, 0x19, 0x52, 0x51, 0xcc, 0x03, 0x99, 0xb6, 0xc4, 0x92, 0x44, 0x62, 0x5a, 0x3e, 0xab, 0x11, 0x89, 0x95, 0x09, 0x76, 0xb8, 0x60 };
+                rsa.ImportParameters(rsaParameters);
+
+                byte[] original = rsa.Decrypt(result, RSAEncryptionPadding.Pkcs1);
+            }
+
+            return result.ToArray();
+        }
+
+        private static byte[] GetRandomData(int bits)
+        {
+            var result = new byte[bits / 8];
+            RandomNumberGenerator.Create().GetBytes(result);
+            return result;
+        }
+
+        public static byte[] HexadecimalStringToByteArray(string hex)
+        {
+            if (hex.Length % 2 == 1)
+                throw new Exception("The binary key cannot have an odd number of digits");
+
+            byte[] arr = new byte[hex.Length >> 1];
+
+            for (int i = 0; i < hex.Length >> 1; ++i)
+            {
+                arr[i] = (byte)((GetHexVal(hex[i << 1]) << 4) + (GetHexVal(hex[(i << 1) + 1])));
+            }
+
+            return arr;
+        }
+
+        public static int GetHexVal(char hex)
+        {
+            int val = (int)hex;
+            return val - (val < 58 ? 48 : (val < 97 ? 55 : 87));
+        }
+
+        /* The default .NET Framework implementation doesn't support .NET Core */
+
+        /*
+                /// <summary>
+                /// Encrypt a byte array using AES 128
+                /// </summary>
+                /// <param name="key">128 bit key</param>
+                /// <param name="secret">byte array that need to be encrypted</param>
+                /// <returns>Encrypted array</returns>
+                private static byte[] EncryptByteArray(byte[] key, byte[] secret)
+                {
+                    using (MemoryStream ms = new MemoryStream())
+                    {
+                        using (AesManaged cryptor = new AesManaged())
+                        {
+                            cryptor.Mode = CipherMode.CBC;
+                            cryptor.Padding = PaddingMode.PKCS7;
+                            cryptor.KeySize = 128;
+                            cryptor.BlockSize = 128;
+
+                            //We use the random generated iv created by AesManaged
+                            byte[] iv = cryptor.IV;
+
+                            using (CryptoStream cs = new CryptoStream(ms, cryptor.CreateEncryptor(key, iv), CryptoStreamMode.Write))
+                            {
+                                cs.Write(secret, 0, secret.Length);
+                            }
+                            byte[] encryptedContent = ms.ToArray();
+
+                            //Create new byte array that should contain both unencrypted iv and encrypted data
+                            byte[] result = new byte[iv.Length + encryptedContent.Length];
+
+                            //copy our 2 array into one
+                            System.Buffer.BlockCopy(iv, 0, result, 0, iv.Length);
+                            System.Buffer.BlockCopy(encryptedContent, 0, result, iv.Length, encryptedContent.Length);
+
+                            return result;
+                        }
+                    }
+                }
+
+                /// <summary>
+                /// Decrypt a byte array using AES 128
+                /// </summary>
+                /// <param name="key">key in bytes</param>
+                /// <param name="secret">the encrypted bytes</param>
+                /// <returns>decrypted bytes</returns>
+                private static byte[] DecryptByteArray(byte[] key, byte[] secret)
+                {
+                    byte[] iv = new byte[16]; //initial vector is 16 bytes
+                    byte[] encryptedContent = new byte[secret.Length - 16]; //the rest should be encryptedcontent
+
+                    //Copy data to byte array
+                    System.Buffer.BlockCopy(secret, 0, iv, 0, iv.Length);
+                    System.Buffer.BlockCopy(secret, iv.Length, encryptedContent, 0, encryptedContent.Length);
+
+                    using (MemoryStream ms = new MemoryStream())
+                    {
+                        using (AesManaged cryptor = new AesManaged())
+                        {
+                            cryptor.Mode = CipherMode.CBC;
+                            cryptor.Padding = PaddingMode.PKCS7;
+                            cryptor.KeySize = 128;
+                            cryptor.BlockSize = 128;
+
+                            using (CryptoStream cs = new CryptoStream(ms, cryptor.CreateDecryptor(key, iv), CryptoStreamMode.Write))
+                            {
+                                cs.Write(encryptedContent, 0, encryptedContent.Length);
+
+                            }
+                            return ms.ToArray();
+                        }
+                    }
+                }
+        */
     }
 }

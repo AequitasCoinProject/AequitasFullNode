@@ -20,12 +20,10 @@ namespace NBitcoin
         /// <summary>
         /// Impland a message as PushData into a transaction
         /// </summary>
-        /// <param name="scriptPubKey">The destination</param>
-        /// <param name="amount">The amount</param>
         /// <returns></returns>
-        public TransactionBuilder SendMessage(ISecret from, IDestination to, string message, bool encryptMessage)
+        public TransactionBuilder SendMessage(string recipientPublicKey, string message, bool encryptMessage)
         {            
-            var builder = new SendMessageBuilder(new TxOut() { ScriptPubKey = TxMessageTemplate.Instance.GenerateScriptPubKey(message), Value = new Money(4950, MoneyUnit.Satoshi) });
+            var builder = new SendMessageBuilder(new TxOut() { ScriptPubKey = TxMessageTemplate.Instance.GenerateScriptPubKey(message, encryptMessage, recipientPublicKey), Value = new Money(4950, MoneyUnit.Satoshi) });
             CurrentGroup.Builders.Add(builder.Build);
             return this;
         }
