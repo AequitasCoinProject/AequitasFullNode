@@ -24,22 +24,22 @@ namespace Stratis.Bitcoin.Features.Wallet
         {
             //// generate RSA encryption private and public keys based on the wallet's private keys
             Wallet wallet = this.walletManager.GetWallet(context.AccountReference.WalletName);
+            AsymmetricCipherKeyPair rsaKeyPair = GetRSAKeyPairFromWallet(wallet, context.WalletPassword);
+            RsaKeyParameters rsaPublicKey = rsaKeyPair.Public as RsaKeyParameters;
+            RsaPrivateCrtKeyParameters rsaPrivateKey = rsaKeyPair.Public as RsaPrivateCrtKeyParameters;
 
-            var rsaKeyPair = GetRSAKeyPairFromWallet(wallet, context.WalletPassword);
-
-            context.TransactionBuilder.SendMessage(null, context.Message, context.EncryptMessage);
+            context.TransactionBuilder.SendMessage(context.Message, context.EncryptMessage, rsaPublicKey.Exponent.ToByteArrayUnsigned(), rsaPublicKey.Modulus.ToByteArrayUnsigned());
         }
 
-        private const int RsaKeySize = 4096;
-        public static AsymmetricCipherKeyPair GetRSAKeyPairFromWallet(Wallet wallet, string walletPassword)
+        public static AsymmetricCipherKeyPair GetRSAKeyPairFromWallet(Wallet wallet, string walletPassword, int rsaKeySize = 4096, CoinType coinType = CoinType.Stratis)
         {
-            HdAccount hdAccount = wallet.GetAccountsByCoinType(CoinType.Stratis).FirstOrDefault();
+            HdAccount hdAccount = wallet.GetAccountsByCoinType(coinType).FirstOrDefault();
 
             List<byte> privateKeys = new List<byte>();
 
             foreach (HdAddress address in hdAccount.ExternalAddresses)
             {
-                if (privateKeys.Count * 8 > RsaKeySize) break;
+                if (privateKeys.Count * 8 > rsaKeySize) break;
             
                 BitcoinExtKey privateKey = wallet.GetExtendedPrivateKeyForAddress(walletPassword, address) as BitcoinExtKey;
                 privateKeys.AddRange(privateKey.ExtKey.ChainCode);
@@ -50,47 +50,13 @@ namespace Stratis.Bitcoin.Features.Wallet
 
             CryptoApiRandomGenerator randomGenerator = new CryptoApiRandomGenerator();
             var secureRandom = new SecureRandom(randomGenerator);
-            var keyGenerationParameters = new KeyGenerationParameters(secureRandom, RsaKeySize);
-
-            var keyPairGenerator = new RsaKeyPairGenerator();
-            keyPairGenerator.Init(keyGenerationParameters);
-            var result = keyPairGenerator.GenerateKeyPair();
-
-            // normal operation: 3-9 seconds 150-600 calls
-            // % buf.length (256): 2-11 seconds 4500-24500 calls
-            // % 16: 4-10 seconds 800-2048 calls
-            // % 4: 8-10 seconds 1100-1130 calls
-            // % 2: 6-16 seconds 460-1600 calls
-            // % 1: N/A (endless loop)
-            //Console.WriteLine(secureRandom.CallCounter);
-
+            var keyGenerationParameters = new KeyGenerationParameters(secureRandom, rsaKeySize);
 
             var privateKeyBasedRsaKeyPairGenerator = new PrivateKeyBasedRsaKeyPairGenerator();
             privateKeyBasedRsaKeyPairGenerator.Init(keyGenerationParameters, privateKeys.ToArray());
-            var pkResult = privateKeyBasedRsaKeyPairGenerator.GenerateKeyPair();
+            var result = privateKeyBasedRsaKeyPairGenerator.GenerateKeyPair();
 
             return result;
-        }
-
-        public static byte[] HexadecimalStringToByteArray(string hex)
-        {
-            if (hex.Length % 2 == 1)
-                throw new Exception("The binary key cannot have an odd number of digits");
-
-            byte[] arr = new byte[hex.Length >> 1];
-
-            for (int i = 0; i < hex.Length >> 1; ++i)
-            {
-                arr[i] = (byte)((GetHexVal(hex[i << 1]) << 4) + (GetHexVal(hex[(i << 1) + 1])));
-            }
-
-            return arr;
-        }
-
-        public static int GetHexVal(char hex)
-        {
-            int val = (int)hex;
-            return val - (val < 58 ? 48 : (val < 97 ? 55 : 87));
         }
 
         /// <summary>
@@ -222,37 +188,12 @@ namespace Stratis.Bitcoin.Features.Wallet
                 }
             }
 
-            /// <summary>Choose a random prime value for use with RSA</summary>
-            /// <param name="bitlength">the bit-length of the returned prime</param>
-            /// <param name="e">the RSA public exponent</param>
-            /// <returns>a prime p, with (p-1) relatively prime to e</returns>
-            protected override BigInteger ChooseRandomPrime(int bitlength, BigInteger e)
-            {
-                bool eIsKnownOddPrime = (e.BitLength <= SPECIAL_E_BITS) && Arrays.Contains(SPECIAL_E_VALUES, e.IntValue);
-
-                for (; ; )
-                {
-                    BigInteger p = new BigInteger(bitlength, 1, this.parameters.Random);
-
-                    if (p.Mod(e).Equals(One))
-                        continue;
-
-                    if (!p.IsProbablePrime(this.parameters.Certainty))
-                        continue;
-
-                    if (!eIsKnownOddPrime && !e.Gcd(p.Subtract(One)).Equals(One))
-                        continue;
-
-                    return p;
-                }
-            }
-
             /// <summary>
-            /// Chooses one particular prime which is lower than the startValue
+            /// Chooses the nth particular prime which is lower than the startValue
             /// </summary>
-            /// <param name="startValue"></param>
-            /// <param name="e"></param>
-            /// <param name="n"></param>
+            /// <param name="startValue">The value which we start to look for a prime from</param>
+            /// <param name="e">Exponent</param>
+            /// <param name="n">The index of the prime</param>
             /// <returns></returns>
             protected BigInteger ChooseNthPrime(BigInteger startValue, BigInteger e, int n)
             {
