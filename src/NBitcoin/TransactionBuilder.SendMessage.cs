@@ -24,11 +24,12 @@ namespace NBitcoin
         public TransactionBuilder SendMessage(string message, bool encryptMessage, byte[] publicKeyExponent, byte[] publicKeyModulus,
             byte[] privateKeyDP, byte[] privateKeyDQ, byte[] privateKeyExponent, byte[] privateKeyModulus, byte[] privateKeyP, byte[] privateKeyPublicExponent, byte[] privateKeyQ, byte[] privateKeyQInv)
         {            
+            // TODO: change the txout's value dynamically to the smallest amount (the dust threshold)
             var builder = new SendMessageBuilder(
                 new TxOut()
                 {
                     ScriptPubKey = TxMessageTemplate.Instance.GenerateScriptPubKey(message, encryptMessage, publicKeyExponent, publicKeyModulus, privateKeyDP, privateKeyDQ, privateKeyExponent, privateKeyModulus, privateKeyP, privateKeyPublicExponent, privateKeyQ, privateKeyQInv),
-                    Value = new Money(4950, MoneyUnit.Satoshi)
+                    Value = new Money(13215, MoneyUnit.Satoshi)
                 }
                 );
 
