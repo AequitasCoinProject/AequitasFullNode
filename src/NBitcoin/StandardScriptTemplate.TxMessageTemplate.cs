@@ -89,24 +89,33 @@ namespace NBitcoin
         private byte[] GenerateTipMessagePushData(string message, MessageEncryption messageEncryption, byte[] publicKeyExponent = null, byte[] publicKeyModulus = null,
             byte[] privateKeyDP = null, byte[] privateKeyDQ = null, byte[] privateKeyExponent = null, byte[] privateKeyModulus = null, byte[] privateKeyP = null, byte[] privateKeyPublicExponent = null, byte[] privateKeyQ = null, byte[] privateKeyQInv = null)
         {
-            string metadata = "{\"compression\": \"gzip\", \"encryption\": \"" + messageEncryption.ToString() +"\", \"reward-address\": \"\", signature-type: \"ECDSA\", \"message-hash\": \"\", \"message-signature\": \"\", \"reply-to-tx\": \"\"}";
+            byte[] encryptionKey = new byte[0];
+
+            string metadata = "{\"compression\": \"gzip\", \"encryption\": \"" + messageEncryption.ToString() + "\", \"reward-address\": \"\", signature-type: \"ECDSA\", \"message-hash\": \"\", \"message-signature\": \"\", \"reply-to-tx\": \"\"}";
             byte[] uncompressedMetadata = System.Text.Encoding.UTF8.GetBytes(metadata);
-            byte[] compressedMetadata = CompressByteArray(uncompressedMetadata);
+            byte[] compressedMetadata = GZIPCompressByteArray(uncompressedMetadata);
 
             byte[] uncompressedMessage = System.Text.Encoding.UTF8.GetBytes(message);
             if (messageEncryption == MessageEncryption.RSA4096AES256)
             {
-                byte[] encryptedMessage = EncryptByteArray(uncompressedMessage, publicKeyExponent, publicKeyModulus);
-                byte[] decryptedMessage = DecryptByteArray(encryptedMessage, privateKeyDP, privateKeyDQ, privateKeyExponent, privateKeyModulus, privateKeyP, privateKeyPublicExponent, privateKeyQ, privateKeyQInv);
+                byte[] aesKey = GetRandomData(256);
+
+                encryptionKey = RSAEncryptByteArray(aesKey, publicKeyExponent, publicKeyModulus);
+                //byte[] decryptedKey = RSADecryptByteArray(encryptionKey, privateKeyDP, privateKeyDQ, privateKeyExponent, privateKeyModulus, privateKeyP, privateKeyPublicExponent, privateKeyQ, privateKeyQInv);
+
+                byte[] encryptedMessage = AESEncryptByteArray(uncompressedMessage, aesKey);
+                //byte[] decryptedMessage = AESDecryptByteArray(encryptedMessage, aesKey);
 
                 uncompressedMessage = encryptedMessage;
             }
-            byte[] compressedMessage = CompressByteArray(uncompressedMessage);
+            byte[] compressedMessage = GZIPCompressByteArray(uncompressedMessage);
 
             byte[] header = System.Text.Encoding.UTF8.GetBytes("TWS");
             byte version = 1;
             byte compression = 1;
             byte checksumType = 0;
+            byte encryptionType = messageEncryption == MessageEncryption.RSA4096AES256 ? (byte)1 : (byte)0;
+            ushort encryptionKeyLength = (ushort)encryptionKey.Length;
             ushort metadataLength = (ushort)compressedMetadata.Length;
             ushort messageLength = (ushort)compressedMessage.Length;
 
@@ -115,8 +124,11 @@ namespace NBitcoin
             pushDataList.Add(version);
             pushDataList.Add(compression);
             pushDataList.Add(checksumType);
+            pushDataList.Add(encryptionType);
+            pushDataList.AddRange(BitConverter.GetBytes(encryptionKeyLength));
             pushDataList.AddRange(BitConverter.GetBytes(metadataLength));
             pushDataList.AddRange(BitConverter.GetBytes(messageLength));
+            pushDataList.AddRange(encryptionKey);
             pushDataList.AddRange(compressedMetadata);
             pushDataList.AddRange(compressedMessage);
 
@@ -151,13 +163,13 @@ namespace NBitcoin
             Array.Copy(pushData, 10, compressedMetadata, 0, metadataLength);
             Array.Copy(pushData, 10 + metadataLength, compressedMessage, 0, messageLength);
 
-            byte[] uncompressedMetadata = DecompressByteArray(compressedMetadata);
-            byte[] uncompressedMessage = DecompressByteArray(compressedMessage);
+            byte[] uncompressedMetadata = GZIPDecompressByteArray(compressedMetadata);
+            byte[] uncompressedMessage = GZIPDecompressByteArray(compressedMessage);
 
             return System.Text.Encoding.UTF8.GetString(uncompressedMessage);
         }
 
-        private static byte[] CompressByteArray(byte[] uncompressed)
+        private static byte[] GZIPCompressByteArray(byte[] uncompressed)
         {
             using (var msi = new MemoryStream(uncompressed))
             using (var mso = new MemoryStream())
@@ -170,7 +182,7 @@ namespace NBitcoin
             }
         }
 
-        private static byte[] DecompressByteArray(byte[] compressed)
+        private static byte[] GZIPDecompressByteArray(byte[] compressed)
         {
             using (var msi = new MemoryStream(compressed))
             using (var mso = new MemoryStream())
@@ -183,34 +195,8 @@ namespace NBitcoin
             }
         }
 
-        private static byte[] EncryptByteArray(byte[] plaintext, byte[] publicKeyExponent, byte[] publicKeyModulus)
+        private static byte[] RSAEncryptByteArray(byte[] plaintext, byte[] publicKeyExponent, byte[] publicKeyModulus)
         {
-            //byte[] publicKey1024bit = {214,46,220,83,160,73,40,39,201,155,19,202,3,11,191,178,56,
-            //                           74,90,36,248,103,18,144,170,163,145,87,54,61,34,220,222,
-            //                           207,137,149,173,14,92,120,206,222,158,28,40,24,30,16,175,
-            //                           108,128,35,230,118,40,121,113,125,216,130,11,24,90,48,194,
-            //                           240,105,44,76,34,57,249,228,125,80,38,9,136,29,117,207,139,
-            //                           168,181,85,137,126,10,126,242,120,247,121,8,100,12,201,171,
-            //                           38,226,193,180,190,117,177,87,143,242,213,11,44,180,113,93,
-            //                           106,99,179,68,175,211,164,116,64,148,226,254,172,147};
-
-            //byte[] publicKey512bit  = {214,46,220,83,160,73,40,39,201,155,19,202,3,11,191,178,56,
-            //                           168,181,85,137,126,10,126,242,120,247,121,8,100,12,201,171,
-            //                           38,226,193,180,190,117,177,87,143,242,213,11,44,180,113,93,
-            //                           106,99,179,68,175,211,164,116,64,148,226,254,172,147,99};
-
-            //byte[] publicKey256bit =  {214,46,220,83,160,73,40,39,201,155,19,202,3,11,191,178,56,
-            //                            106,99,179,68,175,211,164,116,64,148,226,254,172,147,88};
-
-            //byte[] publicKey = HexadecimalStringToByteArray(recipientPublicKey);
-
-            //Cryptograph crypto = new Cryptograph();
-            //RSAParameters[] keys = crypto.GenarateRSAKeyPairs();
-
-            //BitcoinSecret bs = key.GetWif(Network.StratisTest);
-            //byte[] secretBytes = bs.ToBytes();
-
-
             byte[] result = null;
             using (var rsa = RSA.Create())
             {
@@ -230,7 +216,7 @@ namespace NBitcoin
             return result;
         }
 
-        private static byte[] DecryptByteArray(byte[] ciphertext, byte[] privateKeyDP, byte[] privateKeyDQ, byte[] privateKeyExponent, byte[] privateKeyModulus, byte[] privateKeyP, byte[] privateKeyPublicExponent, byte[] privateKeyQ, byte[] privateKeyQInv)
+        private static byte[] RSADecryptByteArray(byte[] ciphertext, byte[] privateKeyDP, byte[] privateKeyDQ, byte[] privateKeyExponent, byte[] privateKeyModulus, byte[] privateKeyP, byte[] privateKeyPublicExponent, byte[] privateKeyQ, byte[] privateKeyQInv)
         {
             byte[] result = null;
             using (var rsa = RSA.Create())
@@ -280,80 +266,80 @@ namespace NBitcoin
             return val - (val < 58 ? 48 : (val < 97 ? 55 : 87));
         }
 
-        /* The default .NET Framework implementation doesn't support .NET Core */
+        /* The default .NET Framework implementation doesn't support .NET Core 1.1 */
 
-        /*
-                /// <summary>
-                /// Encrypt a byte array using AES 128
-                /// </summary>
-                /// <param name="key">128 bit key</param>
-                /// <param name="secret">byte array that need to be encrypted</param>
-                /// <returns>Encrypted array</returns>
-                private static byte[] EncryptByteArray(byte[] key, byte[] secret)
-                {
-                    using (MemoryStream ms = new MemoryStream())
-                    {
-                        using (AesManaged cryptor = new AesManaged())
-                        {
-                            cryptor.Mode = CipherMode.CBC;
-                            cryptor.Padding = PaddingMode.PKCS7;
-                            cryptor.KeySize = 128;
-                            cryptor.BlockSize = 128;
+        /// <summary>
+        /// Encrypt a byte array using AES 256
+        /// </summary>
+        /// <param name="plaintext">byte array that need to be encrypted</param>
+        /// <param name="key">128 bit key</param>
+        /// <returns>Encrypted array</returns>
+        private static byte[] AESEncryptByteArray(byte[] plaintext, byte[] key)
+        {
+            using (MemoryStream ms = new MemoryStream())
+            {
+                //using (AesManaged cryptor = new AesManaged())
+                //{
+                //    cryptor.Mode = CipherMode.CBC;
+                //    cryptor.Padding = PaddingMode.PKCS7;
+                //    cryptor.KeySize = 256;
+                //    cryptor.BlockSize = 256;
 
-                            //We use the random generated iv created by AesManaged
-                            byte[] iv = cryptor.IV;
+                //    //We use the random generated iv created by AesManaged
+                //    byte[] iv = cryptor.IV;
 
-                            using (CryptoStream cs = new CryptoStream(ms, cryptor.CreateEncryptor(key, iv), CryptoStreamMode.Write))
-                            {
-                                cs.Write(secret, 0, secret.Length);
-                            }
-                            byte[] encryptedContent = ms.ToArray();
+                //    using (CryptoStream cs = new CryptoStream(ms, cryptor.CreateEncryptor(key, iv), CryptoStreamMode.Write))
+                //    {
+                //        cs.Write(plaintext, 0, plaintext.Length);
+                //    }
+                //    byte[] encryptedContent = ms.ToArray();
 
-                            //Create new byte array that should contain both unencrypted iv and encrypted data
-                            byte[] result = new byte[iv.Length + encryptedContent.Length];
+                //    //Create new byte array that should contain both unencrypted iv and encrypted data
+                //    byte[] result = new byte[iv.Length + encryptedContent.Length];
 
-                            //copy our 2 array into one
-                            System.Buffer.BlockCopy(iv, 0, result, 0, iv.Length);
-                            System.Buffer.BlockCopy(encryptedContent, 0, result, iv.Length, encryptedContent.Length);
+                //    //copy our 2 array into one
+                //    System.Buffer.BlockCopy(iv, 0, result, 0, iv.Length);
+                //    System.Buffer.BlockCopy(encryptedContent, 0, result, iv.Length, encryptedContent.Length);
 
-                            return result;
-                        }
-                    }
-                }
+                //    return result;
+                //}
+                return null;
+            }
+        }
 
-                /// <summary>
-                /// Decrypt a byte array using AES 128
-                /// </summary>
-                /// <param name="key">key in bytes</param>
-                /// <param name="secret">the encrypted bytes</param>
-                /// <returns>decrypted bytes</returns>
-                private static byte[] DecryptByteArray(byte[] key, byte[] secret)
-                {
-                    byte[] iv = new byte[16]; //initial vector is 16 bytes
-                    byte[] encryptedContent = new byte[secret.Length - 16]; //the rest should be encryptedcontent
+        /// <summary>
+        /// Decrypt a byte array using AES 256
+        /// </summary>
+        /// <param name="ciphertext">the encrypted bytes</param>
+        /// <param name="key">key in bytes</param>
+        /// <returns>decrypted bytes</returns>
+        private static byte[] AESDecryptByteArray(byte[] ciphertext, byte[] key)
+        {
+            byte[] iv = new byte[16]; //initial vector is 16 bytes
+            byte[] encryptedContent = new byte[ciphertext.Length - 16]; //the rest should be encryptedcontent
 
-                    //Copy data to byte array
-                    System.Buffer.BlockCopy(secret, 0, iv, 0, iv.Length);
-                    System.Buffer.BlockCopy(secret, iv.Length, encryptedContent, 0, encryptedContent.Length);
+            //Copy data to byte array
+            System.Buffer.BlockCopy(ciphertext, 0, iv, 0, iv.Length);
+            System.Buffer.BlockCopy(ciphertext, iv.Length, encryptedContent, 0, encryptedContent.Length);
 
-                    using (MemoryStream ms = new MemoryStream())
-                    {
-                        using (AesManaged cryptor = new AesManaged())
-                        {
-                            cryptor.Mode = CipherMode.CBC;
-                            cryptor.Padding = PaddingMode.PKCS7;
-                            cryptor.KeySize = 128;
-                            cryptor.BlockSize = 128;
+            using (MemoryStream ms = new MemoryStream())
+            {
+                //using (AesManaged cryptor = new AesManaged())
+                //{
+                //    cryptor.Mode = CipherMode.CBC;
+                //    cryptor.Padding = PaddingMode.PKCS7;
+                //    cryptor.KeySize = 256;
+                //    cryptor.BlockSize = 256;
 
-                            using (CryptoStream cs = new CryptoStream(ms, cryptor.CreateDecryptor(key, iv), CryptoStreamMode.Write))
-                            {
-                                cs.Write(encryptedContent, 0, encryptedContent.Length);
+                //    using (CryptoStream cs = new CryptoStream(ms, cryptor.CreateDecryptor(key, iv), CryptoStreamMode.Write))
+                //    {
+                //        cs.Write(encryptedContent, 0, encryptedContent.Length);
 
-                            }
-                            return ms.ToArray();
-                        }
-                    }
-                }
-        */
+                //    }
+                //    return ms.ToArray();
+                //}
+                return null;
+            }
+        }
     }
 }
