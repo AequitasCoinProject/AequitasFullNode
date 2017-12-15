@@ -101,10 +101,10 @@ namespace NBitcoin
                 byte[] aesKey = GetRandomData(256);
 
                 encryptionKey = RSAEncryptByteArray(aesKey, publicKeyExponent, publicKeyModulus);
-                //byte[] decryptedKey = RSADecryptByteArray(encryptionKey, privateKeyDP, privateKeyDQ, privateKeyExponent, privateKeyModulus, privateKeyP, privateKeyPublicExponent, privateKeyQ, privateKeyQInv);
+                byte[] decryptedKey = RSADecryptByteArray(encryptionKey, privateKeyDP, privateKeyDQ, privateKeyExponent, privateKeyModulus, privateKeyP, privateKeyPublicExponent, privateKeyQ, privateKeyQInv);
 
                 byte[] encryptedMessage = AESEncryptByteArray(uncompressedMessage, aesKey);
-                //byte[] decryptedMessage = AESDecryptByteArray(encryptedMessage, aesKey);
+                byte[] decryptedMessage = AESDecryptByteArray(encryptedMessage, aesKey);
 
                 uncompressedMessage = encryptedMessage;
             }
@@ -278,32 +278,31 @@ namespace NBitcoin
         {
             using (MemoryStream ms = new MemoryStream())
             {
-                //using (AesManaged cryptor = new AesManaged())
-                //{
-                //    cryptor.Mode = CipherMode.CBC;
-                //    cryptor.Padding = PaddingMode.PKCS7;
-                //    cryptor.KeySize = 256;
-                //    cryptor.BlockSize = 256;
+                using (AesManaged cryptor = new AesManaged())
+                {
+                    cryptor.Mode = CipherMode.CBC;
+                    cryptor.Padding = PaddingMode.PKCS7;
+                    cryptor.KeySize = 256;
+                    cryptor.BlockSize = 128;
 
-                //    //We use the random generated iv created by AesManaged
-                //    byte[] iv = cryptor.IV;
+                    // we use the random iv created by AesManaged
+                    byte[] iv = cryptor.IV;
 
-                //    using (CryptoStream cs = new CryptoStream(ms, cryptor.CreateEncryptor(key, iv), CryptoStreamMode.Write))
-                //    {
-                //        cs.Write(plaintext, 0, plaintext.Length);
-                //    }
-                //    byte[] encryptedContent = ms.ToArray();
+                    using (CryptoStream cs = new CryptoStream(ms, cryptor.CreateEncryptor(key, iv), CryptoStreamMode.Write))
+                    {
+                        cs.Write(plaintext, 0, plaintext.Length);
+                    }
+                    byte[] encryptedContent = ms.ToArray();
 
-                //    //Create new byte array that should contain both unencrypted iv and encrypted data
-                //    byte[] result = new byte[iv.Length + encryptedContent.Length];
+                    // create new a byte array that should contain both unencrypted iv and encrypted data
+                    byte[] result = new byte[iv.Length + encryptedContent.Length];
 
-                //    //copy our 2 array into one
-                //    System.Buffer.BlockCopy(iv, 0, result, 0, iv.Length);
-                //    System.Buffer.BlockCopy(encryptedContent, 0, result, iv.Length, encryptedContent.Length);
+                    // copy our 2 array into one
+                    System.Buffer.BlockCopy(iv, 0, result, 0, iv.Length);
+                    System.Buffer.BlockCopy(encryptedContent, 0, result, iv.Length, encryptedContent.Length);
 
-                //    return result;
-                //}
-                return null;
+                    return result;
+                }
             }
         }
 
@@ -315,8 +314,8 @@ namespace NBitcoin
         /// <returns>decrypted bytes</returns>
         private static byte[] AESDecryptByteArray(byte[] ciphertext, byte[] key)
         {
-            byte[] iv = new byte[16]; //initial vector is 16 bytes
-            byte[] encryptedContent = new byte[ciphertext.Length - 16]; //the rest should be encryptedcontent
+            byte[] iv = new byte[16]; // initial vector is 16 bytes (128 bits, must match the block size)
+            byte[] encryptedContent = new byte[ciphertext.Length - iv.Length]; // ciphertest starts with the iv, then the rest should be the encrypted content
 
             //Copy data to byte array
             System.Buffer.BlockCopy(ciphertext, 0, iv, 0, iv.Length);
@@ -324,21 +323,20 @@ namespace NBitcoin
 
             using (MemoryStream ms = new MemoryStream())
             {
-                //using (AesManaged cryptor = new AesManaged())
-                //{
-                //    cryptor.Mode = CipherMode.CBC;
-                //    cryptor.Padding = PaddingMode.PKCS7;
-                //    cryptor.KeySize = 256;
-                //    cryptor.BlockSize = 256;
+                using (AesManaged cryptor = new AesManaged())
+                {
+                    cryptor.Mode = CipherMode.CBC;
+                    cryptor.Padding = PaddingMode.PKCS7;
+                    cryptor.KeySize = 256;
+                    cryptor.BlockSize = 128;
 
-                //    using (CryptoStream cs = new CryptoStream(ms, cryptor.CreateDecryptor(key, iv), CryptoStreamMode.Write))
-                //    {
-                //        cs.Write(encryptedContent, 0, encryptedContent.Length);
+                    using (CryptoStream cs = new CryptoStream(ms, cryptor.CreateDecryptor(key, iv), CryptoStreamMode.Write))
+                    {
+                        cs.Write(encryptedContent, 0, encryptedContent.Length);
 
-                //    }
-                //    return ms.ToArray();
-                //}
-                return null;
+                    }
+                    return ms.ToArray();
+                }
             }
         }
     }
