@@ -284,6 +284,14 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     IsChainSynced = this.chain.IsDownloaded(),
                     IsDecrypted = true
                 };
+
+                // Get the wallet's file path.
+                (string folder, IEnumerable<string> fileNameCollection) = this.walletManager.GetWalletsFiles();
+                string searchFile = Path.ChangeExtension(request.Name, this.walletManager.GetWalletFileExtension());
+                string fileName = fileNameCollection.FirstOrDefault(i => i.Equals(searchFile));
+                if (folder != null && fileName != null)
+                    model.WalletFilePath = Path.Combine(folder, fileName);
+
                 return this.Json(model);
             }
             catch (Exception e)
@@ -576,7 +584,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
         /// <returns></returns>
         [Route("send-transaction")]
         [HttpPost]
-        public async Task<IActionResult> SendTransactionAsync([FromBody] SendTransactionRequest request)
+        public IActionResult SendTransaction([FromBody] SendTransactionRequest request)
         {
             Guard.NotNull(request, nameof(request));
 
@@ -585,6 +593,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             {
                 return BuildErrorResponse(this.ModelState);
             }
+
+            if (!this.connectionManager.ConnectedNodes.Any())
+                throw new WalletException("Can't send transaction: sending transaction requires at least one connection!");
 
             try
             {
@@ -595,7 +606,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     TransactionId = transaction.GetHash(),
                     Outputs = new List<TransactionOutputModel>()
                 };
-                
+
                 foreach (var output in transaction.Outputs)
                 {
                     model.Outputs.Add(new TransactionOutputModel
@@ -604,32 +615,12 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                         Amount = output.Value,
                     });
                 }
-                
-                var result = await this.broadcasterManager.TryBroadcastAsync(transaction).ConfigureAwait(false);
-                if (result == Bitcoin.Broadcasting.Success.Yes)
-                {
-                    return this.Json(model);
-                }
 
-                if (result == Bitcoin.Broadcasting.Success.DontKnow)
-                {
-                    // wait for propagation
-                    var waited = TimeSpan.Zero;
-                    var period = TimeSpan.FromSeconds(1);
-                    while (TimeSpan.FromSeconds(21) > waited)
-                    {
-                        // if broadcasts doesn't contain then success
-                        var transactionEntry = this.broadcasterManager.GetTransaction(transaction.GetHash());
-                        if (transactionEntry != null && transactionEntry.State == Bitcoin.Broadcasting.State.Propagated)
-                        {
-                            return this.Json(model);
-                        }
-                        await Task.Delay(period).ConfigureAwait(false);
-                        waited += period;
-                    }
-                }
+                this.walletManager.ProcessTransaction(transaction, null, null, false);
 
-                throw new TimeoutException("Transaction propagation has timed out. Lost connection?");
+                this.broadcasterManager.BroadcastTransactionAsync(transaction).GetAwaiter().GetResult();
+
+                return this.Json(model);
             }
             catch (Exception e)
             {

@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using NBitcoin.BouncyCastle.Math;
 
 namespace NBitcoin
@@ -21,6 +20,9 @@ namespace NBitcoin
 
         /// <summary>Predecessor of this block.</summary>
         public ChainedBlock Previous { get; private set; }
+
+        /// <summary>Block to navigate from this block to the next in the skip list.</summary>
+        public ChainedBlock Skip { get; private set; }
 
         /// <summary>Height of the entry in the chain. The genesis block has height 0.</summary>
         public int Height { get; private set; }
@@ -43,12 +45,12 @@ namespace NBitcoin
         public ChainedBlock(BlockHeader header, uint256 headerHash, ChainedBlock previous)
         {
             this.Header = header ?? throw new ArgumentNullException("header");
+            this.HashBlock = headerHash ?? throw new ArgumentNullException("headerHash");
 
             if (previous != null)
                 this.Height = previous.Height + 1;
 
             this.Previous = previous;
-            this.HashBlock = headerHash ?? header.GetHash();
 
             if (previous == null)
             {
@@ -59,31 +61,34 @@ namespace NBitcoin
             {
                 if (previous.HashBlock != header.HashPrevBlock)
                     throw new ArgumentException("The previous block has not the expected hash");
+
+                // Calculates the location of the skip block for this block.
+                this.Skip = this.Previous.GetAncestor(this.GetSkipHeight(this.Height));
             }
 
             this.CalculateChainWork();
         }
 
         /// <summary>
-        /// Constructs a chained block.
+        /// Constructs a chained block at the start of a chain.
         /// </summary>
-        /// <param name="header">The header for the chained block.</param>
-        /// <param name="height">The height of the chained block.</param>
-        public ChainedBlock(BlockHeader header, int height)
+        /// <param name="header">The header for the block.</param>
+        /// <param name="headerHash">The hash computed according to NetworkOptions.</param>
+        /// <param name="height">The height of the block.</param>
+        public ChainedBlock(BlockHeader header, uint256 headerHash, int height)
         {
             this.Header = header ?? throw new ArgumentNullException("header");
             this.Height = height;
-            this.HashBlock = header.GetHash();
+            this.HashBlock = headerHash;
             this.CalculateChainWork();
         }
-
 
         /// <summary>
         /// Calculates the total amount of work in the chain up to and including this block.
         /// </summary>
         private void CalculateChainWork()
         {
-            this.chainWork = (this.Previous == null ? BigInteger.Zero : this.Previous.chainWork).Add(GetBlockProof());
+            this.chainWork = (this.Previous == null ? BigInteger.Zero : this.Previous.chainWork).Add(this.GetBlockProof());
         }
 
         /// <summary>Calculates the amount of work that this block contributes to the total chain work.</summary>
@@ -114,9 +119,7 @@ namespace NBitcoin
 
                 // Exponentially larger steps back, plus the genesis block.
                 int height = Math.Max(pindex.Height - nStep, 0);
-
-                while (pindex.Height > height)
-                    pindex = pindex.Previous;
+                pindex = this.GetAncestor(height);
 
                 if (blockHashes.Count > 10)
                     nStep *= 2;
@@ -182,6 +185,22 @@ namespace NBitcoin
         }
 
         /// <summary>
+        /// Finds the ancestor of this entry in the chain that matches the chained block header specified.
+        /// </summary>
+        /// <param name="chainedBlockHeader">The chained block header to search for.</param>
+        /// <returns>The chained block header or <c>null</c> if can't be found.</returns>
+        /// <remarks>This method compares the hash of the block header at the same height in the current chain 
+        /// to verify the correct chained block header has been found.</remarks>
+        public ChainedBlock FindAncestorOrSelf(ChainedBlock chainedBlockHeader)
+        {
+            ChainedBlock found = this.GetAncestor(chainedBlockHeader.Height);
+            if ((found != null) && (found.HashBlock == chainedBlockHeader.HashBlock))
+                return found;
+
+            return null;
+        }
+
+        /// <summary>
         /// Finds the ancestor of this entry in the chain that matches the block hash given.
         /// </summary>
         /// <param name="blockHash">The block hash to search for.</param>
@@ -239,7 +258,7 @@ namespace NBitcoin
         /// <returns>The target proof of work.</returns>
         public Target GetNextWorkRequired(BlockHeader block, Consensus consensus)
         {
-            return new ChainedBlock(block, block.GetHash(), this).GetWorkRequired(consensus);
+            return new ChainedBlock(block, block.GetHash(consensus.NetworkOptions), this).GetWorkRequired(consensus);
         }
 
         /// <summary>
@@ -307,7 +326,7 @@ namespace NBitcoin
                 pastHeight = lastBlock.Height - (consensus.DifficultyAdjustmentInterval - 1);
             }
 
-            ChainedBlock firstChainedBlock = this.EnumerateToGenesis().FirstOrDefault(o => o.Height == pastHeight);
+            ChainedBlock firstChainedBlock = this.GetAncestor((int)pastHeight);
             if (firstChainedBlock == null)
                 throw new NotSupportedException("Can only calculate work of a full chain");
 
@@ -361,7 +380,7 @@ namespace NBitcoin
             if (network == null)
                 throw new ArgumentNullException("network");
 
-            if (Block.BlockSignature)
+            if (network.NetworkOptions.IsProofOfStake)
                 return BlockStake.Validate(network, this);
 
             bool genesisCorrect = (this.Height != 0) || this.HashBlock == network.GetGenesis().GetHash();
@@ -383,7 +402,7 @@ namespace NBitcoin
 
             bool heightCorrect = (this.Height == 0) || (this.Height == this.Previous.Height + 1);
             bool hashPrevCorrect = (this.Height == 0) || (this.Header.HashPrevBlock == this.Previous.HashBlock);
-            bool hashCorrect = this.HashBlock == this.Header.GetHash();
+            bool hashCorrect = this.HashBlock == this.Header.GetHash(consensus.NetworkOptions);
             bool workCorrect = this.CheckProofOfWorkAndTarget(consensus);
 
             return heightCorrect && hashPrevCorrect && hashCorrect && workCorrect;
@@ -421,15 +440,22 @@ namespace NBitcoin
 
             ChainedBlock highChain = this.Height > block.Height ? this : block;
             ChainedBlock lowChain = highChain == this ? block : this;
-            while (highChain.Height != lowChain.Height)
-            {
-                highChain = highChain.Previous;
-            }
+
+            highChain = highChain.GetAncestor(lowChain.Height);
 
             while (highChain.HashBlock != lowChain.HashBlock)
             {
-                lowChain = lowChain.Previous;
-                highChain = highChain.Previous;
+                if (highChain.Skip != lowChain.Skip)
+                {
+                    highChain = highChain.Skip;
+                    lowChain = lowChain.Skip;
+                }
+                else
+                {
+                    lowChain = lowChain.Previous;
+                    highChain = highChain.Previous;
+                }
+
                 if ((lowChain == null) || (highChain == null))
                     return null;
             }
@@ -439,23 +465,72 @@ namespace NBitcoin
 
         /// <summary>
         /// Finds the ancestor of this entry in the chain that matches the block height given.
+        /// <remarks>Note: This uses a skiplist to improve list navigation performance.</remarks>
         /// </summary>
-        /// <param name="height">The block height to search for.</param>
+        /// <param name="ancestorHeight">The block height to search for.</param>
         /// <returns>The ancestor of this chain that matches the block height.</returns>
-        public ChainedBlock GetAncestor(int height)
+        public ChainedBlock GetAncestor(int ancestorHeight)
         {
-            if ((height > this.Height) || (height < 0))
+            if (ancestorHeight > this.Height)
                 return null;
 
-            ChainedBlock current = this;
-
-            while (true)
+            ChainedBlock walk = this;
+            while ((walk != null) && (walk.Height != ancestorHeight))
             {
-                if (current.Height == height)
-                    return current;
+                // No skip so follow previous.
+                if (walk.Skip == null)
+                {
+                    walk = walk.Previous;
+                    continue;
+                }
 
-                current = current.Previous;
+                // Skip is at target.
+                if (walk.Skip.Height == ancestorHeight)
+                    return walk.Skip;
+
+                // Only follow skip if Previous.skip isn't better than skip.Previous.
+                int heightSkip = walk.Skip.Height;
+                int heightSkipPrev = this.GetSkipHeight(walk.Height - 1);
+                bool skipAboveTarget = heightSkip > ancestorHeight;
+                bool skipPreviousBetterThanPreviousSkip = !((heightSkipPrev < (heightSkip - 2)) && (heightSkipPrev >= ancestorHeight));
+                if (skipAboveTarget && skipPreviousBetterThanPreviousSkip)
+                {
+                    walk = walk.Skip;
+                    continue;
+                }
+
+                walk = walk.Previous;
             }
+
+            return walk;
+        }
+
+        /// <summary>
+        /// Compute what height to jump back to for the skip block given this height.
+        /// <seealso cref="https://github.com/bitcoin/bitcoin/blob/master/src/chain.cpp#L72-L81"/>
+        /// </summary>
+        /// <param name="height">Height to compute skip height for.</param>
+        /// <returns>The height to skip to.</returns>
+        private int GetSkipHeight(int height)
+        {
+            if (height < 2)
+                return 0;
+
+            // Determine which height to jump back to. Any number strictly lower than height is acceptable,
+            // but the following expression was taken from bitcoin core. There it was tested in simulations
+            // and performed well.
+            // Skip steps are exponential - Using skip, max 110 steps to go back up to 2^18 blocks.
+            return (height & 1) != 0 ? this.InvertLowestOne(this.InvertLowestOne(height - 1)) + 1 : this.InvertLowestOne(height);
+        }
+
+        /// <summary>
+        /// Turn the lowest '1' bit in the binary representation of a number into a '0'.
+        /// </summary>
+        /// <param name="n">Number to invert lowest bit.</param>
+        /// <returns>New number.</returns>
+        private int InvertLowestOne(int n)
+        {
+            return n & (n - 1);
         }
     }
 }

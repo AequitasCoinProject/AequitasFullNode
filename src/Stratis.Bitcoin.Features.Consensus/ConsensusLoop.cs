@@ -13,6 +13,7 @@ using Stratis.Bitcoin.BlockPulling;
 using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Connection;
 using Stratis.Bitcoin.Features.Consensus.CoinViews;
+using Stratis.Bitcoin.Features.Consensus.Rules;
 using Stratis.Bitcoin.P2P.Protocol.Payloads;
 using Stratis.Bitcoin.Utilities;
 
@@ -63,8 +64,8 @@ namespace Stratis.Bitcoin.Features.Consensus
         /// </remarks>
         public int BanDurationSeconds { get; set; }
 
-        /// <summary>Whether to skip block validation for this block due to either a checkpoint or assumevalid hash set.</summary>
-        public bool SkipValidation { get; set; }
+        /// <summary>The context of the validation processes.</summary>
+        public RuleContext RuleContext { get; set; }
     }
 
     /// <summary>
@@ -96,7 +97,7 @@ namespace Stratis.Bitcoin.Features.Consensus
         /// <summary>The validation logic for the consensus rules.</summary>
         public PowConsensusValidator Validator { get; }
 
-        /// <summary>The current tip of the cahin that has been validated.</summary>
+        /// <summary>The current tip of the chain that has been validated.</summary>
         public ChainedBlock Tip { get; private set; }
 
         /// <summary>Contain information about deployment and activation of features in the chain.</summary>
@@ -135,6 +136,9 @@ namespace Stratis.Bitcoin.Features.Consensus
         /// <summary>Handles the banning of peers.</summary>
         private readonly IPeerBanning peerBanning;
 
+        /// <summary>Consensus rules engine.</summary>
+        private readonly IConsensusRules consensusRules;
+
         /// <summary>Provider of time functions.</summary>
         private readonly IDateTimeProvider dateTimeProvider;
 
@@ -157,6 +161,7 @@ namespace Stratis.Bitcoin.Features.Consensus
         /// <param name="consensusSettings">Consensus settings for the full node.</param>
         /// <param name="nodeSettings">Settings for the full node.</param>
         /// <param name="peerBanning">Handles the banning of peers.</param>
+        /// <param name="consensusRules">The consensus rules to validate.</param>
         /// <param name="stakeChain">Information holding POS data chained.</param>
         public ConsensusLoop(
             IAsyncLoopFactory asyncLoopFactory,
@@ -175,6 +180,7 @@ namespace Stratis.Bitcoin.Features.Consensus
             ConsensusSettings consensusSettings,
             NodeSettings nodeSettings,
             IPeerBanning peerBanning,
+            IConsensusRules consensusRules,
             StakeChain stakeChain = null)
         {
             Guard.NotNull(asyncLoopFactory, nameof(asyncLoopFactory));
@@ -190,6 +196,7 @@ namespace Stratis.Bitcoin.Features.Consensus
             Guard.NotNull(consensusSettings, nameof(consensusSettings));
             Guard.NotNull(nodeSettings, nameof(nodeSettings));
             Guard.NotNull(peerBanning, nameof(peerBanning));
+            Guard.NotNull(consensusRules, nameof(consensusRules));
 
             this.consensusLock = new AsyncLock();
 
@@ -210,6 +217,7 @@ namespace Stratis.Bitcoin.Features.Consensus
             this.consensusSettings = consensusSettings;
             this.nodeSettings = nodeSettings;
             this.peerBanning = peerBanning;
+            this.consensusRules = consensusRules;
 
             // chain of stake info can be null if POS is not enabled
             this.StakeChain = stakeChain;
@@ -264,6 +272,8 @@ namespace Stratis.Bitcoin.Features.Consensus
         /// </remarks>
         private async Task PullerLoopAsync()
         {
+            this.logger.LogTrace("()");
+
             while (!this.nodeLifetime.ApplicationStopping.IsCancellationRequested)
             {
                 BlockValidationContext blockValidationContext = new BlockValidationContext();
@@ -272,6 +282,8 @@ namespace Stratis.Bitcoin.Features.Consensus
                 {
                     // Save the current consensus tip to later check if it changed.
                     ChainedBlock consensusTip = this.Tip;
+
+                    this.logger.LogTrace("Asking block puller to deliver next block.");
 
                     // This method will block until the next block is downloaded.
                     LookaheadResult lookaheadResult = this.Puller.NextBlock(this.nodeLifetime.ApplicationStopping);
@@ -302,6 +314,8 @@ namespace Stratis.Bitcoin.Features.Consensus
                 this.logger.LogTrace("Block received from puller.");
                 await this.AcceptBlockAsync(blockValidationContext).ConfigureAwait(false);
             }
+
+            this.logger.LogTrace("(-)");
         }
 
         /// <summary>
@@ -349,9 +363,13 @@ namespace Stratis.Bitcoin.Features.Consensus
 
             using (await this.consensusLock.LockAsync(this.nodeLifetime.ApplicationStopping).ConfigureAwait(false))
             {
+                blockValidationContext.RuleContext = new RuleContext(blockValidationContext, this.Validator.ConsensusParams, this.Tip);
+
+                await this.consensusRules.ExecuteAsync(blockValidationContext);
+
                 try
                 {
-                    await this.ValidateAndExecuteBlockAsync(new ContextInformation(blockValidationContext, this.Validator.ConsensusParams)).ConfigureAwait(false);
+                    await this.ValidateAndExecuteBlockAsync(blockValidationContext.RuleContext).ConfigureAwait(false);
                 }
                 catch (ConsensusErrorException ex)
                 {
@@ -398,7 +416,7 @@ namespace Stratis.Bitcoin.Features.Consensus
                     if ((blockValidationContext.Peer != null) && (blockValidationContext.BanDurationSeconds != BlockValidationContext.BanDurationNoBan))
                     {
                         int banDuration = blockValidationContext.BanDurationSeconds == BlockValidationContext.BanDurationDefaultBan ? this.nodeSettings.ConnectionManager.BanTimeSeconds : blockValidationContext.BanDurationSeconds;
-                        this.peerBanning.BanPeer(blockValidationContext.Peer, banDuration);
+                        this.peerBanning.BanPeer(blockValidationContext.Peer, banDuration, $"Invalid block received: {blockValidationContext.Error.Message}");
                     }
 
                     // Since ChainHeadersBehavior check PoW, MarkBlockInvalid can't be spammed.
@@ -435,12 +453,19 @@ namespace Stratis.Bitcoin.Features.Consensus
         /// <summary>
         /// Validates a block using the consensus rules.
         /// </summary>
-        public void ValidateBlock(ContextInformation context)
+        public void ValidateBlock(RuleContext context, bool skipRules = false)
         {
             this.logger.LogTrace("()");
 
             using (new StopwatchDisposable(o => this.Validator.PerformanceCounter.AddBlockProcessingTime(o)))
             {
+                // TODO: Remove the flag skipRules when all rules where migrated to the ConesnsusRules framework.
+                // The skip rules is here temporary while we run both old and new consensus rules side by side
+                if (!skipRules)
+                {
+                    this.consensusRules.ValidateAsync(context).GetAwaiter().GetResult();
+                }
+
                 // Check that the current block has not been reorged.
                 // Catching a reorg at this point will not require a rewind.
                 if (context.BlockValidationContext.Block.Header.HashPrevBlock != this.Tip.HashBlock)
@@ -454,7 +479,8 @@ namespace Stratis.Bitcoin.Features.Consensus
                 // Build the next block in the chain of headers. The chain header is most likely already created by
                 // one of the peers so after we create a new chained block (mainly for validation)
                 // we ask the chain headers for its version (also to prevent memory leaks).
-                context.BlockValidationContext.ChainedBlock = new ChainedBlock(context.BlockValidationContext.Block.Header, context.BlockValidationContext.Block.Header.GetHash(), this.Tip);
+                context.BlockValidationContext.ChainedBlock = new ChainedBlock(context.BlockValidationContext.Block.Header, 
+                    context.BlockValidationContext.Block.Header.GetHash(this.nodeSettings.Network.NetworkOptions), this.Tip);
 
                 // Liberate from memory the block created above if possible.
                 context.BlockValidationContext.ChainedBlock = this.Chain.GetBlock(context.BlockValidationContext.ChainedBlock.HashBlock) ?? context.BlockValidationContext.ChainedBlock;
@@ -469,26 +495,7 @@ namespace Stratis.Bitcoin.Features.Consensus
                 // Calculate the consensus flags and check they are valid.
                 context.Flags = this.NodeDeployments.GetFlags(context.BlockValidationContext.ChainedBlock);
 
-                // Check whether to use checkpoint to skip block validation.
-                context.BlockValidationContext.SkipValidation = false;
-                if (this.consensusSettings.UseCheckpoints)
-                {
-                    int lastCheckpointHeight = this.checkpoints.GetLastCheckpointHeight();
-                    context.BlockValidationContext.SkipValidation = context.BlockValidationContext.ChainedBlock.Height <= lastCheckpointHeight;
-                    if (context.BlockValidationContext.SkipValidation)
-                        this.logger.LogTrace("Block validation will be partially skipped due to block height {0} is not greater than last checkpointed block height {1}.", context.BlockValidationContext.ChainedBlock.Height, lastCheckpointHeight);
-                }
-
-                // Check whether to use assumevalid switch to skip validation.
-                if (!context.BlockValidationContext.SkipValidation && (this.consensusSettings.BlockAssumedValid != null))
-                {
-                    ChainedBlock assumeValidBlock = this.Chain.GetBlock(this.consensusSettings.BlockAssumedValid);
-                    context.BlockValidationContext.SkipValidation = (assumeValidBlock != null) && (context.BlockValidationContext.ChainedBlock.Height <= assumeValidBlock.Height);
-                    if (context.BlockValidationContext.SkipValidation)
-                        this.logger.LogTrace("Block validation will be partially skipped due to block height {0} is not greater than assumed valid block height {1}.", context.BlockValidationContext.ChainedBlock.Height, assumeValidBlock.Height);
-                }
-
-                if (!context.BlockValidationContext.SkipValidation)
+                if (!context.SkipValidation)
                 {
                     this.Validator.ContextualCheckBlock(context);
 
@@ -505,11 +512,11 @@ namespace Stratis.Bitcoin.Features.Consensus
         /// Validates a block using the consensus rules and executes it (processes it and adds it as a tip to consensus).
         /// </summary>
         /// <param name="context">A context that contains all information required to validate the block.</param>
-        internal async Task ValidateAndExecuteBlockAsync(ContextInformation context)
+        internal async Task ValidateAndExecuteBlockAsync(RuleContext context)
         {
             this.logger.LogTrace("()");
 
-            this.ValidateBlock(context);
+            this.ValidateBlock(context, true);
 
             // Load the UTXO set of the current block. UTXO may be loaded from cache or from disk.
             // The UTXO set is stored in the context.
@@ -583,7 +590,7 @@ namespace Stratis.Bitcoin.Features.Consensus
         /// <returns>List of transaction ids.</returns>
         public uint256[] GetIdsToFetch(Block block, bool enforceBIP30)
         {
-            this.logger.LogTrace("({0}:'{1}',{2}:{3})", nameof(block), block.GetHash(), nameof(enforceBIP30), enforceBIP30);
+            this.logger.LogTrace("({0}:'{1}',{2}:{3})", nameof(block), block.GetHash(NetworkOptions.TemporaryOptions), nameof(enforceBIP30), enforceBIP30);
 
             HashSet<uint256> ids = new HashSet<uint256>();
             foreach (Transaction tx in block.Transactions)
