@@ -117,7 +117,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
         /// <returns></returns>
         [Route("send-tip-transaction")]
         [HttpPost]
-        public async Task<IActionResult> SendTipTransactionAsync([FromBody] SendTipTransactionRequest request)
+        public IActionResult SendTipTransactionAsync([FromBody] SendTipTransactionRequest request)
         {
             Guard.NotNull(request, nameof(request));
 
@@ -126,6 +126,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             {
                 return BuildErrorResponse(this.ModelState);
             }
+
+            if (!this.connectionManager.ConnectedNodes.Any())
+                throw new WalletException("Can't send transaction: sending transaction requires at least one connection!");
 
             try
             {
@@ -157,31 +160,11 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     }
                 }
 
-                var result = await this.broadcasterManager.TryBroadcastAsync(transaction).ConfigureAwait(false);
-                if (result == Bitcoin.Broadcasting.Success.Yes)
-                {
-                    return this.Json(model);
-                }
+                this.walletManager.ProcessTransaction(transaction, null, null, false);
 
-                if (result == Bitcoin.Broadcasting.Success.DontKnow)
-                {
-                    // wait for propagation
-                    var waited = TimeSpan.Zero;
-                    var period = TimeSpan.FromSeconds(1);
-                    while (TimeSpan.FromSeconds(21) > waited)
-                    {
-                        // if broadcasts doesn't contain then success
-                        var transactionEntry = this.broadcasterManager.GetTransaction(transaction.GetHash());
-                        if (transactionEntry != null && transactionEntry.State == Bitcoin.Broadcasting.State.Propagated)
-                        {
-                            return this.Json(model);
-                        }
-                        await Task.Delay(period).ConfigureAwait(false);
-                        waited += period;
-                    }
-                }
+                this.broadcasterManager.BroadcastTransactionAsync(transaction).GetAwaiter().GetResult();
 
-                throw new TimeoutException("Transaction propagation has timed out. Lost connection?");
+                return this.Json(model);
             }
             catch (Exception e)
             {
