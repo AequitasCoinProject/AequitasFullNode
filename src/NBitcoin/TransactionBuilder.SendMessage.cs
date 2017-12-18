@@ -1,18 +1,4 @@
-﻿using NBitcoin.BuilderExtensions;
-using NBitcoin.Crypto;
-using NBitcoin.DataEncoders;
-using NBitcoin.OpenAsset;
-using NBitcoin.Policy;
-using NBitcoin.Stealth;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.ExceptionServices;
-using System.Text;
-using System.Threading.Tasks;
-using Builder = System.Func<NBitcoin.TransactionBuilder.TransactionBuildingContext, NBitcoin.IMoney>;
-
-namespace NBitcoin
+﻿namespace NBitcoin
 {
     public partial class TransactionBuilder
     {
@@ -23,15 +9,15 @@ namespace NBitcoin
         /// <returns></returns>
         public TransactionBuilder SendMessage(string message, bool encryptMessage, byte[] publicKeyExponent, byte[] publicKeyModulus,
             byte[] privateKeyDP, byte[] privateKeyDQ, byte[] privateKeyExponent, byte[] privateKeyModulus, byte[] privateKeyP, byte[] privateKeyPublicExponent, byte[] privateKeyQ, byte[] privateKeyQInv)
-        {            
-            // TODO: change the txout's value dynamically to the smallest amount (the dust threshold)
-            var builder = new SendMessageBuilder(
-                new TxOut()
-                {
-                    ScriptPubKey = TxMessageTemplate.Instance.GenerateScriptPubKey(message, encryptMessage, publicKeyExponent, publicKeyModulus, privateKeyDP, privateKeyDQ, privateKeyExponent, privateKeyModulus, privateKeyP, privateKeyPublicExponent, privateKeyQ, privateKeyQInv),
-                    Value = new Money(13215, MoneyUnit.Satoshi)
-                }
-                );
+        {
+            var output = new TxOut()
+            {
+                ScriptPubKey = TxMessageTemplate.Instance.GenerateScriptPubKey(message, encryptMessage, publicKeyExponent, publicKeyModulus, privateKeyDP, privateKeyDQ, privateKeyExponent, privateKeyModulus, privateKeyP, privateKeyPublicExponent, privateKeyQ, privateKeyQInv)                
+            };
+            // change the txout's value dynamically to the smallest amount (the dust threshold)
+            output.Value = output.GetDustThreshold(this.StandardTransactionPolicy.MinRelayTxFee);
+
+            var builder = new SendMessageBuilder(output);
 
             this.CurrentGroup.Builders.Add(builder.Build);
             return this;
