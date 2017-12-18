@@ -55,7 +55,14 @@ namespace Stratis.Bitcoin.Features.Wallet
                 //string uncompressedPublicKey = publicKey.ToString().Substring(2);
             }
 
-            CryptoApiRandomGenerator randomGenerator = new CryptoApiRandomGenerator();
+            var randomSeedGenerator = System.Security.Cryptography.RandomNumberGenerator.Create();
+            byte[] seed = new byte[rsaKeySize / 8];
+            randomSeedGenerator.GetBytes(seed);
+
+            VmpcRandomGenerator randomGenerator = new VmpcRandomGenerator();
+            randomGenerator.AddSeedMaterial(seed);
+
+            //CryptoApiRandomGenerator randomGenerator = new CryptoApiRandomGenerator();
             var secureRandom = new SecureRandom(randomGenerator);
             var keyGenerationParameters = new KeyGenerationParameters(secureRandom, rsaKeySize);
 
