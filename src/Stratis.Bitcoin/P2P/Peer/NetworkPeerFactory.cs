@@ -89,7 +89,6 @@ namespace Stratis.Bitcoin.P2P.Peer
         /// <param name="tcpClient">Initializes TCP client that may or may not be already connected.</param>
         /// <returns>Newly created network peer client.</returns>
         NetworkPeerClient CreateNetworkPeerClient(TcpClient tcpClient);
-
     }
 
     /// <summary>
@@ -227,6 +226,5 @@ namespace Stratis.Bitcoin.P2P.Peer
             int id = Interlocked.Increment(ref this.lastClientId);
             return new NetworkPeerClient(id, tcpClient, this.network, this.loggerFactory);
         }
-
     }
 }
