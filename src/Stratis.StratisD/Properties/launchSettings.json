@@ -6,7 +6,7 @@
     },
     "Stratis.StratisD Test": {
       "commandName": "Project",
-      "commandLineArgs": "-testnet -checkpoints=0 -assumevalid=0"
+      "commandLineArgs": "-testnet"
     }
   }
 }
