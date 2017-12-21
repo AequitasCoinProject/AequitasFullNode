@@ -166,7 +166,7 @@ namespace NBitcoin
     /// <summary>
     /// A class for building and signing all sort of transactions easily (http://www.codeproject.com/Articles/835098/NBitcoin-Build-Them-All)
     /// </summary>
-    public class TransactionBuilder
+    public partial class TransactionBuilder
     {
         internal class TransactionBuilderSigner : ISigner
         {

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
@@ -18,7 +19,7 @@ namespace Stratis.Bitcoin.Features.Wallet
     /// TODO: Implement lockUnspents
     /// TODO: Implement subtractFeeFromOutputs
     /// </remarks>
-    public class WalletTransactionHandler : IWalletTransactionHandler
+    public partial class WalletTransactionHandler : IWalletTransactionHandler
     {
         /// <summary>A threshold that if possible will limit the amount of UTXO sent to the <see cref="ICoinSelector"/>.</summary>
         /// <remarks>
@@ -193,6 +194,7 @@ namespace Stratis.Bitcoin.Features.Wallet
             this.AddSecrets(context);
             this.FindChangeAddress(context);
             this.AddFee(context);
+            this.AddMessage(context);
         }
 
         /// <summary>
@@ -460,6 +462,16 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// Shuffles transaction inputs and outputs for increased privacy.
         /// </summary>
         public bool Shuffle { get; set; }
+
+        /// <summary>
+        /// Message to embed in the transaction
+        /// </summary>
+        public string Message { get; set; }
+
+        /// <summary>
+        /// Should we encrypt the message?
+        /// </summary>
+        public bool EncryptMessage { get; set; }
     }
 
     /// <summary>

@@ -22,7 +22,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
     /// Controller providing operations on a wallet.
     /// </summary>
     [Route("api/[controller]")]
-    public class WalletController : Controller
+    public partial class WalletController : Controller
     {
         private readonly IWalletManager walletManager;
 
@@ -842,6 +842,6 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 HttpStatusCode.BadRequest,
                 string.Join(Environment.NewLine, errors.Select(m => m.ErrorMessage)),
                 string.Join(Environment.NewLine, errors.Select(m => m.Exception?.Message)));
-        }
+        }       
     }
 }

@@ -86,6 +86,12 @@ namespace Stratis.Bitcoin.P2P
                     continue;
                 }
 
+                if (peer == null)
+                {
+                    peerSelectionFailed++;
+                    continue;
+                }
+
                 if (!peer.NetworkAddress.Endpoint.Address.IsValid())
                 {
                     this.logger.LogTrace("Peer selection failed, peer endpoint is not valid '{0}'.", peer.NetworkAddress.Endpoint);

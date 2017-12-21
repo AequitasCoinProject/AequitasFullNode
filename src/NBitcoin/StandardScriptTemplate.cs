@@ -17,13 +17,14 @@ namespace NBitcoin
         TX_MULTISIG,
         TX_NULL_DATA,
         TX_SEGWIT,
+        TX_MESSAGE,
     };
 
     public class TxNullDataTemplate : ScriptTemplate
     {
         public TxNullDataTemplate(int maxScriptSize)
         {
-            MaxScriptSizeLimit = maxScriptSize;
+            this.MaxScriptSizeLimit = maxScriptSize;
         }
         private static readonly TxNullDataTemplate _Instance = new TxNullDataTemplate(MAX_OP_RETURN_RELAY);
         public static TxNullDataTemplate Instance
@@ -43,7 +44,7 @@ namespace NBitcoin
             var bytes = scriptPubKey.ToBytes(true);
             if(bytes.Length == 0 ||
                 bytes[0] != (byte)OpcodeType.OP_RETURN ||
-                bytes.Length > MaxScriptSizeLimit)
+                bytes.Length > this.MaxScriptSizeLimit)
             {
                 needMoreCheck = false;
                 return false;
