@@ -206,7 +206,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                         IsPropagated = message.IsPropagated,
                         BlockHeight = message.BlockHeight,
                         TransactionHash = message.TransactionHashHex,
-                        OutputIndex = message.OutputIndex,
+                        MessageOutputIndex = message.OutputIndex,
                         TransactionHex = message.TransactionHex
                     });
                 }
@@ -218,6 +218,42 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 this.logger.LogError("Exception occurred: {0}", e.ToString());
                 return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
             }
-        }        
+        }
+
+        [Route("create-public-reviewer-address")]
+        [HttpPost]
+        public IActionResult CreatePublicReviewerAddressAsync([FromBody] CreateReviewerAddressRequest request)
+        {
+            Guard.NotNull(request, nameof(request));
+
+            // checks the request is valid
+            if (!this.ModelState.IsValid)
+            {
+                return BuildErrorResponse(this.ModelState);
+            }
+
+            try
+            {
+                PubKey[] groupMemberKeys = request.SignaturePubKeys.Select(pubKeyHex => new PubKey(pubKeyHex)).ToArray();
+
+                var scriptPubKey = PayToMultiSigTemplate
+                    .Instance
+                    .GenerateScriptPubKey(request.RequeiredSignatureCount, groupMemberKeys);
+
+
+                CreatePublicReviewerAddressModel model = new CreatePublicReviewerAddressModel
+                {
+                    Network = this.network.ToString(),
+                    Address = scriptPubKey.Hash.GetAddress(this.network).ToString()
+                };
+
+                return this.Json(model);
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError("Exception occurred: {0}", e.ToString());
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
+            }
+        }
     }
 }

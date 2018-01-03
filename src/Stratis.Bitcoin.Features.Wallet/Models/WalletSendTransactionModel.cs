@@ -39,31 +39,4 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         [JsonProperty(PropertyName = "amount")]
         public Money Amount { get; set; }
     }
-
-    public class WalletGetMessagesModel
-    {
-        [JsonProperty(PropertyName = "minimumBlockHeight")]
-        public int MinimumBlockHeight;
-
-        [JsonProperty(PropertyName = "messages")]
-        public ICollection<TxMessageModel> Messages { get; set; }
-    }
-
-    public class TxMessageModel
-    {
-        [JsonProperty(PropertyName = "isPropagated")]
-        public bool IsPropagated { get; set; }
-
-        [JsonProperty(PropertyName = "blockHeight")]
-        public int? BlockHeight { get; set; }
-
-        [JsonProperty(PropertyName = "transactionHash")]
-        public string TransactionHash { get; set; }
-
-        [JsonProperty(PropertyName = "outputIndex")]
-        public int OutputIndex { get; set; }
-
-        [JsonProperty(PropertyName = "transactionHex")]
-        public string TransactionHex { get; set; }
-    }
 }
