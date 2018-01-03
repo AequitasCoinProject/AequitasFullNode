@@ -214,7 +214,7 @@ namespace NBitcoin
         {
             if (vch.Length != WIDTH_BYTE)
             {
-                throw new FormatException("the byte array should be 256 byte long");
+                throw new FormatException($"the byte array should be {WIDTH_BYTE} byte long");
             }
 
             if (!lendian)
