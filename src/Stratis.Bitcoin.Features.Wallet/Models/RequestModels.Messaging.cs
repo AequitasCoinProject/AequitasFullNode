@@ -39,4 +39,10 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         [Required(ErrorMessage = "A transaction in hexadecimal format is required.")]
         public string Hex { get; set; }
     }
+
+    public class GetTipMessagesRequest : RequestModel
+    {
+        [Required(ErrorMessage = "The block height from which you need the messages must be defined.")]
+        public string BlockHeight { get; set; }
+    }
 }
