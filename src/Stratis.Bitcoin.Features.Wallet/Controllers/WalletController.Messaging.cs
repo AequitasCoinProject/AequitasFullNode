@@ -240,8 +240,11 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     .Instance
                     .GenerateScriptPubKey(request.RequeiredSignatureCount, groupMemberKeys);
 
+                // TODO: create a group for it if it doesn't exists
 
-                CreatePublicReviewerAddressModel model = new CreatePublicReviewerAddressModel
+                // TODO: save the reviewer addresses file
+
+                PublicReviewerAddressModel model = new PublicReviewerAddressModel
                 {
                     Network = this.network.ToString(),
                     Address = scriptPubKey.Hash.GetAddress(this.network).ToString()
@@ -255,5 +258,33 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
             }
         }
+
+        [Route("list-public-reviewer-addresses")]
+        [HttpPost]
+        public IActionResult ListPublicReviewerAddressesAsync([FromBody] ListReviewerAddressesRequest request)
+        {
+            Guard.NotNull(request, nameof(request));
+
+            // checks the request is valid
+            if (!this.ModelState.IsValid)
+            {
+                return BuildErrorResponse(this.ModelState);
+            }
+
+            try
+            {
+                ListPublicReviewerAddressesModel model = new ListPublicReviewerAddressesModel
+                {
+                };
+
+                return this.Json(model);
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError("Exception occurred: {0}", e.ToString());
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
+            }
+        }
+
     }
 }

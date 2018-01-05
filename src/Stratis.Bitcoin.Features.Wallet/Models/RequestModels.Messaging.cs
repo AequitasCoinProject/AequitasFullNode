@@ -54,13 +54,28 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         [Required(ErrorMessage = "The number of signatures needed to accept a tip.")]
         public int RequeiredSignatureCount { get; set; }
 
-        [Required(ErrorMessage = "The public name of the reviewer group.")]
+        [Required(ErrorMessage = "The public name of the reviewer group. (e.g. 'The Wanted System - County Office'")]
         public string PublicName { get; set; }
+
+        [Required(ErrorMessage = "The name of the reviewer group. (e.g. 'The Wanted System Reviewer's Group')")]
+        public string GroupName { get; set; }
 
         [Required(ErrorMessage = "The generated multi-sig address will be valid from this block index.")]
         public int? ValidFrom { get; set; }
 
         [Required(ErrorMessage = "The generated multi-sig address will be valid until this block index.")]
         public int? ValidUntil { get; set; }
+    }
+
+    public class ListReviewerAddressesRequest : RequestModel
+    {
+        [Required(ErrorMessage = "The unique ID of the group.")]
+        public string GroupId { get; set; }
+
+        [Required(ErrorMessage = "The public name of the reviewer group.")]
+        public string PublicNameFragment { get; set; }
+
+        [Required(ErrorMessage = "The address must be valid at this block height.")]
+        public int ValidAtBlockHeight { get; set; }
     }
 }

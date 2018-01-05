@@ -31,12 +31,21 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         public string TransactionHex { get; set; }
     }
 
-    public class CreatePublicReviewerAddressModel
+    public class PublicReviewerAddressModel
     {
         [JsonProperty(PropertyName = "network")]
         public string Network { get; set; }
 
         [JsonProperty(PropertyName = "address")]
         public string Address { get; set; }
+
+        [JsonProperty(PropertyName = "groupId")]
+        public string GroupId { get; set; }
+    }
+
+    public class ListPublicReviewerAddressesModel
+    {
+        [JsonProperty(PropertyName = "reviewerAddresses")]
+        public ICollection<PublicReviewerAddressModel> Addresses { get; set; }
     }
 }
