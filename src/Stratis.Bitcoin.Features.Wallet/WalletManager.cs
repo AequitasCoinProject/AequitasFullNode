@@ -36,7 +36,7 @@ namespace Stratis.Bitcoin.Features.Wallet
     /// <summary>
     /// A manager providing operations on wallets.
     /// </summary>
-    public class WalletManager : IWalletManager
+    public partial class WalletManager : IWalletManager
     {
         /// <summary>Size of the buffer of unused addresses maintained in an account. </summary>
         private const int UnusedAddressesBuffer = 20;
@@ -764,6 +764,12 @@ namespace Stratis.Bitcoin.Features.Wallet
 
             var foundTrx = new List<Tuple<Script, uint256>>();
 
+            // HACK: save the wallet file just before the message block is processed
+            //if (blockHeight == 245052)
+            //{
+            //    this.SaveWallets();
+            //}
+
             lock (this.lockObject)
             {
                 // Check the outputs.
@@ -775,6 +781,13 @@ namespace Stratis.Bitcoin.Features.Wallet
                         this.AddTransactionToWallet(transaction.ToHex(), hash, transaction.Time, transaction.IsCoinStake, transaction.Outputs.IndexOf(utxo),
                             utxo.Value, utxo.ScriptPubKey, blockHeight, block, isPropagated);
                         foundTrx.Add(Tuple.Create(utxo.ScriptPubKey, hash));
+                    }
+
+                    // Check if this is a message output
+                    if (TxMessageTemplate.Instance.CheckScriptPubKey(utxo.ScriptPubKey))
+                    {
+                        this.AddMessageTransactionToMessageStore(transaction.ToHex(), hash, transaction.Outputs.IndexOf(utxo), utxo.ScriptPubKey, blockHeight, block, isPropagated);
+                        string msg = TxMessageTemplate.Instance.GetMessage(utxo.ScriptPubKey);
                     }
                 }
 

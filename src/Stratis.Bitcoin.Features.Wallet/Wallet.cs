@@ -590,7 +590,8 @@ namespace Stratis.Bitcoin.Features.Wallet
                     ScriptPubKey = address.ScriptPubKey,
                     Pubkey = pubkey.ScriptPubKey,
                     Address = address.ToString(),
-                    Transactions = new List<TransactionData>()
+                    //Transactions = new List<TransactionData>()
+                    Transactions = new System.Collections.ObjectModel.ObservableCollection<TransactionData>()
                 });
 
                 addressesCreated.Add(address.ToString());
@@ -651,7 +652,15 @@ namespace Stratis.Bitcoin.Features.Wallet
     {
         public HdAddress()
         {
-            this.Transactions = new List<TransactionData>();
+            //this.Transactions = new List<TransactionData>();
+            this.Transactions = new System.Collections.ObjectModel.ObservableCollection<TransactionData>();
+            this.Transactions.CollectionChanged += Transactions_CollectionChanged;
+        }
+
+        private void Transactions_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
+        {
+            TransactionData td = e.NewItems[0] as TransactionData;
+            Console.WriteLine($" -NOTE- Added a new transaction {td.Id} to the current wallet.");
         }
 
         /// <summary>
@@ -690,7 +699,8 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// A list of transactions involving this address.
         /// </summary>
         [JsonProperty(PropertyName = "transactions")]
-        public ICollection<TransactionData> Transactions { get; set; }
+        //public ICollection<TransactionData> Transactions { get; set; }
+        public System.Collections.ObjectModel.ObservableCollection<TransactionData> Transactions { get; set; }
 
         /// <summary>
         /// Determines whether this is a change address or a receive address.

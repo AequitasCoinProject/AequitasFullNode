@@ -141,27 +141,29 @@ namespace NBitcoin
         {
             if (scriptPubKey.Length < 13) throw new Exception("This ScriptPubKey is not a valid Wanted System message.");
 
-            byte[] scriptPubKeyBytes = scriptPubKey.ToBytes();
-            byte[] nopnopreturn = scriptPubKeyBytes.Take<byte>(3).ToArray();
-            ushort pushdataLength = BitConverter.ToUInt16(scriptPubKeyBytes, 3);
+            Op[] scriptPubKeyOps = scriptPubKey.ToOps().ToArray();            
+            if ((scriptPubKeyOps[0].Code != OpcodeType.OP_NOP) || (scriptPubKeyOps[1].Code != OpcodeType.OP_NOP) || (scriptPubKeyOps[2].Code != OpcodeType.OP_RETURN)) throw new Exception("This ScriptPubKey is not a valid Wanted System message.");
 
-            byte[] pushData = new byte[scriptPubKeyBytes.Length - 5];
-            Array.Copy(scriptPubKeyBytes, 5, pushData, 0, pushData.Length);
+            byte[] pd = scriptPubKeyOps[3].PushData;
 
-            if ((nopnopreturn[0] != 0x61) || (nopnopreturn[1] != 0x61) || (nopnopreturn[2] != 0x6a)) throw new Exception("This ScriptPubKey is not a valid Wanted System message.");
+            byte[] header = pd.Take<byte>(3).ToArray();
+            byte version = pd[3];
+            byte compression = pd[4];
+            byte checksumType = pd[5];
+            byte encryptionType = pd[6];
+            ushort encryptionKeyLength = BitConverter.ToUInt16(pd, 7);
+            ushort metadataLength = BitConverter.ToUInt16(pd, 9);
+            ushort messageLength = BitConverter.ToUInt16(pd, 11);
 
-            byte[] header = pushData.Take<byte>(3).ToArray();
-            byte version = pushData[3];
-            byte compression = pushData[4];
-            byte checksumType = pushData[5];
-            ushort metadataLength = BitConverter.ToUInt16(pushData, 6);
-            ushort messageLength = BitConverter.ToUInt16(pushData, 8);
-
+            byte[] encryptionKey = new byte[encryptionKeyLength];
             byte[] compressedMetadata = new byte[metadataLength];
             byte[] compressedMessage = new byte[messageLength];
 
-            Array.Copy(pushData, 10, compressedMetadata, 0, metadataLength);
-            Array.Copy(pushData, 10 + metadataLength, compressedMessage, 0, messageLength);
+            Array.Copy(pd, 13, encryptionKey, 0, encryptionKeyLength);
+            Array.Copy(pd, 13 + encryptionKeyLength, compressedMetadata, 0, metadataLength);
+            Array.Copy(pd, 13 + encryptionKeyLength + metadataLength, compressedMessage, 0, messageLength);
+
+            // TODO: Decrypt the message if needed
 
             byte[] uncompressedMetadata = GZIPDecompressByteArray(compressedMetadata);
             byte[] uncompressedMessage = GZIPDecompressByteArray(compressedMessage);

@@ -61,7 +61,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
         }
 
         /// <summary>
-        /// Builds a tip transaction.
+        /// Builds a tip transaction. If the tip trancation is paid by the Tipster, the message should not be encrypted. If the tip tranaction is paid by the Reviewers, the message should be encrypted with their keys.
         /// </summary>
         /// <param name="request">The transaction parameters.</param>
         /// <returns>All the details of the transaction, including the hex used to execute it.</returns>
@@ -79,6 +79,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
+                // TODO: in tip transactions the destination address must be the input address (of the Tipster or the Reviewers multi-sig address) and the transaction fee must be the parameter.
                 var destination = BitcoinAddress.Create(request.DestinationAddress, this.network).ScriptPubKey;
                 var context = new TransactionBuildContext(
                     new WalletAccountReference(request.WalletName, request.AccountName),
@@ -172,5 +173,118 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
             }
         }
+
+        [Route("get-tip-messages")]
+        [HttpPost]
+        public IActionResult GetTipMessagesAsync([FromBody] GetTipMessagesRequest request)
+        {
+            Guard.NotNull(request, nameof(request));
+            
+            // checks the request is valid
+            if (!this.ModelState.IsValid)
+            {
+                return BuildErrorResponse(this.ModelState);
+            }
+
+            try
+            {
+                var walletManager = (WalletManager)this.walletManager;
+                int requestedBlockHeight = Int32.Parse(request.BlockHeight);
+
+                var messages = walletManager.TxMessages.Values.Where(msg => msg.BlockHeight >= requestedBlockHeight);
+
+                WalletGetMessagesModel model = new WalletGetMessagesModel
+                {
+                    MinimumBlockHeight = requestedBlockHeight,
+                    Messages = new List<TxMessageModel>()
+                };
+
+                foreach (var message in messages)
+                {
+                    model.Messages.Add(new TxMessageModel
+                    {
+                        IsPropagated = message.IsPropagated,
+                        BlockHeight = message.BlockHeight,
+                        TransactionHash = message.TransactionHashHex,
+                        MessageOutputIndex = message.OutputIndex,
+                        TransactionHex = message.TransactionHex
+                    });
+                }
+
+                return this.Json(model);
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError("Exception occurred: {0}", e.ToString());
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
+            }
+        }
+
+        [Route("create-public-reviewer-address")]
+        [HttpPost]
+        public IActionResult CreatePublicReviewerAddressAsync([FromBody] CreateReviewerAddressRequest request)
+        {
+            Guard.NotNull(request, nameof(request));
+
+            // checks the request is valid
+            if (!this.ModelState.IsValid)
+            {
+                return BuildErrorResponse(this.ModelState);
+            }
+
+            try
+            {
+                PubKey[] groupMemberKeys = request.SignaturePubKeys.Select(pubKeyHex => new PubKey(pubKeyHex)).ToArray();
+
+                var scriptPubKey = PayToMultiSigTemplate
+                    .Instance
+                    .GenerateScriptPubKey(request.RequeiredSignatureCount, groupMemberKeys);
+
+                // TODO: create a group for it if it doesn't exists
+
+                // TODO: save the reviewer addresses file
+
+                PublicReviewerAddressModel model = new PublicReviewerAddressModel
+                {
+                    Network = this.network.ToString(),
+                    Address = scriptPubKey.Hash.GetAddress(this.network).ToString()
+                };
+
+                return this.Json(model);
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError("Exception occurred: {0}", e.ToString());
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
+            }
+        }
+
+        [Route("list-public-reviewer-addresses")]
+        [HttpPost]
+        public IActionResult ListPublicReviewerAddressesAsync([FromBody] ListReviewerAddressesRequest request)
+        {
+            Guard.NotNull(request, nameof(request));
+
+            // checks the request is valid
+            if (!this.ModelState.IsValid)
+            {
+                return BuildErrorResponse(this.ModelState);
+            }
+
+            try
+            {
+                ListPublicReviewerAddressesModel model = new ListPublicReviewerAddressesModel
+                {
+                };
+
+                return this.Json(model);
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError("Exception occurred: {0}", e.ToString());
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
+            }
+        }
+
     }
 }
