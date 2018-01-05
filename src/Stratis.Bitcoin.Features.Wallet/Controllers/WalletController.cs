@@ -775,7 +775,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             try
             {
                 var result = this.walletManager.GetUnusedAddresses(new WalletAccountReference(request.WalletName, request.AccountName), count);
-                return this.Json(result.Select(x => x.Address).ToArray());
+                return this.Json(result.Select(x => x.Pubkey.GetDestinationPublicKeys()[0].ToHex()).ToArray());
             }
             catch (Exception e)
             {

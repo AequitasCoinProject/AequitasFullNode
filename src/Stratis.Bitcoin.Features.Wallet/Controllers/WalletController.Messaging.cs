@@ -205,8 +205,8 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     {
                         IsPropagated = message.IsPropagated,
                         BlockHeight = message.BlockHeight,
-                        TransactionHash = message.TransactionHashHex,
-                        MessageOutputIndex = message.OutputIndex,
+                        TransactionHashHex = message.TransactionHashHex,
+                        MessageOutputIndex = message.MessageOutputIndex,
                         TransactionHex = message.TransactionHex
                     });
                 }
@@ -240,15 +240,17 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     .Instance
                     .GenerateScriptPubKey(request.RequeiredSignatureCount, groupMemberKeys);
 
-                // TODO: create a group for it if it doesn't exists
-
-                // TODO: save the reviewer addresses file
-
                 PublicReviewerAddressModel model = new PublicReviewerAddressModel
                 {
                     Network = this.network.ToString(),
-                    Address = scriptPubKey.Hash.GetAddress(this.network).ToString()
+                    Address = scriptPubKey.Hash.GetAddress(this.network).ToString(),
+                    PublicName = request.PublicName,
+                    GroupName = request.GroupName,
+                    ValidFrom = request.ValidFrom.HasValue ? request.ValidFrom.Value : 0,
+                    ValidUntil = request.ValidUntil.HasValue && (request.ValidUntil.Value != 0) ? request.ValidUntil.Value : Int32.MaxValue
                 };
+
+                ((WalletManager)this.walletManager).AddReviewerAddressToReviewerStore(model);
 
                 return this.Json(model);
             }
@@ -273,8 +275,29 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
+                var walletManager = (WalletManager)this.walletManager;
+                int blockHeight = request.ValidAtBlockHeight;
+
+                var reviewerAddresses = walletManager.ReviewerAddresses.Values.Where(address => true);
+
+                if (!String.IsNullOrWhiteSpace(request.GroupId))
+                {
+                    reviewerAddresses = reviewerAddresses.Where(address => address.GroupId == request.GroupId);
+                }
+
+                if (!String.IsNullOrWhiteSpace(request.PublicNameFragment))
+                {
+                    reviewerAddresses = reviewerAddresses.Where(address => address.PublicName.ToLowerInvariant().Contains(request.PublicNameFragment.ToLowerInvariant()));
+                }
+
+                if (request.ValidAtBlockHeight > 0)
+                {
+                    reviewerAddresses = reviewerAddresses.Where(address => (address.ValidFrom <= request.ValidAtBlockHeight) && (address.ValidUntil >= request.ValidAtBlockHeight));
+                }
+
                 ListPublicReviewerAddressesModel model = new ListPublicReviewerAddressesModel
                 {
+                    Addresses = reviewerAddresses.ToArray()
                 };
 
                 return this.Json(model);

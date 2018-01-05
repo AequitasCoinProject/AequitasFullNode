@@ -69,13 +69,10 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
     public class ListReviewerAddressesRequest : RequestModel
     {
-        [Required(ErrorMessage = "The unique ID of the group.")]
         public string GroupId { get; set; }
 
-        [Required(ErrorMessage = "The public name of the reviewer group.")]
         public string PublicNameFragment { get; set; }
 
-        [Required(ErrorMessage = "The address must be valid at this block height.")]
         public int ValidAtBlockHeight { get; set; }
     }
 }

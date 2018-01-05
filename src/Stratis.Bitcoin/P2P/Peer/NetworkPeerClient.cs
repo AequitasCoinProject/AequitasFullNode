@@ -78,7 +78,7 @@ namespace Stratis.Bitcoin.P2P.Peer
             this.writeLock = new AsyncLock();
         }
 
-        private static HashSet<string> bannedPeers = new HashSet<string>();
+        //private static HashSet<string> bannedPeers = new HashSet<string>();
 
         /// <summary>
         /// Connects the network client to the target server.
@@ -88,7 +88,7 @@ namespace Stratis.Bitcoin.P2P.Peer
         /// <exception cref="OperationCanceledException">Thrown when the connection attempt was aborted.</exception>
         public async Task ConnectAsync(IPEndPoint endPoint, CancellationToken cancellation)
         {
-            if (bannedPeers.Contains(endPoint.ToString())) return;
+            //if (bannedPeers.Contains(endPoint.ToString())) return;
 
             this.logger = this.loggerFactory.CreateLogger(this.GetType().FullName, $"[{this.Id}-{endPoint}] ");
             this.logger.LogTrace("({0}:'{1}')", nameof(endPoint), endPoint);
@@ -125,7 +125,7 @@ namespace Stratis.Bitcoin.P2P.Peer
             }
             catch (Exception e)
             {
-                bannedPeers.Add(endPoint.ToString());
+                //bannedPeers.Add(endPoint.ToString());
 
                 if (e is AggregateException) e = e.InnerException;
                 this.logger.LogDebug("Error connecting to '{0}', exception: {1}", endPoint, e.ToString());
