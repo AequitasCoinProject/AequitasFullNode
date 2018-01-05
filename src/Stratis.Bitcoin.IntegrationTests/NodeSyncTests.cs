@@ -54,8 +54,7 @@ namespace Stratis.Bitcoin.IntegrationTests
                 var coreNode = builder.CreateNode();
                 builder.StartAll();
 
-                // not in IBD
-                stratisNode.FullNode.InitialBlockDownloadState.SetIsInitialBlockDownload(false, DateTime.UtcNow.AddMinutes(5));
+                stratisNode.NotInIBD();
 
                 var tip = coreNode.FindBlock(10).Last();
                 stratisNode.CreateRPCClient().AddNode(coreNode.Endpoint, true);
@@ -83,9 +82,8 @@ namespace Stratis.Bitcoin.IntegrationTests
                 var coreCreateNode = builder.CreateNode();
                 builder.StartAll();
 
-                // not in IBD
-                stratisNode.FullNode.InitialBlockDownloadState.SetIsInitialBlockDownload(false, DateTime.UtcNow.AddMinutes(5));
-                stratisNodeSync.FullNode.InitialBlockDownloadState.SetIsInitialBlockDownload(false, DateTime.UtcNow.AddMinutes(5));
+                stratisNode.NotInIBD();
+                stratisNodeSync.NotInIBD();
 
                 // first seed a core node with blocks and sync them to a stratis node
                 // and wait till the stratis node is fully synced
@@ -116,8 +114,7 @@ namespace Stratis.Bitcoin.IntegrationTests
                 var coreCreateNode = builder.CreateNode();
                 builder.StartAll();
 
-                // not in IBD
-                stratisNode.FullNode.InitialBlockDownloadState.SetIsInitialBlockDownload(false, DateTime.UtcNow.AddMinutes(5));
+                stratisNode.NotInIBD();
 
                 // first seed a core node with blocks and sync them to a stratis node
                 // and wait till the stratis node is fully synced
@@ -318,7 +315,7 @@ namespace Stratis.Bitcoin.IntegrationTests
             var networkNode1 = simulator.Nodes[2];
             var networkNode2 = simulator.Nodes[3];
 
-            //TODO comment
+            // Connect nodes with each other. Miner is connected to connector and connector, node1, node2 are connected with each other.
             miner.CreateRPCClient().AddNode(connector.Endpoint, true);
             connector.CreateRPCClient().AddNode(networkNode1.Endpoint, true);
             connector.CreateRPCClient().AddNode(networkNode2.Endpoint, true);
@@ -329,26 +326,27 @@ namespace Stratis.Bitcoin.IntegrationTests
             int networkHeight = miner.FullNode.Chain.Height;
             Assert.Equal(networkHeight, simulator.Nodes.Count);
 
-            //random node on network generates a block
+            // Random node on network generates a block.
             networkNode1.GenerateStratis(1);
 
-            //wait until connector get the hash of network's block
-            while (connector.FullNode.ChainBehaviorState.ConsensusTip.HashBlock != networkNode1.FullNode.ChainBehaviorState.ConsensusTip.HashBlock)
+            // Wait until connector get the hash of network's block.
+            while ((connector.FullNode.ChainBehaviorState.ConsensusTip.HashBlock != networkNode1.FullNode.ChainBehaviorState.ConsensusTip.HashBlock) ||
+                   (networkNode1.FullNode.ChainBehaviorState.ConsensusTip.Height == networkHeight))
                 Thread.Sleep(1);
 
-            //make sure that miner did not advance yet but connector did
+            // Make sure that miner did not advance yet but connector did.
             Assert.NotEqual(miner.FullNode.Chain.Tip.HashBlock, networkNode1.FullNode.Chain.Tip.HashBlock);
             Assert.Equal(connector.FullNode.Chain.Tip.HashBlock, networkNode1.FullNode.Chain.Tip.HashBlock);
             Assert.Equal(miner.FullNode.Chain.Tip.Height, networkHeight);
             Assert.Equal(connector.FullNode.Chain.Tip.Height, networkHeight+1);
 
-            //miner mines the block
+            // Miner mines the block.
             miner.GenerateStratis(1);
             TestHelper.WaitLoop(() => TestHelper.IsNodeSynced(miner));
 
             networkHeight++;
 
-            //make sure that at this moment miner's tip != network's and connector's tip
+            // Make sure that at this moment miner's tip != network's and connector's tip.
             Assert.NotEqual(miner.FullNode.Chain.Tip.HashBlock, networkNode1.FullNode.Chain.Tip.HashBlock);
             Assert.Equal(connector.FullNode.Chain.Tip.HashBlock, networkNode1.FullNode.Chain.Tip.HashBlock);
             Assert.Equal(miner.FullNode.Chain.Tip.Height, networkHeight);

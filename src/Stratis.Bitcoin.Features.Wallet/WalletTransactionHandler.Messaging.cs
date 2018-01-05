@@ -28,14 +28,14 @@ namespace Stratis.Bitcoin.Features.Wallet
             RsaKeyParameters rsaPublicKey = rsaKeyPair.Public as RsaKeyParameters;
             RsaPrivateCrtKeyParameters rsaPrivateKey = rsaKeyPair.Private as RsaPrivateCrtKeyParameters;
 
-            context.TransactionBuilder.SendMessage(
-                context.Message, context.EncryptMessage,
-                rsaPublicKey.Exponent.ToByteArray(), rsaPublicKey.Modulus.ToByteArray(),
-                rsaPrivateKey.DP.ToByteArray(), rsaPrivateKey.DQ.ToByteArray(),
-                rsaPrivateKey.Exponent.ToByteArray(), rsaPrivateKey.Modulus.ToByteArray(),
-                rsaPrivateKey.P.ToByteArray(), rsaPrivateKey.PublicExponent.ToByteArray(),
-                rsaPrivateKey.Q.ToByteArray(), rsaPrivateKey.QInv.ToByteArray()
-                );
+            //context.TransactionBuilder.SendMessage(
+            //    context.Message, context.EncryptMessage,
+            //    rsaPublicKey.Exponent.ToByteArray(), rsaPublicKey.Modulus.ToByteArray(),
+            //    rsaPrivateKey.DP.ToByteArray(), rsaPrivateKey.DQ.ToByteArray(),
+            //    rsaPrivateKey.Exponent.ToByteArray(), rsaPrivateKey.Modulus.ToByteArray(),
+            //    rsaPrivateKey.P.ToByteArray(), rsaPrivateKey.PublicExponent.ToByteArray(),
+            //    rsaPrivateKey.Q.ToByteArray(), rsaPrivateKey.QInv.ToByteArray()
+            //    );
         }
 
         public static AsymmetricCipherKeyPair GetRSAKeyPairFromWallet(Wallet wallet, string walletPassword, int rsaKeySize = 4096, CoinType coinType = CoinType.Stratis)
