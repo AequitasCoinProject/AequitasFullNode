@@ -806,15 +806,17 @@ namespace Stratis.Bitcoin.Features.Wallet
                         if (o.IsEmpty)
                             return false;
 
+                        // Check if the destination script is one of the wallet's.
                         bool found = this.keysLookup.TryGetValue(o.ScriptPubKey, out HdAddress addr);
 
-                        // Include the keys we don't hold.
+                        // Include the keys not included in our wallets (external payees).
                         if (!found)
                             return true;
 
-                        // Include the keys we do hold but that are for receiving
-                        // addresses (which would mean the user paid itself).
-                        return !addr.IsChangeAddress();
+                        // Include the keys that are in the wallet but that are for receiving
+                        // addresses (which would mean the user paid itself). 
+                        // We also exclude the keys involved in a staking transaction.
+                        return !addr.IsChangeAddress() && !transaction.IsCoinStake;
                     });
 
                     this.AddSpendingTransactionToWallet(transaction.ToHex(), hash, transaction.Time, transaction.IsCoinStake, paidOutTo, tTx.Id, tTx.Index, blockHeight, block);
@@ -949,10 +951,32 @@ namespace Stratis.Bitcoin.Features.Wallet
                 List<PaymentDetails> payments = new List<PaymentDetails>();
                 foreach (TxOut paidToOutput in paidToOutputs)
                 {
+                    // Figure out how to retrieve the destination address.
+                    string destinationAddress = string.Empty;
+                    ScriptTemplate scriptTemplate = paidToOutput.ScriptPubKey.FindTemplate();
+                    switch (scriptTemplate.Type)
+                    {
+                        // Pay to PubKey can be found in outputs of staking transactions.
+                        case TxOutType.TX_PUBKEY:
+                            PubKey pubKey = PayToPubkeyTemplate.Instance.ExtractScriptPubKeyParameters(paidToOutput.ScriptPubKey);
+                            destinationAddress = pubKey.GetAddress(this.network).ToString();
+                            break;
+                        // Pay to PubKey hash is the regular, most common type of output.
+                        case TxOutType.TX_PUBKEYHASH:
+                            destinationAddress = paidToOutput.ScriptPubKey.GetDestinationAddress(this.network).ToString();
+                            break;
+                        case TxOutType.TX_NONSTANDARD:
+                        case TxOutType.TX_SCRIPTHASH:
+                        case TxOutType.TX_MULTISIG:
+                        case TxOutType.TX_NULL_DATA:
+                        case TxOutType.TX_SEGWIT:
+                            break;
+                    }
+                   
                     payments.Add(new PaymentDetails
                     {
                         DestinationScriptPubKey = paidToOutput.ScriptPubKey,
-                        DestinationAddress = paidToOutput.ScriptPubKey.GetDestinationAddress(this.network)?.ToString(),
+                        DestinationAddress = destinationAddress,
                         Amount = paidToOutput.Value
                     });
                 }

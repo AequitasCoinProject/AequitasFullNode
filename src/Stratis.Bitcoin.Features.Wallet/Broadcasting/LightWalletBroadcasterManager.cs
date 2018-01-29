@@ -11,8 +11,6 @@ namespace Stratis.Bitcoin.Features.Wallet.Broadcasting
 {
     public class LightWalletBroadcasterManager : BroadcasterManagerBase
     {
-        private TimeSpan broadcastMaxTime = TimeSpan.FromSeconds(21);
-
         public LightWalletBroadcasterManager(IConnectionManager connectionManager) : base(connectionManager)
         {
         }
@@ -25,10 +23,10 @@ namespace Stratis.Bitcoin.Features.Wallet.Broadcasting
             if (this.IsPropagated(transaction))
                 return;
 
-            List<NetworkPeer> peers = this.connectionManager.ConnectedNodes.ToList();
+            List<NetworkPeer> peers = this.connectionManager.ConnectedPeers.ToList();
             int propagateToCount = (int)Math.Ceiling(peers.Count / 2.0);
 
-            await this.PropagateTransactionToPeersAsync(transaction, peers.Take(propagateToCount).ToList());
+            await this.PropagateTransactionToPeersAsync(transaction, peers.Take(propagateToCount).ToList()).ConfigureAwait(false);
         }
     }
 }

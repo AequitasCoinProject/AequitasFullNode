@@ -1,7 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Text;
-using NBitcoin;
+﻿using NBitcoin;
 using Stratis.Bitcoin.Base;
 using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Interfaces;
@@ -22,7 +19,7 @@ namespace Stratis.Bitcoin.Features.Consensus
         private readonly ICheckpoints checkpoints;
 
         /// <summary>Information about node's chain.</summary>
-        private readonly ChainState chainState;
+        private readonly IChainState chainState;
 
         /// <summary>Specification of the network the node runs on - regtest/testnet/mainnet.</summary>
         private readonly Network network;
@@ -37,7 +34,7 @@ namespace Stratis.Bitcoin.Features.Consensus
         /// <param name="network">Specification of the network the node runs on - regtest/testnet/mainnet.</param>
         /// <param name="nodeSettings">User defined node settings.</param>
         /// <param name="checkpoints">Provider of block header hash checkpoints.</param>
-        public InitialBlockDownloadState(ChainState chainState, Network network, NodeSettings nodeSettings, ICheckpoints checkpoints)
+        public InitialBlockDownloadState(IChainState chainState, Network network, NodeSettings nodeSettings, ICheckpoints checkpoints)
         {
             this.network = network;
             this.nodeSettings = nodeSettings;
