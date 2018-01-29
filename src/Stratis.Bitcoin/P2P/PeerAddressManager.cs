@@ -71,6 +71,11 @@ namespace Stratis.Bitcoin.P2P
         /// </summary>
         void PeerHandshaked(IPEndPoint endpoint, DateTimeOffset peerAttemptedAt);
 
+        /// <summary>
+        /// Sets the last time the peer was seen.
+        /// </summary>
+        void PeerSeen(IPEndPoint endpoint, DateTime peerSeenAt);
+
         /// <summary>Peer selector instance, used to select peers to connect to.</summary>
         IPeerSelector PeerSelector { get; }
     }
@@ -118,7 +123,7 @@ namespace Stratis.Bitcoin.P2P
             var peers = fileStorage.LoadByFileName(PeerFileName);
             peers.ForEach(peer =>
             {
-                this.Peers.TryAdd(peer.NetworkAddress.Endpoint, peer);
+                this.Peers.TryAdd(peer.EndPoint, peer);
             });
         }
 
@@ -139,7 +144,7 @@ namespace Stratis.Bitcoin.P2P
                 return;
 
             var peerToAdd = PeerAddress.Create(networkAddress, source);
-            this.Peers.TryAdd(peerToAdd.NetworkAddress.Endpoint, peerToAdd);
+            this.Peers.TryAdd(peerToAdd.EndPoint, peerToAdd);
         }
 
         /// <inheritdoc/>
@@ -179,6 +184,16 @@ namespace Stratis.Bitcoin.P2P
                 return;
 
             peer.SetHandshaked(peerHandshakedAt);
+        }
+
+        /// <inheritdoc/>
+        public void PeerSeen(IPEndPoint endpoint, DateTime peerSeenAt)
+        {
+            var peer = this.FindPeer(endpoint);
+            if (peer == null)
+                return;
+
+            peer.SetLastSeen(peerSeenAt);
         }
 
         /// <inheritdoc/>

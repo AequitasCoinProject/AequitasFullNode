@@ -1,11 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NBitcoin;
 using Stratis.Bitcoin.Connection;
-using Stratis.Bitcoin.Features.Wallet;
 using Stratis.Bitcoin.IntegrationTests.EnvironmentMockUpHelpers;
 using Xunit;
 
@@ -28,18 +25,17 @@ namespace Stratis.Bitcoin.IntegrationTests
                 var node1 = builder.CreateStratisPowNode();
                 var node2 = builder.CreateStratisPowNode();
                 builder.StartAll();
-                Assert.Empty(node1.FullNode.ConnectionManager.ConnectedNodes);
-                Assert.Empty(node2.FullNode.ConnectionManager.ConnectedNodes);
+                Assert.Empty(node1.FullNode.ConnectionManager.ConnectedPeers);
+                Assert.Empty(node2.FullNode.ConnectionManager.ConnectedPeers);
                 var rpc1 = node1.CreateRPCClient();
-                var rpc2 = node2.CreateRPCClient();
                 rpc1.AddNode(node2.Endpoint, true);
-                Assert.Single(node1.FullNode.ConnectionManager.ConnectedNodes);
-                Assert.Single(node2.FullNode.ConnectionManager.ConnectedNodes);
+                Assert.Single(node1.FullNode.ConnectionManager.ConnectedPeers);
+                Assert.Single(node2.FullNode.ConnectionManager.ConnectedPeers);
 
-                var behavior = node1.FullNode.ConnectionManager.ConnectedNodes.First().Behaviors.Find<ConnectionManagerBehavior>();
+                var behavior = node1.FullNode.ConnectionManager.ConnectedPeers.First().Behaviors.Find<ConnectionManagerBehavior>();
                 Assert.False(behavior.Inbound);
                 Assert.True(behavior.OneTry);
-                behavior = node2.FullNode.ConnectionManager.ConnectedNodes.First().Behaviors.Find<ConnectionManagerBehavior>();
+                behavior = node2.FullNode.ConnectionManager.ConnectedPeers.First().Behaviors.Find<ConnectionManagerBehavior>();
                 Assert.True(behavior.Inbound);
                 Assert.False(behavior.OneTry);
             }
@@ -207,7 +203,7 @@ namespace Stratis.Bitcoin.IntegrationTests
                     TestHelper.TriggerSync(stratisSyncer);
 
                     // wait for the synced chain to get headers updated.
-                    TestHelper.WaitLoop(() => !stratisReorg.FullNode.ConnectionManager.ConnectedNodes.Any());
+                    TestHelper.WaitLoop(() => !stratisReorg.FullNode.ConnectionManager.ConnectedPeers.Any());
 
                     TestHelper.WaitLoop(() => TestHelper.AreNodesSynced(stratisMiner, stratisSyncer));
                     TestHelper.WaitLoop(() => TestHelper.AreNodesSynced(stratisReorg, stratisMiner) == false);

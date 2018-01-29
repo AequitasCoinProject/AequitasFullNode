@@ -1,3 +1,4 @@
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Stratis.Bitcoin.Base;
 using Stratis.Bitcoin.Configuration;
@@ -49,18 +50,18 @@ namespace Stratis.Bitcoin.Connection
         {
             this.logger.LogTrace("()");
 
-            var node = this.AttachedPeer;
-            if (node.State == NetworkPeerState.Connected)
+            var peer = this.AttachedPeer;
+            if (peer.State == NetworkPeerState.Connected)
             {
-                if (this.peerBanning.IsBanned(node.RemoteSocketEndpoint))
+                if (this.peerBanning.IsBanned(peer.RemoteSocketEndpoint))
                 {
-                    this.logger.LogDebug("Node '{0}' was previously banned.", node.RemoteSocketEndpoint);
-                    node.DisconnectWithException("A banned node tried to connect.");
+                    this.logger.LogDebug("Peer '{0}' was previously banned.", peer.RemoteSocketEndpoint);
+                    peer.Disconnect("A banned node tried to connect.");
                     return;
                 }
             }
 
-            this.AttachedPeer.MessageReceived += this.AttachedNode_MessageReceived;
+            this.AttachedPeer.MessageReceived.Register(this.OnMessageReceivedAsync);
             this.chainHeadersBehavior = this.AttachedPeer.Behaviors.Find<ChainHeadersBehavior>();
             this.connectionManagerBehavior = this.AttachedPeer.Behaviors.Find<ConnectionManagerBehavior>();
 
@@ -72,18 +73,20 @@ namespace Stratis.Bitcoin.Connection
         /// </summary>
         /// <param name="peer">The peers that is sending the message.</param>
         /// <param name="message">The message payload.</param>
-        private void AttachedNode_MessageReceived(NetworkPeer peer, IncomingMessage message)
+        private Task OnMessageReceivedAsync(NetworkPeer peer, IncomingMessage message)
         {
             this.logger.LogTrace("({0}:'{1}',{2}:'{3}')", nameof(peer), peer.RemoteSocketEndpoint, nameof(message), message.Message.Command);
 
             if (this.chainHeadersBehavior.InvalidHeaderReceived && !this.connectionManagerBehavior.Whitelisted)
             {
-                this.peerBanning.BanPeer(peer.RemoteSocketEndpoint, this.nodeSettings.ConnectionManager.BanTimeSeconds, "Invalid block header received");
+                var connectionSettings = this.connectionManagerBehavior.ConnectionManager.ConnectionSettings;
+                this.peerBanning.BanPeer(peer.RemoteSocketEndpoint, connectionSettings.BanTimeSeconds, "Invalid block header received");
                 this.logger.LogTrace("Invalid block header received from peer '{0}'.", peer.RemoteSocketEndpoint);
-                peer.DisconnectWithException("Invalid block header received.");
+                peer.Disconnect("Invalid block header received");
             }
 
             this.logger.LogTrace("(-)");
+            return Task.CompletedTask;
         }
 
         /// <inheritdoc />
@@ -91,7 +94,7 @@ namespace Stratis.Bitcoin.Connection
         {
             this.logger.LogTrace("()");
 
-            this.AttachedPeer.MessageReceived -= this.AttachedNode_MessageReceived;
+            this.AttachedPeer.MessageReceived.Unregister(this.OnMessageReceivedAsync);
 
             this.logger.LogTrace("(-)");
         }

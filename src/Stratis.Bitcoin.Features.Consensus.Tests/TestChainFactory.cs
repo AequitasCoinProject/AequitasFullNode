@@ -8,6 +8,7 @@ using Stratis.Bitcoin.Base.Deployments;
 using Stratis.Bitcoin.BlockPulling;
 using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Configuration.Logging;
+using Stratis.Bitcoin.Configuration.Settings;
 using Stratis.Bitcoin.Connection;
 using Stratis.Bitcoin.Features.Consensus.CoinViews;
 using Stratis.Bitcoin.Features.Consensus.Rules;
@@ -38,6 +39,8 @@ namespace Stratis.Bitcoin.Features.Consensus.Tests
 
         public NodeSettings NodeSettings { get; set; }
 
+        public ConnectionManagerSettings ConnectionSettings { get; set; }
+
         public ConcurrentChain Chain { get; set; }
 
         public Network Network { get; set; }
@@ -64,12 +67,15 @@ namespace Stratis.Bitcoin.Features.Consensus.Tests
         {
             var testChainContext = new TestChainContext() { Network = network };
 
-            testChainContext.NodeSettings = new NodeSettings(network.Name, network).LoadArguments(new string[] { $"-datadir={dataDir}" });
+            testChainContext.NodeSettings = new NodeSettings(network).LoadArguments(new string[] { $"-datadir={dataDir}" });
 
             if (dataDir != null)
             {
                 testChainContext.NodeSettings.DataDir = dataDir;
             }
+
+            testChainContext.ConnectionSettings = new ConnectionManagerSettings();
+            testChainContext.ConnectionSettings.Load(testChainContext.NodeSettings);
 
             testChainContext.LoggerFactory = new ExtendedLoggerFactory();
             testChainContext.LoggerFactory.AddConsoleWithFilters();
@@ -85,8 +91,9 @@ namespace Stratis.Bitcoin.Features.Consensus.Tests
 
             testChainContext.MockConnectionManager = new Moq.Mock<IConnectionManager>();
             testChainContext.MockReadOnlyNodesCollection = new Moq.Mock<IReadOnlyNetworkPeerCollection>();
-            testChainContext.MockConnectionManager.Setup(s => s.ConnectedNodes).Returns(testChainContext.MockReadOnlyNodesCollection.Object);
+            testChainContext.MockConnectionManager.Setup(s => s.ConnectedPeers).Returns(testChainContext.MockReadOnlyNodesCollection.Object);
             testChainContext.MockConnectionManager.Setup(s => s.NodeSettings).Returns(testChainContext.NodeSettings);
+            testChainContext.MockConnectionManager.Setup(s => s.ConnectionSettings).Returns(testChainContext.ConnectionSettings);
 
             testChainContext.ConnectionManager = testChainContext.MockConnectionManager.Object;
 
