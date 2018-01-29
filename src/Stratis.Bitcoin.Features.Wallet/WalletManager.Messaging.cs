@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Security;
@@ -106,6 +107,8 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// <summary>The file name of the reviwer addresses file.</summary>
         internal const string ReviewerAddressesFileName = "reviewers.json";
 
+        private FileSystemWatcher reviewersFileWatcher;
+
         private Dictionary<string, PublicReviewerAddressModel> reviewerAddresses;
 
         public Dictionary<string, PublicReviewerAddressModel> ReviewerAddresses
@@ -172,15 +175,29 @@ namespace Stratis.Bitcoin.Features.Wallet
             try
             {
                 var addresses = reviwerAddressFileStorage.LoadByFileName(ReviewerAddressesFileName);
+                this.reviewerAddresses.Clear();
                 addresses.ForEach(address =>
                 {
                     this.reviewerAddresses.TryAdd(address.Address.ToString(), address);
                 });
+
+                if (this.reviewersFileWatcher == null)
+                {
+                    this.reviewersFileWatcher = new FileSystemWatcher(this.fileStorage.FolderPath, ReviewerAddressesFileName);
+                    this.reviewersFileWatcher.NotifyFilter = NotifyFilters.LastWrite;
+                    this.reviewersFileWatcher.Changed += ReviewersFileChanged;
+                    this.reviewersFileWatcher.EnableRaisingEvents = true;
+                }
             }
             catch (System.IO.FileNotFoundException)
             {
                 // we don't have a reviewer address file yet, but that's alright
             }
+        }
+
+        private void ReviewersFileChanged(object sender, FileSystemEventArgs e)
+        {
+            LoadReviewerAddresses();
         }
 
         /// <inheritdoc />
@@ -189,8 +206,10 @@ namespace Stratis.Bitcoin.Features.Wallet
             if (this.reviewerAddresses.Any() == false)
                 return;
 
+            this.reviewersFileWatcher.EnableRaisingEvents = false;
             var fileStorage = new FileStorage<List<PublicReviewerAddressModel>>(this.fileStorage.FolderPath);
             fileStorage.SaveToFile(this.reviewerAddresses.OrderBy(ra => ra.Value.GroupId).Select(ra => ra.Value).ToList(), ReviewerAddressesFileName);
+            this.reviewersFileWatcher.EnableRaisingEvents = true;
         }
 
     }
