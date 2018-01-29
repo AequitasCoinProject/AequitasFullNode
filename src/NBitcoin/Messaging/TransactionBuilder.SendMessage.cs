@@ -1,18 +1,18 @@
-﻿namespace NBitcoin
+﻿using NBitcoin.Crypto;
+
+namespace NBitcoin
 {
     public partial class TransactionBuilder
     {
-
         /// <summary>
         /// Impland a message as PushData into a transaction
         /// </summary>
         /// <returns></returns>
-        public TransactionBuilder SendMessage(string message, bool encryptMessage, byte[] publicKeyExponent, byte[] publicKeyModulus,
-            byte[] privateKeyDP, byte[] privateKeyDQ, byte[] privateKeyExponent, byte[] privateKeyModulus, byte[] privateKeyP, byte[] privateKeyPublicExponent, byte[] privateKeyQ, byte[] privateKeyQInv)
+        public TransactionBuilder SendMessage(string message, string messageRecipient, string replyToAddress, string rewardAddress, RsaPublicKey publicKey = null, RsaPrivateKey privateKey = null)
         {
             var output = new TxOut()
             {
-                ScriptPubKey = TxMessageTemplate.Instance.GenerateScriptPubKey(message, encryptMessage, publicKeyExponent, publicKeyModulus, privateKeyDP, privateKeyDQ, privateKeyExponent, privateKeyModulus, privateKeyP, privateKeyPublicExponent, privateKeyQ, privateKeyQInv)                
+                ScriptPubKey = TxMessageTemplate.Instance.GenerateScriptPubKey(message, messageRecipient, replyToAddress, rewardAddress, (publicKey != null), publicKey, privateKey)
             };
             // change the txout's value dynamically to the smallest amount (the dust threshold)
             output.Value = output.GetDustThreshold(this.StandardTransactionPolicy.MinRelayTxFee);

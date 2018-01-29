@@ -5,11 +5,12 @@ using System.IO;
 using System.IO.Compression;
 using System.Security.Cryptography;
 using System.Numerics;
+using NBitcoin.Crypto;
+using NBitcoin.Messaging;
+using Newtonsoft.Json;
 
 namespace NBitcoin
 {
-    public enum MessageEncryption { None, RSA4096AES256 }
-
     public class TxMessageTemplate : TxNullDataTemplate
     {
         public TxMessageTemplate(int maxScriptSize) : base(maxScriptSize)
@@ -43,17 +44,30 @@ namespace NBitcoin
 
         public const int MAX_MESSAGELENGTH_RELAY = 3 + 2 + 16 * 1024; //! bytes (+3 for OP_NOP OP_NOP OP_RETURN, +2 for the pushdata opcodes)
 
-        public Script GenerateScriptPubKey(string message, bool encryptMessage, byte[] publicKeyExponent, byte[] publicKeyModulus,
-            byte[] privateKeyDP, byte[] privateKeyDQ, byte[] privateKeyExponent, byte[] privateKeyModulus, byte[] privateKeyP, byte[] privateKeyPublicExponent, byte[] privateKeyQ, byte[] privateKeyQInv)
+        public Script GenerateScriptPubKey(string message, string messageRecipient, string replyToAddress, string rewardAddress, bool encryptMessage, RsaPublicKey publicKey, RsaPrivateKey privateKey)
         {
             byte[] pushData = null;
+
+            var twsm = new SecureMessage()
+            {
+                Encryption = (encryptMessage ? MessageEncryption.RSA4096AES256 : MessageEncryption.None),
+                Text = message,
+                Metadata = new SecureMessageMetadata()
+                {
+                    CreationTimeUtc = DateTime.UtcNow.ToString(),
+                    RecipientAddress = messageRecipient,
+                    ReplyToAddress = replyToAddress,
+                    RewardAddress = rewardAddress
+                }
+            };
+
             if (encryptMessage)
             {
-                pushData = GenerateTipMessagePushData(message, MessageEncryption.RSA4096AES256, publicKeyExponent, publicKeyModulus, privateKeyDP, privateKeyDQ, privateKeyExponent, privateKeyModulus, privateKeyP, privateKeyPublicExponent, privateKeyQ, privateKeyQInv);
+                pushData = GenerateTipMessagePushData(twsm, publicKey);
             }
             else
             {
-                pushData = GenerateTipMessagePushData(message, MessageEncryption.None);
+                pushData = GenerateTipMessagePushData(twsm);
             }
 
             return GenerateScriptPubKey(pushData);
@@ -86,35 +100,32 @@ namespace NBitcoin
         }
 
 
-        private byte[] GenerateTipMessagePushData(string message, MessageEncryption messageEncryption, byte[] publicKeyExponent = null, byte[] publicKeyModulus = null,
-            byte[] privateKeyDP = null, byte[] privateKeyDQ = null, byte[] privateKeyExponent = null, byte[] privateKeyModulus = null, byte[] privateKeyP = null, byte[] privateKeyPublicExponent = null, byte[] privateKeyQ = null, byte[] privateKeyQInv = null)
+        private byte[] GenerateTipMessagePushData(SecureMessage message, RsaPublicKey publicKey = null)
         {
             byte[] encryptionKey = new byte[0];
 
-            string metadata = "{\"compression\": \"gzip\", \"encryption\": \"" + messageEncryption.ToString() + "\", \"reward-address\": \"\", signature-type: \"ECDSA\", \"message-hash\": \"\", \"message-signature\": \"\", \"reply-to-tx\": \"\"}";
+            string metadata = JsonConvert.SerializeObject(message.Metadata);
+
             byte[] uncompressedMetadata = System.Text.Encoding.UTF8.GetBytes(metadata);
             byte[] compressedMetadata = GZIPCompressByteArray(uncompressedMetadata);
 
-            byte[] uncompressedMessage = System.Text.Encoding.UTF8.GetBytes(message);
-            if (messageEncryption == MessageEncryption.RSA4096AES256)
+            byte[] uncompressedMessage = System.Text.Encoding.UTF8.GetBytes(message.Text);
+            if (message.Encryption == MessageEncryption.RSA4096AES256)
             {
                 byte[] aesKey = GetRandomData(256);
 
-                encryptionKey = RSAEncryptByteArray(aesKey, publicKeyExponent, publicKeyModulus);
-                byte[] decryptedKey = RSADecryptByteArray(encryptionKey, privateKeyDP, privateKeyDQ, privateKeyExponent, privateKeyModulus, privateKeyP, privateKeyPublicExponent, privateKeyQ, privateKeyQInv);
-
+                encryptionKey = RSAEncryptByteArray(aesKey, publicKey);
                 byte[] encryptedMessage = AESEncryptByteArray(uncompressedMessage, aesKey);
-                byte[] decryptedMessage = AESDecryptByteArray(encryptedMessage, aesKey);
 
                 uncompressedMessage = encryptedMessage;
             }
             byte[] compressedMessage = GZIPCompressByteArray(uncompressedMessage);
 
             byte[] header = System.Text.Encoding.UTF8.GetBytes("TWS");
-            byte version = 1;
-            byte compression = 1;
-            byte checksumType = 0;
-            byte encryptionType = messageEncryption == MessageEncryption.RSA4096AES256 ? (byte)1 : (byte)0;
+            byte version = (byte)message.Version;
+            byte compression = (byte)message.Compression;
+            byte checksumType = (byte)message.ChecksumType;
+            byte encryptionType = (byte)message.Encryption;
             ushort encryptionKeyLength = (ushort)encryptionKey.Length;
             ushort metadataLength = (ushort)compressedMetadata.Length;
             ushort messageLength = (ushort)compressedMessage.Length;
@@ -137,8 +148,10 @@ namespace NBitcoin
             return pushDataList.ToArray();
         }
 
-        public string GetMessage(Script scriptPubKey)
+        public SecureMessage GetMessage(Script scriptPubKey, RsaPrivateKey privateKey = null)
         {
+            var msg = new SecureMessage();
+
             if (scriptPubKey.Length < 13) throw new Exception("This ScriptPubKey is not a valid Wanted System message.");
 
             Op[] scriptPubKeyOps = scriptPubKey.ToOps().ToArray();            
@@ -147,10 +160,10 @@ namespace NBitcoin
             byte[] pd = scriptPubKeyOps[3].PushData;
 
             byte[] header = pd.Take<byte>(3).ToArray();
-            byte version = pd[3];
-            byte compression = pd[4];
-            byte checksumType = pd[5];
-            byte encryptionType = pd[6];
+            msg.Version = pd[3];
+            msg.Compression = (MessageCompression)pd[4];
+            msg.ChecksumType = (MessageChecksum)pd[5];
+            msg.Encryption = (MessageEncryption)pd[6];
             ushort encryptionKeyLength = BitConverter.ToUInt16(pd, 7);
             ushort metadataLength = BitConverter.ToUInt16(pd, 9);
             ushort messageLength = BitConverter.ToUInt16(pd, 11);
@@ -161,14 +174,25 @@ namespace NBitcoin
 
             Array.Copy(pd, 13, encryptionKey, 0, encryptionKeyLength);
             Array.Copy(pd, 13 + encryptionKeyLength, compressedMetadata, 0, metadataLength);
-            Array.Copy(pd, 13 + encryptionKeyLength + metadataLength, compressedMessage, 0, messageLength);
-
-            // TODO: Decrypt the message if needed
+            Array.Copy(pd, 13 + encryptionKeyLength + metadataLength, compressedMessage, 0, messageLength);         
 
             byte[] uncompressedMetadata = GZIPDecompressByteArray(compressedMetadata);
             byte[] uncompressedMessage = GZIPDecompressByteArray(compressedMessage);
 
-            return System.Text.Encoding.UTF8.GetString(uncompressedMessage);
+            // Decrypt the message if needed
+            if (msg.Encryption == MessageEncryption.RSA4096AES256)
+            {
+                byte[] aesKey = RSADecryptByteArray(encryptionKey, privateKey);
+
+                uncompressedMessage = AESDecryptByteArray(uncompressedMessage, aesKey);
+            }
+
+            // process metadata using json serializer
+            string metadata = System.Text.Encoding.UTF8.GetString(uncompressedMetadata);
+            msg.Metadata = JsonConvert.DeserializeObject<SecureMessageMetadata>(metadata);
+            msg.Text = System.Text.Encoding.UTF8.GetString(uncompressedMessage);
+
+            return msg;
         }
 
         private static byte[] GZIPCompressByteArray(byte[] uncompressed)
@@ -197,17 +221,17 @@ namespace NBitcoin
             }
         }
 
-        private static byte[] RSAEncryptByteArray(byte[] plaintext, byte[] publicKeyExponent, byte[] publicKeyModulus)
+        private static byte[] RSAEncryptByteArray(byte[] plaintext, RsaPublicKey publicKey)
         {
             byte[] result = null;
             using (var rsa = RSA.Create())
             {
                 RSAParameters rsaParameters = new RSAParameters();
-                rsaParameters.Exponent = publicKeyExponent;
-                rsaParameters.Modulus = publicKeyModulus;
+                rsaParameters.Exponent = publicKey.Exponent;
+                rsaParameters.Modulus = publicKey.Modulus;
                 rsa.ImportParameters(rsaParameters);
 
-                if (plaintext.Count() > publicKeyModulus.Length - 11)
+                if (plaintext.Count() > publicKey.Modulus.Length - 11)
                 {
                     throw new Exception("The RSA message must be shorter than the length of the public key.");
                 }
@@ -218,20 +242,20 @@ namespace NBitcoin
             return result;
         }
 
-        private static byte[] RSADecryptByteArray(byte[] ciphertext, byte[] privateKeyDP, byte[] privateKeyDQ, byte[] privateKeyExponent, byte[] privateKeyModulus, byte[] privateKeyP, byte[] privateKeyPublicExponent, byte[] privateKeyQ, byte[] privateKeyQInv)
+        private static byte[] RSADecryptByteArray(byte[] ciphertext, RsaPrivateKey privateKey)
         {
             byte[] result = null;
             using (var rsa = RSA.Create())
             {
                 RSAParameters rsaParameters = new RSAParameters();
-                rsaParameters.D = privateKeyExponent;
-                rsaParameters.DP = privateKeyDP;
-                rsaParameters.DQ = privateKeyDQ;
-                rsaParameters.Exponent = privateKeyPublicExponent;
-                rsaParameters.InverseQ = privateKeyQInv;
-                rsaParameters.Modulus = privateKeyModulus;
-                rsaParameters.P = privateKeyP;
-                rsaParameters.Q = privateKeyQ;
+                rsaParameters.D = privateKey.Exponent;
+                rsaParameters.DP = privateKey.DP;
+                rsaParameters.DQ = privateKey.DQ;
+                rsaParameters.Exponent = privateKey.PublicExponent;
+                rsaParameters.InverseQ = privateKey.QInv;
+                rsaParameters.Modulus = privateKey.Modulus;
+                rsaParameters.P = privateKey.P;
+                rsaParameters.Q = privateKey.Q;
                 rsa.ImportParameters(rsaParameters);
 
                 result = rsa.Decrypt(ciphertext, RSAEncryptionPadding.Pkcs1);

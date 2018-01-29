@@ -48,6 +48,8 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
     public class CreateReviewerAddressRequest : RequestModel
     {
+        public string RsaPassword { get; set; }
+
         [Required(ErrorMessage = "The hex-formatted public key array of the addresses who will participate in the review group.")]
         public string[] SignaturePubKeys { get; set; }
 

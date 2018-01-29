@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using NBitcoin;
 using Newtonsoft.Json;
 
@@ -67,6 +68,15 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
         [JsonProperty(PropertyName = "validUntil")]
         public int ValidUntil { get; set; }
+
+        [JsonProperty(PropertyName = "encryptionPublicKey")]
+        public string RsaPublicKeyHex { get; set; }        
+
+        [JsonProperty(PropertyName = "encryptionPrivateKey")]
+        public string RsaPrivateKeyHex { get; set; }
+
+        [JsonProperty(PropertyName = "managerPasswordHash")]
+        public string RsaPasswordHashHex { get; set; }
     }
 
     public class ListPublicReviewerAddressesModel

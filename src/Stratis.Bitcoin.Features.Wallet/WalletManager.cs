@@ -787,7 +787,7 @@ namespace Stratis.Bitcoin.Features.Wallet
                     if (TxMessageTemplate.Instance.CheckScriptPubKey(utxo.ScriptPubKey))
                     {
                         this.AddMessageTransactionToMessageStore(transaction.ToHex(), hash, transaction.Outputs.IndexOf(utxo), utxo.ScriptPubKey, blockHeight, block, isPropagated);
-                        string msg = TxMessageTemplate.Instance.GetMessage(utxo.ScriptPubKey);
+                        string msg = TxMessageTemplate.Instance.GetMessage(utxo.ScriptPubKey).Text;
                     }
                 }
 
