@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Stratis.Bitcoin.Utilities;
@@ -18,23 +17,23 @@ namespace Stratis.Bitcoin.Tests.Utilities
         [Fact]
         public async void AsyncManualResetEvent_WaitAsync()
         {
-            AsyncManualResetEvent manualResetEvent = new AsyncManualResetEvent(false);
+            var manualResetEvent = new AsyncManualResetEvent(false);
 
             Stopwatch stopwatch = Stopwatch.StartNew();
 
             Task task = Task.Run(async () =>
             {
-                await Task.Delay(500);
+                await Task.Delay(510);
                 manualResetEvent.Set();
             });
 
             Task mreAwaitingTask = manualResetEvent.WaitAsync();
             await mreAwaitingTask;
 
-            stopwatch.Stop();
+            stopwatch.Stop(); 
 
-            Assert.True(stopwatch.ElapsedMilliseconds >= 500);
-            Assert.True(mreAwaitingTask.Status == TaskStatus.RanToCompletion);
+            Assert.True(stopwatch.ElapsedMilliseconds >= 500, $"Elapsed: {stopwatch.ElapsedMilliseconds}");
+            Assert.True(mreAwaitingTask.IsCompletedSuccessfully, "Task was not completed successfully.");
         }
 
         [Fact]
@@ -193,7 +192,7 @@ namespace Stratis.Bitcoin.Tests.Utilities
                 if (next == 250)
                     shutdown.Cancel();
 
-                // Deactivate ourselves. 
+                // Deactivate ourselves.
                 selfEvent.Reset();
 
                 // Select the next worker to go. This can select ourselves again.

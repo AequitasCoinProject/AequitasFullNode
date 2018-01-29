@@ -15,11 +15,12 @@ using Stratis.Bitcoin.Builder;
 using Stratis.Bitcoin.Features.BlockStore;
 using Stratis.Bitcoin.Features.Consensus;
 using Stratis.Bitcoin.Features.Consensus.CoinViews;
+using Stratis.Bitcoin.Features.Consensus.Interfaces;
 using Stratis.Bitcoin.Features.MemoryPool;
 using Stratis.Bitcoin.Features.Wallet;
 using Stratis.Bitcoin.Features.Wallet.Interfaces;
 
-namespace Stratis.Bitcoin.IntegrationTests
+namespace Stratis.Bitcoin.IntegrationTests.EnvironmentMockUpHelpers
 {
     internal static class FullNodeExt
     {
@@ -35,7 +36,7 @@ namespace Stratis.Bitcoin.IntegrationTests
 
         public static ConsensusLoop ConsensusLoop(this FullNode fullNode)
         {
-            return fullNode.NodeService<ConsensusLoop>();
+            return fullNode.NodeService<IConsensusLoop>() as ConsensusLoop;
         }
 
         public static CoinView CoinView(this FullNode fullNode)

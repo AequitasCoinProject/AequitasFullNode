@@ -1,5 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
-using NBitcoin;
+﻿using NBitcoin;
 using Stratis.Bitcoin.Base;
 using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Configuration.Logging;
@@ -21,7 +20,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Tests
             this.network = Network.Main;
             this.consensusSettings = new ConsensusSettings(NodeSettings.Default(), new ExtendedLoggerFactory());
             this.checkpoints = new Checkpoints(this.network, this.consensusSettings);
-            this.nodeSettings = new NodeSettings("stratis", this.network);
+            this.nodeSettings = new NodeSettings(this.network);
             this.chainState = new ChainState(new InvalidBlockHashStore(DateTimeProvider.Default));
         }
 

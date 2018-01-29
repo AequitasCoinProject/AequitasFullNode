@@ -754,12 +754,6 @@ namespace Stratis.Bitcoin.Features.Wallet
         public bool? IsCoinStake { get; set; }
 
         /// <summary>
-        /// A list of payments made out in this transaction.
-        /// </summary>
-        [JsonProperty(PropertyName = "payments", NullValueHandling = NullValueHandling.Ignore)]
-        public ICollection<PaymentDetails> Payments { get; set; }
-
-        /// <summary>
         /// The index of this scriptPubKey in the transaction it is contained.
         /// </summary>
         /// <remarks>
