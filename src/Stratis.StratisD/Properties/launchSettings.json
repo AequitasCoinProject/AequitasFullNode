@@ -2,7 +2,7 @@
   "profiles": {
     "Stratis.StratisD": {
       "commandName": "Project",
-      "commandLineArgs": "-datadir=n:\\Blockchains\\StratisNode\\stratis\\StratisTest\\"
+      "commandLineArgs": "-datadir=n:\\Blockchains\\StratisNode\\stratis\\StratisMain\\"
     },
     "Stratis.StratisD Test": {
       "commandName": "Project",
