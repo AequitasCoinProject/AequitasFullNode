@@ -157,7 +157,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     {
                         model.Outputs.Add(new TransactionOutputModel
                         {
-                            Address = "N/A - Message: " + TxMessageTemplate.Instance.GetMessage(output.ScriptPubKey).Text,
+                            Address = "N/A - Wanted System Secure Message",
                             Amount = output.Value,                           
                         });
                     }
@@ -220,6 +220,48 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                         TransactionHex = message.TransactionHex
                     });
                 }
+
+                return this.Json(model);
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError("Exception occurred: {0}", e.ToString());
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
+            }
+        }
+
+        [Route("decrypt-tip-message")]
+        [HttpPost]
+        public IActionResult DecryptTipMessageAsync([FromBody] DecryptTipMessageRequest request)
+        {
+            Guard.NotNull(request, nameof(request));
+
+            // checks the request is valid
+            if (!this.ModelState.IsValid)
+            {
+                return BuildErrorResponse(this.ModelState);
+            }
+
+            try
+            {
+                Script scriptPubKey = Transaction.Parse(request.TransactionHex).Outputs[request.MessageOutputIndex].ScriptPubKey;
+                RsaPrivateKey rsaPrivateKey = null;
+                if (!String.IsNullOrEmpty(request.RsaPrivateKeyHex))
+                {
+                    rsaPrivateKey = RsaPrivateKey.FromHex(request.RsaPrivateKeyHex);
+                }
+
+                NBitcoin.Messaging.SecureMessage sm = TxMessageTemplate.Instance.GetMessage(scriptPubKey, rsaPrivateKey);
+
+                var model = new DecryptedMessageModel
+                {
+                    Version = sm.Version,
+                    Compression = sm.Compression.ToString(),
+                    ChecksumType = sm.ChecksumType.ToString(),
+                    Encryption = sm.Encryption.ToString(),
+                    Metadata = this.Json(sm.Metadata).ToString(),
+                    Text = sm.Text
+                };
 
                 return this.Json(model);
             }

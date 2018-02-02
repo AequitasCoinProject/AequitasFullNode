@@ -84,4 +84,25 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         [JsonProperty(PropertyName = "reviewerAddresses")]
         public ICollection<PublicReviewerAddressModel> Addresses { get; set; }
     }
+
+    public class DecryptedMessageModel
+    {
+        [JsonProperty(PropertyName = "version")]
+        public byte Version { get; set; }
+
+        [JsonProperty(PropertyName = "compression")]
+        public string Compression { get; set; }
+
+        [JsonProperty(PropertyName = "checksumType")]
+        public string ChecksumType { get; set; }
+
+        [JsonProperty(PropertyName = "encryption")]
+        public string Encryption { get; set; }
+
+        [JsonProperty(PropertyName = "metadata")]
+        public string Metadata { set; get; }
+
+        [JsonProperty(PropertyName = "text")]
+        public string Text { set; get; }
+    }
 }

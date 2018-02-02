@@ -161,9 +161,17 @@ namespace NBitcoin
 
             byte[] header = pd.Take<byte>(3).ToArray();
             msg.Version = pd[3];
+            if (msg.Version != 1) throw new Exception($"Wanted System message vesion {msg.Version} is not supported.");
+
             msg.Compression = (MessageCompression)pd[4];
+            if (msg.Compression != MessageCompression.GZip) throw new Exception($"Wanted System message compression {msg.Compression} is not supported.");
+
             msg.ChecksumType = (MessageChecksum)pd[5];
+            if (msg.ChecksumType != MessageChecksum.None) throw new Exception($"Wanted System message checksum {msg.ChecksumType} is not supported.");
+
             msg.Encryption = (MessageEncryption)pd[6];
+            if (msg.Encryption != MessageEncryption.RSA4096AES256) throw new Exception($"Wanted System message encryption {msg.Encryption} is not supported.");
+
             ushort encryptionKeyLength = BitConverter.ToUInt16(pd, 7);
             ushort metadataLength = BitConverter.ToUInt16(pd, 9);
             ushort messageLength = BitConverter.ToUInt16(pd, 11);
@@ -179,17 +187,19 @@ namespace NBitcoin
             byte[] uncompressedMetadata = GZIPDecompressByteArray(compressedMetadata);
             byte[] uncompressedMessage = GZIPDecompressByteArray(compressedMessage);
 
+            // process metadata using json serializer
+            string metadata = System.Text.Encoding.UTF8.GetString(uncompressedMetadata);
+            msg.Metadata = JsonConvert.DeserializeObject<SecureMessageMetadata>(metadata);
+
             // Decrypt the message if needed
             if (msg.Encryption == MessageEncryption.RSA4096AES256)
             {
+                if (privateKey == null) throw new Exception("The message is encrypted but the decryption key was not provided.");
+
                 byte[] aesKey = RSADecryptByteArray(encryptionKey, privateKey);
 
                 uncompressedMessage = AESDecryptByteArray(uncompressedMessage, aesKey);
             }
-
-            // process metadata using json serializer
-            string metadata = System.Text.Encoding.UTF8.GetString(uncompressedMetadata);
-            msg.Metadata = JsonConvert.DeserializeObject<SecureMessageMetadata>(metadata);
             msg.Text = System.Text.Encoding.UTF8.GetString(uncompressedMessage);
 
             return msg;

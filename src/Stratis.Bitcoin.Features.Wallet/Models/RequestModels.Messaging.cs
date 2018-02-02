@@ -46,6 +46,15 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         public string BlockHeight { get; set; }
     }
 
+    public class DecryptTipMessageRequest : RequestModel
+    {
+        public string TransactionHex { get; set; }
+
+        public int MessageOutputIndex { get; set; }
+
+        public string RsaPrivateKeyHex { get; set; }
+    }
+
     public class CreateReviewerAddressRequest : RequestModel
     {
         public string RsaPassword { get; set; }
