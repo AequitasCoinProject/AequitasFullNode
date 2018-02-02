@@ -65,7 +65,15 @@ namespace Stratis.Bitcoin.Features.Wallet
                 });
 
                 SaveMessages();
-            } else
+            }
+            else if ((!this.TxMessages[transactionHash].BlockHeight.HasValue) && (blockHeight.HasValue))
+            {
+                this.TxMessages[transactionHash].BlockHeight = blockHeight;
+                this.TxMessages[transactionHash].IsPropagated = isPropagated;
+
+                SaveMessages();
+            }
+            else
             {
                 this.logger.LogTrace("Message '{0}-{1}' was already in the message store, skipping it.", transactionHash, utxoIndex);
             }
