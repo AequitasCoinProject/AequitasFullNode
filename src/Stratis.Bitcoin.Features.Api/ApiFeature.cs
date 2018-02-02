@@ -78,7 +78,7 @@ namespace Stratis.Bitcoin.Features.Api
         /// <summary>
         /// A KeepaliveMonitor when enabled will shutdown the
         /// node if no one is calling the keepalive endpoint
-        /// during a certain trashold window
+        /// during a certain threshold window
         /// </summary>
         public void TryStartKeepaliveMonitor()
         {
@@ -89,7 +89,7 @@ namespace Stratis.Bitcoin.Features.Api
                     // shortened for redability
                     KeepaliveMonitor monitor = this.apiFeatureOptions.KeepaliveMonitor;
 
-                    // check the trashold to trigger a shutdown
+                    // check the threshold to trigger a shutdown
                     if (monitor.LastBeat.Add(monitor.KeepaliveInterval) < this.fullNode.DateTimeProvider.GetUtcNow())
                         this.fullNode.Dispose();
 
