@@ -96,7 +96,7 @@ namespace NBitcoin.Tests
             var coinsView = new CoinsView();
             Transaction[] dummyTransactions = SetupDummyInputs(coinsView);
 
-            string metadata = "{\"compression\": \"gzip\", \"encryption\": \"none\", \"reward-address\": \"\", signature-type: \"ECDSA\", \"message-hash\": \"\", \"message-signature\": \"\"}";
+            string metadata = "{\"compression\": \"gzip\", \"encryption\": \"none\", \"rewardAddress\": \"\", signatureType: \"ECDSA\", \"messageHash\": \"\", \"messageSignature\": \"\"}";
             byte[] uncompressedMetadata = System.Text.Encoding.UTF8.GetBytes(metadata);
             byte[] compressedMetadata = CompressByteArray(uncompressedMetadata);
 
