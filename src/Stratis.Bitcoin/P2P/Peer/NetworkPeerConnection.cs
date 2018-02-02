@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
@@ -293,6 +294,11 @@ namespace Stratis.Bitcoin.P2P.Peer
             this.logger.LogTrace("(-)");
         }
 
+        private static Dictionary<string, DateTime> postponeNextConnectionAttempUntil = new Dictionary<string, DateTime>();
+        private static DateTime nextEarliestConnectionAttempt = DateTime.UtcNow;
+        private static int connectionAttemptCount = 0;
+        private static int connectionAttemptErrors = 0;
+
         /// <summary>
         /// Connects the network client to the target server.
         /// </summary>
@@ -304,6 +310,26 @@ namespace Stratis.Bitcoin.P2P.Peer
             this.logger = this.loggerFactory.CreateLogger(this.GetType().FullName, $"[{this.Id}-{endPoint}] ");
             this.logger.LogTrace("({0}:'{1}')", nameof(endPoint), endPoint);
 
+            string endPointKey = endPoint.ToString();
+
+            if (cancellation.IsCancellationRequested)
+            {
+                this.logger.LogTrace("Cancellation was requested while connecting to '{0}'.", endPoint);
+                this.logger.LogTrace("(-)");
+                return;
+            }
+
+            lock (postponeNextConnectionAttempUntil)
+            {
+                DateTime doNotTryUntil = postponeNextConnectionAttempUntil.TryGet<string, DateTime>(endPointKey);
+                if (doNotTryUntil > DateTime.UtcNow)
+                {
+                    this.logger.LogTrace("Connection to '{0}' was postponed.", endPoint);
+                    this.logger.LogTrace("(-)");
+                    return;
+                }
+            }
+
             try
             {
                 // This variable records any error occurring in the thread pool task's context.
@@ -311,14 +337,34 @@ namespace Stratis.Bitcoin.P2P.Peer
 
                 await Task.Run(() =>
                 {
-                    try
+                    lock (postponeNextConnectionAttempUntil)
                     {
-                        this.tcpClient.ConnectAsync(endPoint.Address, endPoint.Port).Wait(cancellation);
-                    }
-                    catch (Exception e)
-                    {
+                        if (nextEarliestConnectionAttempt > DateTime.UtcNow)
+                        {
+                        // do not try to connect again in the next second to avoid traffic jam
+                        postponeNextConnectionAttempUntil.AddOrReplace<string, DateTime>(endPointKey, nextEarliestConnectionAttempt.AddMilliseconds(500));
+                            return;
+                        }
+
+                        try
+                        {
+                        // do not try to connect again in the next second if it was successful
+                        nextEarliestConnectionAttempt = DateTime.UtcNow.AddMilliseconds(500);
+                            connectionAttemptCount++;
+
+                            this.tcpClient.ConnectAsync(endPoint.Address, endPoint.Port).Wait(cancellation);
+                        }
+                        catch (Exception e)
+                        {
                         // Record the error occurring in the thread pool's context.
                         error = e;
+                            connectionAttemptErrors++;
+
+                        // do not try to connect again in the next 600 seconds if there was an error
+                        postponeNextConnectionAttempUntil.AddOrReplace<string, DateTime>(endPointKey, DateTime.UtcNow.AddSeconds(600));
+
+                            Console.WriteLine($" -NOTE- Connection stats  attempts: {connectionAttemptCount} postponed: {postponeNextConnectionAttempUntil.Count} errors: {connectionAttemptErrors} last-error: {endPointKey}:{e.Message}");
+                        }
                     }
                 }).ConfigureAwait(false);
 
