@@ -24,6 +24,11 @@ namespace NBitcoin.Messaging
 
         [JsonProperty(PropertyName = "rewardAddress")]
         public string RewardAddress;
+
+        public override string ToString()
+        {
+            return JsonConvert.SerializeObject(this);
+        }
     }
 
     public class SecureMessage
