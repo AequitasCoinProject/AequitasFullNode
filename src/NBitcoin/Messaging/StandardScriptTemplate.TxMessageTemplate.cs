@@ -11,14 +11,14 @@ using Newtonsoft.Json;
 
 namespace NBitcoin
 {
-    public class TxMessageTemplate : TxNullDataTemplate
+    public class WantedSystemMessageTemplate : TxNullDataTemplate
     {
-        public TxMessageTemplate(int maxScriptSize) : base(maxScriptSize)
+        public WantedSystemMessageTemplate(int maxScriptSize) : base(maxScriptSize)
         {
         }
 
-        private static readonly TxMessageTemplate _Instance = new TxMessageTemplate(MAX_MESSAGELENGTH_RELAY);
-        public new static TxMessageTemplate Instance
+        private static readonly WantedSystemMessageTemplate _Instance = new WantedSystemMessageTemplate(MAX_MESSAGELENGTH_RELAY);
+        public new static WantedSystemMessageTemplate Instance
         {
             get
             {
@@ -48,11 +48,11 @@ namespace NBitcoin
         {
             byte[] pushData = null;
 
-            var twsm = new SecureMessage()
+            var wsm = new WantedSystemMessage()
             {
                 Encryption = (encryptMessage ? MessageEncryption.RSA4096AES256 : MessageEncryption.None),
                 Text = message,
-                Metadata = new SecureMessageMetadata()
+                Metadata = new WantedSystemMessageMetadata()
                 {
                     CreationTimeUtc = DateTime.UtcNow.ToString(),
                     RecipientAddress = messageRecipient,
@@ -63,11 +63,11 @@ namespace NBitcoin
 
             if (encryptMessage)
             {
-                pushData = GenerateTipMessagePushData(twsm, publicKey);
+                pushData = GenerateWantedSystemMessagePushData(wsm, publicKey);
             }
             else
             {
-                pushData = GenerateTipMessagePushData(twsm);
+                pushData = GenerateWantedSystemMessagePushData(wsm);
             }
 
             return GenerateScriptPubKey(pushData);
@@ -100,7 +100,7 @@ namespace NBitcoin
         }
 
 
-        private byte[] GenerateTipMessagePushData(SecureMessage message, RsaPublicKey publicKey = null)
+        private byte[] GenerateWantedSystemMessagePushData(WantedSystemMessage message, RsaPublicKey publicKey = null)
         {
             byte[] encryptionKey = new byte[0];
 
@@ -148,9 +148,9 @@ namespace NBitcoin
             return pushDataList.ToArray();
         }
 
-        public SecureMessage GetMessage(Script scriptPubKey, RsaPrivateKey privateKey = null)
+        public WantedSystemMessage GetWantedSystemMessage(Script scriptPubKey, RsaPrivateKey privateKey = null)
         {
-            var msg = new SecureMessage();
+            var msg = new WantedSystemMessage();
 
             if (scriptPubKey.Length < 13) throw new Exception("This ScriptPubKey is not a valid Wanted System message.");
 
@@ -189,14 +189,22 @@ namespace NBitcoin
 
             // process metadata using json serializer
             string metadata = System.Text.Encoding.UTF8.GetString(uncompressedMetadata);
-            msg.Metadata = JsonConvert.DeserializeObject<SecureMessageMetadata>(metadata);
+            msg.Metadata = JsonConvert.DeserializeObject<WantedSystemMessageMetadata>(metadata);
 
             // Decrypt the message if needed
             if (msg.Encryption == MessageEncryption.RSA4096AES256)
             {
                 if (privateKey == null) throw new Exception("The message is encrypted but the decryption key was not provided.");
 
-                byte[] aesKey = RSADecryptByteArray(encryptionKey, privateKey);
+                byte[] aesKey = null;
+                try
+                {
+                    aesKey = RSADecryptByteArray(encryptionKey, privateKey);
+                }
+                catch
+                {
+                    throw new Exception("The private key you provided isn't a match for the public key the message was encrypted with.");
+                }
 
                 uncompressedMessage = AESDecryptByteArray(uncompressedMessage, aesKey);
             }

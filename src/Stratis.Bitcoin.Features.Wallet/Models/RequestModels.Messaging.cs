@@ -10,7 +10,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
     /// Model object for <see cref="WalletController.GetTipFeeEstimate"/> request.
     /// </summary>
     /// <seealso cref="Stratis.Bitcoin.Features.Wallet.Models.RequestModel" />
-    public class TipFeeEstimateRequest : RequestModel
+    public class EstimateWantedSystemMessageFeeRequest : RequestModel
     {
         [Required(ErrorMessage = "The name of the wallet is missing.")]
         public string WalletName { get; set; }
@@ -28,25 +28,25 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         public bool EncryptMessage { get; set; }
     }
 
-    public class BuildTipTransactionRequest : TipFeeEstimateRequest
+    public class BuildWantedSystemMessageRequest : EstimateWantedSystemMessageFeeRequest
     {
         [Required(ErrorMessage = "A password is required.")]
         public string Password { get; set; }
     }
 
-    public class SendTipTransactionRequest : RequestModel
+    public class SendWantedSystemMessageRequest : RequestModel
     {
         [Required(ErrorMessage = "A transaction in hexadecimal format is required.")]
         public string Hex { get; set; }
     }
 
-    public class GetTipMessagesRequest : RequestModel
+    public class GetWantedSystemMessagesRequest : RequestModel
     {
         [Required(ErrorMessage = "The block height from which you need the messages must be defined.")]
         public string BlockHeight { get; set; }
     }
 
-    public class DecryptTipMessageRequest : RequestModel
+    public class DecryptWantedSystemMessageRequest : RequestModel
     {
         public string TransactionHex { get; set; }
 

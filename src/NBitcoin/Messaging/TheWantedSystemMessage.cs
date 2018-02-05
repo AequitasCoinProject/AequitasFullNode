@@ -11,7 +11,7 @@ namespace NBitcoin.Messaging
 
     public enum MessageEncryption { None = 0, RSA4096AES256 = 1 }
 
-    public class SecureMessageMetadata
+    public class WantedSystemMessageMetadata
     {
         [JsonProperty(PropertyName = "creationTime")]
         public string CreationTimeUtc;
@@ -31,7 +31,7 @@ namespace NBitcoin.Messaging
         }
     }
 
-    public class SecureMessage
+    public class WantedSystemMessage
     {
         public byte Version { get; set; } = 1;
 
@@ -41,7 +41,7 @@ namespace NBitcoin.Messaging
 
         public MessageEncryption Encryption { get; set; }
 
-        public SecureMessageMetadata Metadata;
+        public WantedSystemMessageMetadata Metadata;
 
         public string Text;
     }

@@ -5,16 +5,16 @@ using Newtonsoft.Json;
 
 namespace Stratis.Bitcoin.Features.Wallet.Models
 {
-    public class WalletGetMessagesModel
+    public class GetWantedSystemMessagesModel
     {
         [JsonProperty(PropertyName = "minimumBlockHeight")]
         public int MinimumBlockHeight;
 
         [JsonProperty(PropertyName = "messages")]
-        public ICollection<TxMessageModel> Messages { get; set; }
+        public ICollection<WantedSystemMessageModel> Messages { get; set; }
     }
     
-    public class TxMessageModel
+    public class WantedSystemMessageModel
     {
         [JsonProperty(PropertyName = "isPropagated")]
         public bool IsPropagated { set; get; }
@@ -44,6 +44,27 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
         [JsonProperty(PropertyName = "transactionHex")]
         public string TransactionHex { set; get; }
+    }
+
+    public class DecryptedWantedSystemMessageModel
+    {
+        [JsonProperty(PropertyName = "version")]
+        public byte Version { get; set; }
+
+        [JsonProperty(PropertyName = "compression")]
+        public string Compression { get; set; }
+
+        [JsonProperty(PropertyName = "checksumType")]
+        public string ChecksumType { get; set; }
+
+        [JsonProperty(PropertyName = "encryption")]
+        public string Encryption { get; set; }
+
+        [JsonProperty(PropertyName = "metadata")]
+        public string Metadata { set; get; }
+
+        [JsonProperty(PropertyName = "text")]
+        public string Text { set; get; }
     }
 
     public class PublicReviewerAddressModel
@@ -83,26 +104,5 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
     {
         [JsonProperty(PropertyName = "reviewerAddresses")]
         public ICollection<PublicReviewerAddressModel> Addresses { get; set; }
-    }
-
-    public class DecryptedMessageModel
-    {
-        [JsonProperty(PropertyName = "version")]
-        public byte Version { get; set; }
-
-        [JsonProperty(PropertyName = "compression")]
-        public string Compression { get; set; }
-
-        [JsonProperty(PropertyName = "checksumType")]
-        public string ChecksumType { get; set; }
-
-        [JsonProperty(PropertyName = "encryption")]
-        public string Encryption { get; set; }
-
-        [JsonProperty(PropertyName = "metadata")]
-        public string Metadata { set; get; }
-
-        [JsonProperty(PropertyName = "text")]
-        public string Text { set; get; }
     }
 }

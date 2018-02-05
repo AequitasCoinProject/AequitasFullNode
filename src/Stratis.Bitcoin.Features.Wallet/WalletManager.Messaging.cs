@@ -28,15 +28,15 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// <summary>The file name of the messages file.</summary>
         internal const string MessagesFileName = "messages.json";
 
-        private Dictionary<uint256, TxMessageModel> txMessages;
+        private Dictionary<uint256, WantedSystemMessageModel> txMessages;
 
-        public Dictionary<uint256, TxMessageModel> TxMessages
+        public Dictionary<uint256, WantedSystemMessageModel> TxMessages
         {
             get
             {
                 if (this.txMessages == null)
                 {
-                    this.txMessages = new Dictionary<uint256, TxMessageModel>();
+                    this.txMessages = new Dictionary<uint256, WantedSystemMessageModel>();
                     LoadMessages();
                 }
 
@@ -54,7 +54,7 @@ namespace Stratis.Bitcoin.Features.Wallet
             {
                 this.logger.LogTrace("Message '{0}-{1}' was not found in the message store, adding it.", transactionHash, utxoIndex);
 
-                this.TxMessages.Add(transactionHash, new TxMessageModel()
+                this.TxMessages.Add(transactionHash, new WantedSystemMessageModel()
                 {
                     TransactionHex = transactionHex,
                     TransactionHash = transactionHash,
@@ -84,7 +84,7 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// <inheritdoc />
         public void LoadMessages()
         {
-            var messageFileStorage = new FileStorage<List<TxMessageModel>>(this.fileStorage.FolderPath);
+            var messageFileStorage = new FileStorage<List<WantedSystemMessageModel>>(this.fileStorage.FolderPath);
             try
             {
                 var messages = messageFileStorage.LoadByFileName(MessagesFileName);
@@ -107,7 +107,7 @@ namespace Stratis.Bitcoin.Features.Wallet
             if (this.txMessages.Any() == false)
                 return;
 
-            var fileStorage = new FileStorage<List<TxMessageModel>>(this.fileStorage.FolderPath);
+            var fileStorage = new FileStorage<List<WantedSystemMessageModel>>(this.fileStorage.FolderPath);
             fileStorage.SaveToFile(this.txMessages.OrderBy(m => m.Value.BlockHeight).Select(m => m.Value).ToList(), MessagesFileName);
         }
 

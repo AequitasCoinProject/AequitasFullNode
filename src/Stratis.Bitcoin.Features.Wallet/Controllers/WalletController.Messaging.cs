@@ -31,15 +31,15 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
     public partial class WalletController : Controller
     { 
         /// <summary>
-        /// Gets a tip fee estimate.
+        /// Gets a wanted system message (WSM) fee estimate.
         /// Fee can be estimated by creating a <see cref="TransactionBuildContext"/> with no password
         /// and then building the tip transaction and retrieving the fee from the context.
         /// </summary>
         /// <param name="request">The transaction parameters.</param>
         /// <returns>The estimated fee for the transaction.</returns>
-        [Route("estimate-tip-fee")]
+        [Route("estimate-wanted-system-message-fee")]
         [HttpGet]
-        public IActionResult GetTipFeeEstimate([FromQuery] TipFeeEstimateRequest request)
+        public IActionResult EstimateWantedSystemMessageFee([FromQuery] EstimateWantedSystemMessageFeeRequest request)
         {
             Guard.NotNull(request, nameof(request));
 
@@ -70,13 +70,13 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
         }
 
         /// <summary>
-        /// Builds a tip transaction. If the tip trancation is paid by the Tipster, the message should not be encrypted. If the tip tranaction is paid by the Reviewers, the message should be encrypted with their keys.
+        /// Builds a wanted system message (WSM) transaction. If the tip trancation is paid by the Tipster, the message should not be encrypted. If the tip tranaction is paid by the Reviewers, the message should be encrypted with their keys.
         /// </summary>
         /// <param name="request">The transaction parameters.</param>
         /// <returns>All the details of the transaction, including the hex used to execute it.</returns>
-        [Route("build-tip-transaction")]
+        [Route("build-wanted-system-message")]
         [HttpPost]
-        public IActionResult BuildTipTransaction([FromBody] BuildTipTransactionRequest request)
+        public IActionResult BuildWantedSystemMessage([FromBody] BuildWantedSystemMessageRequest request)
         {
             Guard.NotNull(request, nameof(request));
 
@@ -122,13 +122,13 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
         }
 
         /// <summary>
-        /// Sends a tip transaction.
+        /// Sends a wanted system message (WSM) transaction.
         /// </summary>
         /// <param name="request">The hex representing the transaction.</param>
         /// <returns></returns>
-        [Route("send-tip-transaction")]
+        [Route("send-wanted-system-message")]
         [HttpPost]
-        public IActionResult SendTipTransactionAsync([FromBody] SendTipTransactionRequest request)
+        public IActionResult SendWantedSystemMessageAsync([FromBody] SendWantedSystemMessageRequest request)
         {
             Guard.NotNull(request, nameof(request));
 
@@ -153,7 +153,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
                 foreach (var output in transaction.Outputs)
                 {
-                    if (TxMessageTemplate.Instance.CheckScriptPubKey(output.ScriptPubKey))
+                    if (WantedSystemMessageTemplate.Instance.CheckScriptPubKey(output.ScriptPubKey))
                     {
                         model.Outputs.Add(new TransactionOutputModel
                         {
@@ -184,9 +184,14 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             }
         }
 
-        [Route("get-tip-messages")]
+        /// <summary>
+        /// Gets all the wanted system messages (WSMs) from the local store (messages.json)
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [Route("get-wanted-system-messages")]
         [HttpPost]
-        public IActionResult GetTipMessagesAsync([FromBody] GetTipMessagesRequest request)
+        public IActionResult GetWantedSystemMessagesAsync([FromBody] GetWantedSystemMessagesRequest request)
         {
             Guard.NotNull(request, nameof(request));
             
@@ -203,15 +208,15 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
                 var messages = walletManager.TxMessages.Values.Where(msg => msg.BlockHeight >= requestedBlockHeight);
 
-                WalletGetMessagesModel model = new WalletGetMessagesModel
+                GetWantedSystemMessagesModel model = new GetWantedSystemMessagesModel
                 {
                     MinimumBlockHeight = requestedBlockHeight,
-                    Messages = new List<TxMessageModel>()
+                    Messages = new List<WantedSystemMessageModel>()
                 };
 
                 foreach (var message in messages)
                 {
-                    model.Messages.Add(new TxMessageModel
+                    model.Messages.Add(new WantedSystemMessageModel
                     {
                         IsPropagated = message.IsPropagated,
                         BlockHeight = message.BlockHeight,
@@ -230,9 +235,14 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             }
         }
 
-        [Route("decrypt-tip-message")]
+        /// <summary>
+        /// Decrypts a wanted system message (WSMs)
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [Route("decrypt-wanted-system-message")]
         [HttpPost]
-        public IActionResult DecryptTipMessageAsync([FromBody] DecryptTipMessageRequest request)
+        public IActionResult DecryptWantedSystemMessageAsync([FromBody] DecryptWantedSystemMessageRequest request)
         {
             Guard.NotNull(request, nameof(request));
 
@@ -248,12 +258,19 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 RsaPrivateKey rsaPrivateKey = null;
                 if (!String.IsNullOrEmpty(request.RsaPrivateKeyHex))
                 {
-                    rsaPrivateKey = RsaPrivateKey.FromHex(request.RsaPrivateKeyHex);
+                    try
+                    {
+                        rsaPrivateKey = RsaPrivateKey.FromHex(request.RsaPrivateKeyHex);
+                    }
+                    catch
+                    {
+                        throw new Exception("The RSA private key you provided was not in the correct form.");
+                    }
                 }
 
-                NBitcoin.Messaging.SecureMessage sm = TxMessageTemplate.Instance.GetMessage(scriptPubKey, rsaPrivateKey);
+                NBitcoin.Messaging.WantedSystemMessage sm = WantedSystemMessageTemplate.Instance.GetWantedSystemMessage(scriptPubKey, rsaPrivateKey);
 
-                var model = new DecryptedMessageModel
+                var model = new DecryptedWantedSystemMessageModel
                 {
                     Version = sm.Version,
                     Compression = sm.Compression.ToString(),
@@ -272,9 +289,14 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             }
         }
 
-        [Route("create-public-reviewer-address")]
+        /// <summary>
+        /// Create a new reviewer addresses (this can take up to a minute)
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [Route("create-reviewer-address")]
         [HttpPost]
-        public IActionResult CreatePublicReviewerAddressAsync([FromBody] CreateReviewerAddressRequest request)
+        public IActionResult CreateReviewerAddressAsync([FromBody] CreateReviewerAddressRequest request)
         {
             Guard.NotNull(request, nameof(request));
 
@@ -354,9 +376,14 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             }
         }
 
-        [Route("list-public-reviewer-addresses")]
+        /// <summary>
+        /// Lists all reviewer addresses from the local store (reviewers.json)
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [Route("list-reviewer-addresses")]
         [HttpPost]
-        public IActionResult ListPublicReviewerAddressesAsync([FromBody] ListReviewerAddressesRequest request)
+        public IActionResult ListReviewerAddressesAsync([FromBody] ListReviewerAddressesRequest request)
         {
             Guard.NotNull(request, nameof(request));
 

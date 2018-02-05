@@ -12,7 +12,7 @@ namespace NBitcoin
         {
             var output = new TxOut()
             {
-                ScriptPubKey = TxMessageTemplate.Instance.GenerateScriptPubKey(message, messageRecipient, replyToAddress, rewardAddress, (publicKey != null), publicKey, privateKey)
+                ScriptPubKey = WantedSystemMessageTemplate.Instance.GenerateScriptPubKey(message, messageRecipient, replyToAddress, rewardAddress, (publicKey != null), publicKey, privateKey)
             };
             // change the txout's value dynamically to the smallest amount (the dust threshold)
             output.Value = output.GetDustThreshold(this.StandardTransactionPolicy.MinRelayTxFee);

@@ -15,7 +15,7 @@ namespace NBitcoin
             PayToMultiSigTemplate.Instance,
             TxNullDataTemplate.Instance,
             PayToWitTemplate.Instance,
-            TxMessageTemplate.Instance
+            WantedSystemMessageTemplate.Instance
         };
 
         public static bool IsStandardTransaction(Transaction tx)
