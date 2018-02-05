@@ -259,7 +259,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     Compression = sm.Compression.ToString(),
                     ChecksumType = sm.ChecksumType.ToString(),
                     Encryption = sm.Encryption.ToString(),
-                    Metadata = this.Json(sm.Metadata).ToString(),
+                    Metadata = sm.Metadata.ToString(),
                     Text = sm.Text
                 };
 
@@ -499,7 +499,16 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                         // p and q should not be too close together (or equal!)
                         BigInteger diff = q.Subtract(p).Abs();
                         if (diff.BitLength < mindiffbits)
+                        {
+                            for (int i=0; i<qBitLength; i++)
+                            {
+                                q = q.FlipBit(i);
+                            }
+
+                            qStartValue = q;
+                            qIndex = 0;
                             continue;
+                        }
 
                         //
                         // calculate the modulus
