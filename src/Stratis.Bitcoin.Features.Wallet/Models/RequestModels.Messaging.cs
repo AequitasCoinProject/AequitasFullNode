@@ -42,7 +42,6 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
     public class GetWantedSystemMessagesRequest : RequestModel
     {
-        [Required(ErrorMessage = "The block height from which you need the messages must be defined.")]
         public string BlockHeight { get; set; }
     }
 
@@ -86,4 +85,20 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
         public int ValidAtBlockHeight { get; set; }
     }
+
+    public class SignWantedSystemMessageRequest : RequestModel
+    {
+        [JsonProperty(PropertyName = "transactionHex")]
+        public string TransactionHex { set; get; }
+
+        [JsonProperty(PropertyName = "signingKey")]
+        public string SigningKey { set; get; }
+    }
+
+    public class UploadWantedSystemMessageRequest : RequestModel
+    {
+        [JsonProperty(PropertyName = "transactionHex")]
+        public string TransactionHex { set; get; }
+    }
+
 }

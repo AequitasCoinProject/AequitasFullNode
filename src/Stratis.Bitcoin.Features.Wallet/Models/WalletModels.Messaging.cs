@@ -105,4 +105,22 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         [JsonProperty(PropertyName = "reviewerAddresses")]
         public ICollection<PublicReviewerAddressModel> Addresses { get; set; }
     }
+
+    public class SignWantedSystemMessageModel
+    {
+        [JsonProperty(PropertyName = "transactionHex")]
+        public string TransactionHex { set; get; }
+
+        [JsonProperty(PropertyName = "wasSigned")]
+        public bool WasSigned { set; get; }
+    }
+
+    public class UploadWantedSystemMessageModel
+    {
+        [JsonProperty(PropertyName = "transactionHex")]
+        public string TransactionHex { set; get; }
+
+        [JsonProperty(PropertyName = "fullySignedTransactionHex")]
+        public string FullySignedTransactionHex { set; get; }
+    }
 }

@@ -100,7 +100,8 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     Shuffle = false,
                     Message = request.Message,
                     MessageRecipient = request.DestinationAddress,
-                    EncryptMessage = request.EncryptMessage
+                    EncryptMessage = request.EncryptMessage,
+                    Sign = false
                 };
 
                 var transactionResult = this.walletTransactionHandler.BuildTransaction(context);
@@ -204,9 +205,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             try
             {
                 var walletManager = (WalletManager)this.walletManager;
-                int requestedBlockHeight = Int32.Parse(request.BlockHeight);
+                int requestedBlockHeight = String.IsNullOrWhiteSpace(request.BlockHeight) ? 0 : Int32.Parse(request.BlockHeight);
 
-                var messages = walletManager.TxMessages.Values.Where(msg => msg.BlockHeight >= requestedBlockHeight);
+                var messages = walletManager.TxMessages.Values.Where(msg => (msg.BlockHeight >= requestedBlockHeight) || (requestedBlockHeight == 0));
 
                 GetWantedSystemMessagesModel model = new GetWantedSystemMessagesModel
                 {
@@ -417,8 +418,15 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
                 ListPublicReviewerAddressesModel model = new ListPublicReviewerAddressesModel
                 {
-                    Addresses = reviewerAddresses.ToArray()
+                    Addresses = reviewerAddresses.OrderByDescending(a => a.ValidFrom).OrderByDescending(a => a.ValidUntil).ToArray()
                 };
+
+                // remove the sensitive information
+                foreach (PublicReviewerAddressModel address in model.Addresses)
+                {
+                    address.RsaPrivateKeyHex = "";
+                    address.RsaPasswordHashHex = "";
+                }
 
                 return this.Json(model);
             }
@@ -429,6 +437,96 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             }
         }
 
+        /// <summary>
+        /// Sign a wanted system messages (WSMs). This method should be used with special attention because it transfers sensitive information. It can be used to test partially signed WSMs.
+        /// If the signing key is not provided then the method is safe and the node will try to sign the message with its own wallet's private keys.
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [Route("sign-wanted-system-message")]
+        [HttpPost]
+        public IActionResult SignWantedSystemMessageAsync([FromBody] SignWantedSystemMessageRequest request)
+        {
+            Guard.NotNull(request, nameof(request));
+
+            // checks the request is valid
+            if (!this.ModelState.IsValid)
+            {
+                return BuildErrorResponse(this.ModelState);
+            }
+
+            try
+            {
+                List<BitcoinExtKey> privateKeys = new List<BitcoinExtKey>();
+                if (!String.IsNullOrWhiteSpace(request.SigningKey))
+                {
+                    // parse request.SigningKey into a Bitcoin Private Key
+                    privateKeys.Add(new BitcoinExtKey(request.SigningKey));
+                } else
+                {
+                    // TODO: add our own private keys
+                }
+
+                // parse the transaction too
+                Transaction tx = Transaction.Parse(request.TransactionHex);
+
+                // sign the transaction with the key
+                tx.Sign(privateKeys.ToArray(), tx.Outputs.AsCoins().ToArray());
+
+                // return the (partially) signed transaction
+                SignWantedSystemMessageModel model = new SignWantedSystemMessageModel
+                {
+                    TransactionHex = tx.ToHex(),
+                    WasSigned = request.TransactionHex != tx.ToHex()
+                };                
+
+                return this.Json(model);
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError("Exception occurred: {0}", e.ToString());
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
+            }
+        }
+
+        /// <summary>
+        /// Upload a wanted system messages (WSMs) to the node's local store (messages.json). It is useful for uploading the partially signed WSMs, so that the node can combine them.
+        /// </summary>
+        /// <param name="request"></param>
+        /// <returns></returns>
+        [Route("upload-wanted-system-message")]
+        [HttpPost]
+        public IActionResult UploadWantedSystemMessageAsync([FromBody] UploadWantedSystemMessageRequest request)
+        {
+            Guard.NotNull(request, nameof(request));
+
+            // checks the request is valid
+            if (!this.ModelState.IsValid)
+            {
+                return BuildErrorResponse(this.ModelState);
+            }
+
+            try
+            {
+                // TODO: store the (partially) signed transaction in the local message store
+
+                // TODO: try to combine all partially signed messages into a fully signed one
+
+
+                // TODO: return the fully signed transaction if available
+                UploadWantedSystemMessageModel model = new UploadWantedSystemMessageModel
+                {
+                    
+                };
+
+                return this.Json(model);
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError("Exception occurred: {0}", e.ToString());
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
+            }
+        }
 
 
         public static AsymmetricCipherKeyPair GetRSAKeyPairFromSeed(string rsaSeed, int rsaKeySize = 4096, CoinType coinType = CoinType.Stratis)
