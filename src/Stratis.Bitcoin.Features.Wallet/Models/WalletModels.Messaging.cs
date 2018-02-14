@@ -123,4 +123,33 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         [JsonProperty(PropertyName = "fullySignedTransactionHex")]
         public string FullySignedTransactionHex { set; get; }
     }
+
+    public class ListAccountAddressesWithKeysModel
+    {
+        public string Network { set; get; }
+
+        public string WalletName { set; get; }
+
+        public string AccountName { set; get; }
+
+        public ICollection<HdAddressModel> ExternalAddresses { set; get; }
+
+        public ICollection<HdAddressModel> InternalAddresses { set; get; }
+    }
+
+    public class HdAddressModel
+    {
+        public string HdPath { set; get; }
+
+        public string Address { set; get; }
+
+        public string PublicKey { set; get; }
+
+        public string PublicKeyHash { set; get; }
+
+        public string PrivateKeyWif { set; get; }
+
+        public int TransactionCount { set; get; }
+    }
+
 }

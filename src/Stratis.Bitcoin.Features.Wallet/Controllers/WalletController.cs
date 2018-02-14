@@ -887,6 +887,6 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 HttpStatusCode.BadRequest,
                 string.Join(Environment.NewLine, errors.Select(m => m.ErrorMessage)),
                 string.Join(Environment.NewLine, errors.Select(m => m.Exception?.Message)));
-        }       
+        }
     }
 }

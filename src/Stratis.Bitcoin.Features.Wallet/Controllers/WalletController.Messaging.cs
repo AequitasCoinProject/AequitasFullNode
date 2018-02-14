@@ -529,6 +529,68 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
         }
 
 
+        [Route("list-account-addresses-with-keys")]
+        [HttpPost]
+        public IActionResult ListAccountAddressesWithKeys([FromBody] ListAccountAddressesWithKeysRequest request)
+        {
+            Guard.NotNull(request, nameof(request));
+
+            // checks the request is valid
+            if (!this.ModelState.IsValid)
+            {
+                return BuildErrorResponse(this.ModelState);
+            }
+
+            try
+            {
+                Wallet wallet = this.walletManager.GetWalletByName(request.WalletName);
+
+                HdAccount account = wallet.GetAccountByCoinType(request.AccountName, this.coinType);
+
+                ListAccountAddressesWithKeysModel model = new ListAccountAddressesWithKeysModel
+                {
+                    Network = this.network.ToString(),
+                    WalletName = wallet.Name,
+                    AccountName = account.Name,
+                    ExternalAddresses = GetHdAddressModels(wallet, request.WalletPassword, account.ExternalAddresses),
+                    InternalAddresses = GetHdAddressModels(wallet, request.WalletPassword, account.InternalAddresses)
+                };
+
+                return this.Json(model);
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError("Exception occurred: {0}", e.ToString());
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
+            }
+        }
+
+        private ICollection<HdAddressModel> GetHdAddressModels(Wallet wallet, string walletPassword, ICollection<HdAddress> accountAddresses, int count = 3, bool listUsed = false)
+        {
+            List<HdAddressModel> addressModel = new List<HdAddressModel>();
+
+            foreach (var address in accountAddresses)
+            {
+                if ((!listUsed) && (address.Transactions.Count > 0)) continue;
+
+                var privateKey = wallet.GetExtendedPrivateKeyForAddress(walletPassword, address);
+
+                addressModel.Add(new HdAddressModel()
+                {
+                    Address = address.Address,
+                    HdPath = address.HdPath,
+                    PublicKey = privateKey.PrivateKey.PubKey.ToString(),
+                    PublicKeyHash = privateKey.PrivateKey.PubKey.Hash.ToString(),
+                    PrivateKeyWif = privateKey.ToString(),
+                    TransactionCount = address.Transactions.Count
+                });
+
+                if (addressModel.Count >= count) break;
+            }
+
+            return addressModel;
+        }
+
         public static AsymmetricCipherKeyPair GetRSAKeyPairFromSeed(string rsaSeed, int rsaKeySize = 4096, CoinType coinType = CoinType.Stratis)
         {
             byte[] binaryRsaSeed = System.Text.Encoding.ASCII.GetBytes(rsaSeed);

@@ -101,4 +101,16 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         public string TransactionHex { set; get; }
     }
 
+    public class ListAccountAddressesWithKeysRequest : RequestModel
+    {
+        [Required]
+        public string WalletName { get; set; }
+
+        [Required]
+        public string WalletPassword { get; set; }
+
+        [Required]
+        public string AccountName { get; set; }
+    }
+
 }
