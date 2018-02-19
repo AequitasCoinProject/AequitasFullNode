@@ -45,6 +45,29 @@ namespace Stratis.Bitcoin.Features.Wallet
             {
                 context.TransactionBuilder.SendMessage(context.Message, context.MessageRecipient, context.MessageReplyToAddress, context.MessageRewardAddress);
             }
-        }        
+        }
+
+        /// <inheritdoc />
+        public Transaction BuildWantedSystemMessage(TransactionBuildContext context)
+        {
+            this.InitializeTransactionBuilder(context);
+
+            // build transaction
+            context.Transaction = context.TransactionBuilder.BuildTransaction(false);
+
+            if (context.Sign)
+            {
+                context.Transaction = context.TransactionBuilder.SignTransaction(context.Transaction);
+            }
+
+            //if (!context.TransactionBuilder.Verify(context.Transaction, out TransactionPolicyError[] errors))
+            //{
+            //    this.logger.LogError($"Build transaction failed: {string.Join(" - ", errors.Select(s => s.ToString()))}");
+
+            //    throw new WalletException("Could not build a transaction, please make sure you entered the correct data.");
+            //}
+
+            return context.Transaction;
+        }
     }
 }

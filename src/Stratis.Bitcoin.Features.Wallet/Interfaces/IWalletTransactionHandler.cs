@@ -40,5 +40,12 @@ namespace Stratis.Bitcoin.Features.Wallet.Interfaces
         /// <param name="context">The context that is used to build a new transaction.</param>
         /// <returns>The estimated fee.</returns>
         Money EstimateFee(TransactionBuildContext context);
+        
+        /// <summary>
+        /// Builds a new, unsigned Wanted System Message transaction based on information from the <see cref="TransactionBuildContext"/>.
+        /// </summary>
+        /// <param name="context">The context that is used to build a new transaction.</param>
+        /// <returns>The new transaction.</returns>
+        Transaction BuildWantedSystemMessage(TransactionBuildContext context);
     }
 }

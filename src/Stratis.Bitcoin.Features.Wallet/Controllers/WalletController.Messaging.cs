@@ -70,7 +70,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
         }
 
         /// <summary>
-        /// Builds a wanted system message (WSM) transaction. If the tip trancation is paid by the Tipster, the message should not be encrypted. If the tip tranaction is paid by the Reviewers, the message should be encrypted with their keys.
+        /// Builds a _unsigned_ wanted system message (WSM) transaction. If the tip trancation is paid by the Tipster, the message should not be encrypted. If the tip tranaction is paid by the Reviewers, the message should be encrypted with their keys.
         /// </summary>
         /// <param name="request">The transaction parameters.</param>
         /// <returns>All the details of the transaction, including the hex used to execute it.</returns>
@@ -88,7 +88,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
-                // TODO: in tip transactions the destination address must be the input address (of the Tipster or the Reviewers multi-sig address) and the transaction fee must be the parameter.
+                // TODO: in wanted message transactions the destination address must be the input address (of the Tipster or the Reviewers multi-sig address) and the transaction fee must be the parameter.
                 var destination = BitcoinAddress.Create(request.DestinationAddress, this.network).ScriptPubKey;
                 var context = new TransactionBuildContext(
                     new WalletAccountReference(request.WalletName, request.AccountName),
@@ -104,7 +104,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     Sign = false
                 };
 
-                var transactionResult = this.walletTransactionHandler.BuildTransaction(context);
+                var transactionResult = this.walletTransactionHandler.BuildWantedSystemMessage(context);
 
                 var model = new WalletBuildTransactionModel
                 {
