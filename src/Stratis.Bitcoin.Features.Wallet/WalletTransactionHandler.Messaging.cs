@@ -52,6 +52,10 @@ namespace Stratis.Bitcoin.Features.Wallet
         {
             this.InitializeTransactionBuilder(context);
 
+            // TODO: replace payer and change addresses
+
+            // TODO: replace input coins
+
             // build transaction
             context.Transaction = context.TransactionBuilder.BuildTransaction(false);
 

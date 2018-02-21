@@ -18,6 +18,10 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         [Required(ErrorMessage = "The name of the account is missing.")]
         public string AccountName { get; set; }
 
+        [Required(ErrorMessage = "A payer address is required.")]
+        [IsBitcoinAddress()]
+        public string PayerAddress { get; set; }
+
         [Required(ErrorMessage = "A destination address is required.")]
         [IsBitcoinAddress()]
         public string DestinationAddress { get; set; }

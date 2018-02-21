@@ -88,7 +88,8 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
-                // TODO: in wanted message transactions the destination address must be the input address (of the Tipster or the Reviewers multi-sig address) and the transaction fee must be the parameter.
+                // TODO: in wanted message transactions the payer address must be the input address (of the Tipster or the Reviewers multi-sig address) and the transaction fee must be the parameter.
+                var payer = BitcoinAddress.Create(request.PayerAddress, this.network).ScriptPubKey;
                 var destination = BitcoinAddress.Create(request.DestinationAddress, this.network).ScriptPubKey;
                 var context = new TransactionBuildContext(
                     new WalletAccountReference(request.WalletName, request.AccountName),
@@ -207,7 +208,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 var walletManager = (WalletManager)this.walletManager;
                 int requestedBlockHeight = String.IsNullOrWhiteSpace(request.BlockHeight) ? 0 : Int32.Parse(request.BlockHeight);
 
-                var messages = walletManager.TxMessages.Values.Where(msg => (msg.BlockHeight >= requestedBlockHeight) || (requestedBlockHeight == 0));
+                var messages = walletManager.WantedSystemMessages.Values.Where(msg => (msg.BlockHeight >= requestedBlockHeight) || (requestedBlockHeight == 0));
 
                 GetWantedSystemMessagesModel model = new GetWantedSystemMessagesModel
                 {
@@ -457,21 +458,53 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
+                // parse the transaction
+                Transaction tx = Transaction.Parse(request.TransactionHex);
+
+                // check if we have the message transaction in our message store
+                WalletManager wm = this.walletManager as WalletManager;
+
+                if (!wm.WantedSystemMessages.Any(t => t.Key == tx.GetHash()))
+                {
+                    throw new Exception($"The transcation with hash '{tx.GetHash()}' is not in the message store.");
+                }
+
+                WantedSystemMessageModel wsmm = wm.WantedSystemMessages.First(t => t.Key == tx.GetHash()).Value;
+
+                // get the signing keys
                 List<BitcoinExtKey> privateKeys = new List<BitcoinExtKey>();
                 if (!String.IsNullOrWhiteSpace(request.SigningKey))
                 {
                     // parse request.SigningKey into a Bitcoin Private Key
-                    privateKeys.Add(new BitcoinExtKey(request.SigningKey));
+                    try
+                    {
+                        privateKeys.Add(new BitcoinExtKey(request.SigningKey));
+                    }
+                    catch
+                    {
+                        throw new Exception($"The signing key you provided is not in a valid format.");
+                    }
                 } else
                 {
                     // TODO: add our own private keys
+
                 }
 
-                // parse the transaction too
-                Transaction tx = Transaction.Parse(request.TransactionHex);
-
                 // sign the transaction with the key
-                tx.Sign(privateKeys.ToArray(), tx.Outputs.AsCoins().ToArray());
+                TransactionBuilder tb = new TransactionBuilder();
+                Transaction signedTx = tb.AddCoins(tx).AddKeys(privateKeys.ToArray()).SignTransaction(tx);
+
+                if (signedTx.GetHash() == tx.GetHash())
+                {
+                    throw new Exception($"The signing key you provided is not associated with the message or it is already signed with that key.");
+                }
+
+                // add the partially signed transaction to the message store
+                wm.AddPartiallySignedTxToMessageStore(wsmm.TransactionHash, signedTx.ToHex());
+
+                // try to combine the partially signed signatures                
+                tx = tb.CombineSignatures(wsmm.PartiallySignedTransactions.Select(stx => Transaction.Parse(stx.TransactionHex)).ToArray());
+                var checkResults = tx.Check();
 
                 // return the (partially) signed transaction
                 SignWantedSystemMessageModel model = new SignWantedSystemMessageModel

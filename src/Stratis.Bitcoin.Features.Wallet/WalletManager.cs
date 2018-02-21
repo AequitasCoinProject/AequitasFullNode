@@ -786,7 +786,7 @@ namespace Stratis.Bitcoin.Features.Wallet
                     // Check if this is a message output
                     if (WantedSystemMessageTemplate.Instance.CheckScriptPubKey(utxo.ScriptPubKey))
                     {
-                        this.AddMessageTransactionToMessageStore(transaction.ToHex(), hash, transaction.Outputs.IndexOf(utxo), utxo.ScriptPubKey, blockHeight, block, isPropagated);
+                        this.AddWantedSystemMessageToMessageStore(transaction.ToHex(), hash, transaction.Outputs.IndexOf(utxo), utxo.ScriptPubKey, blockHeight, block, isPropagated);
                     }
                 }
 

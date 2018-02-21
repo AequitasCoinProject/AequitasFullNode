@@ -28,33 +28,33 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// <summary>The file name of the messages file.</summary>
         internal const string MessagesFileName = "messages.json";
 
-        private Dictionary<uint256, WantedSystemMessageModel> txMessages;
+        private Dictionary<uint256, WantedSystemMessageModel> wantedSystemMessages;
 
-        public Dictionary<uint256, WantedSystemMessageModel> TxMessages
+        public Dictionary<uint256, WantedSystemMessageModel> WantedSystemMessages
         {
             get
             {
-                if (this.txMessages == null)
+                if (this.wantedSystemMessages == null)
                 {
-                    this.txMessages = new Dictionary<uint256, WantedSystemMessageModel>();
-                    LoadMessages();
+                    this.wantedSystemMessages = new Dictionary<uint256, WantedSystemMessageModel>();
+                    LoadWantedSystemMessages();
                 }
 
-                return this.txMessages;
+                return this.wantedSystemMessages;
             }
         }
 
-        private void AddMessageTransactionToMessageStore(string transactionHex, uint256 transactionHash, int utxoIndex, Script script,
+        private void AddWantedSystemMessageToMessageStore(string transactionHex, uint256 transactionHash, int utxoIndex, Script script,
             int? blockHeight, Block block, bool isPropagated)
         {
             this.logger.LogTrace("({0}:'{1}',{2}:'{3}',{4}:{5},{6}:{7})", nameof(transactionHex), transactionHex,
                 nameof(transactionHash), transactionHash, nameof(utxoIndex), utxoIndex, nameof(blockHeight), blockHeight);
 
-            if (!this.TxMessages.ContainsKey(transactionHash))
+            if (!this.WantedSystemMessages.ContainsKey(transactionHash))
             {
                 this.logger.LogTrace("Message '{0}-{1}' was not found in the message store, adding it.", transactionHash, utxoIndex);
 
-                this.TxMessages.Add(transactionHash, new WantedSystemMessageModel()
+                this.WantedSystemMessages.Add(transactionHash, new WantedSystemMessageModel()
                 {
                     TransactionHex = transactionHex,
                     TransactionHash = transactionHash,
@@ -64,14 +64,14 @@ namespace Stratis.Bitcoin.Features.Wallet
                     IsPropagated = isPropagated
                 });
 
-                SaveMessages();
+                SaveWantedSystemMessages();
             }
-            else if ((!this.TxMessages[transactionHash].BlockHeight.HasValue) && (blockHeight.HasValue))
+            else if ((!this.WantedSystemMessages[transactionHash].BlockHeight.HasValue) && (blockHeight.HasValue))
             {
-                this.TxMessages[transactionHash].BlockHeight = blockHeight;
-                this.TxMessages[transactionHash].IsPropagated = isPropagated;
+                this.WantedSystemMessages[transactionHash].BlockHeight = blockHeight;
+                this.WantedSystemMessages[transactionHash].IsPropagated = isPropagated;
 
-                SaveMessages();
+                SaveWantedSystemMessages();
             }
             else
             {
@@ -81,8 +81,33 @@ namespace Stratis.Bitcoin.Features.Wallet
             this.logger.LogTrace("(-)");
         }
 
+        public void AddPartiallySignedTxToMessageStore(uint256 transactionHash, string partiallySignedTransactionHex)
+        {
+            if (!this.WantedSystemMessages.ContainsKey(transactionHash))
+            {
+                throw new Exception($"The transcation with hash '{transactionHash}' is not in the message store.");
+            }
+
+            if (this.WantedSystemMessages[transactionHash].PartiallySignedTransactions == null)
+            {
+                this.WantedSystemMessages[transactionHash].PartiallySignedTransactions = new List<PartiallySignedWantedSystemMessagesModel>();
+            }
+
+            if (!this.WantedSystemMessages[transactionHash].PartiallySignedTransactions.Any(pswsmm => pswsmm.TransactionHex == partiallySignedTransactionHex))
+            {
+                this.WantedSystemMessages[transactionHash].PartiallySignedTransactions.Add(
+                    new PartiallySignedWantedSystemMessagesModel()
+                    {
+                        TransactionHex = partiallySignedTransactionHex
+                    }
+                );
+            }
+
+            this.SaveWantedSystemMessages();
+        }
+
         /// <inheritdoc />
-        public void LoadMessages()
+        public void LoadWantedSystemMessages()
         {
             var messageFileStorage = new FileStorage<List<WantedSystemMessageModel>>(this.fileStorage.FolderPath);
             try
@@ -92,7 +117,7 @@ namespace Stratis.Bitcoin.Features.Wallet
                 {
                     //byte[] hashBytes = Convert.FromBase64String(message.TransactionHashBase64);
                     message.TransactionHash = new uint256(message.TransactionHashHex);
-                    this.txMessages.TryAdd(message.TransactionHash, message);
+                    this.wantedSystemMessages.TryAdd(message.TransactionHash, message);
                 });
             }
             catch (System.IO.FileNotFoundException)
@@ -102,13 +127,13 @@ namespace Stratis.Bitcoin.Features.Wallet
         }
 
         /// <inheritdoc />
-        public void SaveMessages()
+        public void SaveWantedSystemMessages()
         {
-            if (this.txMessages.Any() == false)
+            if (this.wantedSystemMessages.Any() == false)
                 return;
 
             var fileStorage = new FileStorage<List<WantedSystemMessageModel>>(this.fileStorage.FolderPath);
-            fileStorage.SaveToFile(this.txMessages.OrderBy(m => m.Value.BlockHeight).Select(m => m.Value).ToList(), MessagesFileName);
+            fileStorage.SaveToFile(this.wantedSystemMessages.OrderBy(m => m.Value.BlockHeight).Select(m => m.Value).ToList(), MessagesFileName);
         }
 
 
@@ -219,6 +244,5 @@ namespace Stratis.Bitcoin.Features.Wallet
             fileStorage.SaveToFile(this.reviewerAddresses.OrderBy(ra => ra.Value.GroupId).Select(ra => ra.Value).ToList(), ReviewerAddressesFileName);
             this.reviewersFileWatcher.EnableRaisingEvents = true;
         }
-
     }
 }

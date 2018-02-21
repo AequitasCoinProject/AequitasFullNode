@@ -44,7 +44,17 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
         [JsonProperty(PropertyName = "transactionHex")]
         public string TransactionHex { set; get; }
+
+        [JsonProperty(PropertyName = "partiallySignedTransactions")]
+        public ICollection<PartiallySignedWantedSystemMessagesModel> PartiallySignedTransactions { get; set; }
     }
+
+    public class PartiallySignedWantedSystemMessagesModel
+    {
+        [JsonProperty(PropertyName = "transactionHex")]
+        public string TransactionHex { set; get; }
+    }
+
 
     public class DecryptedWantedSystemMessageModel
     {
