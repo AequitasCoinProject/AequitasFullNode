@@ -364,7 +364,8 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     ValidUntil = request.ValidUntil.HasValue && (request.ValidUntil.Value != 0) ? request.ValidUntil.Value : Int32.MaxValue,
                     RsaPublicKeyHex = pbk.ToHex(),
                     RsaPrivateKeyHex = prk.ToHex(),
-                    RsaPasswordHashHex = rsaPasswordHashHex
+                    RsaPasswordHashHex = rsaPasswordHashHex,
+                    PublicAPI = request.PublicAPI
                 };
 
                 ((WalletManager)this.walletManager).AddReviewerAddressToReviewerStore(model);
@@ -597,6 +598,86 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
             }
         }
+
+        [Route("list-spendable-transactions")]
+        [HttpPost]
+        public IActionResult ListSpendableTransactions([FromBody] ListSpendableTransactionsRequest request)
+        {
+            Guard.NotNull(request, nameof(request));
+
+            // checks the request is valid
+            if (!this.ModelState.IsValid)
+            {
+                return BuildErrorResponse(this.ModelState);
+            }
+
+            try
+            {
+                // let's find the proper wallet and account first
+                string requestWalletName = null;
+                string requestAccountName = null;
+
+                foreach (var walletName in this.walletManager.GetWalletsNames())
+                {
+                    HdAddress address = null;
+                    foreach (var hdAccount in this.walletManager.GetWallet(walletName).GetAccountsByCoinType(this.coinType))
+                    {
+                        address = hdAccount.ExternalAddresses.FirstOrDefault(hdAddress => hdAddress.ScriptPubKey.Hash.GetAddress(this.network).ToString() == request.Address);
+                        if (address == null)
+                        {
+                            address = hdAccount.InternalAddresses.FirstOrDefault(hdAddress => hdAddress.ScriptPubKey.Hash.GetAddress(this.network).ToString() == request.Address);
+                        }
+
+                        if (address != null)
+                        {
+                            requestAccountName = hdAccount.Name;
+                        }
+                    }
+
+                    if (requestAccountName != null)
+                    {
+                        requestWalletName = walletName;
+                        break;
+                    }
+                }
+
+                if ((requestWalletName == null) || (requestAccountName == null))
+                {
+                    throw new Exception("The address you requested is not in this wallet.");
+                }
+
+                WalletAccountReference account = new WalletAccountReference(requestWalletName, requestAccountName);
+
+                List<SpendableTransactionModel> transactionList = new List<SpendableTransactionModel>();
+                foreach (var spendableOutput in this.walletManager.GetSpendableTransactionsInAccount(account, request.MinConfirmations).OrderByDescending(a => a.Transaction.Amount))
+                {
+                    if (spendableOutput.Transaction.Amount == 0) continue;
+
+                    transactionList.Add(new SpendableTransactionModel()
+                    {
+                        TransactionHash = spendableOutput.Transaction.Id,
+                        Index = spendableOutput.Transaction.Index,
+                        Amount = spendableOutput.Transaction.Amount.Satoshi,
+                        ScriptPubKey = spendableOutput.Transaction.ScriptPubKey.ToHex()
+                    });
+                }
+
+                ListSpendableTransactionsModel model = new ListSpendableTransactionsModel
+                {
+                    Network = this.network.ToString(),
+                    WalletName = account.WalletName,
+                    AccountName = account.AccountName,
+                    SpendableTransactions = transactionList
+                };
+
+                return this.Json(model);
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError("Exception occurred: {0}", e.ToString());
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
+            }
+        }        
 
         private ICollection<HdAddressModel> GetHdAddressModels(Wallet wallet, string walletPassword, ICollection<HdAddress> accountAddresses, int count = 3, bool listUsed = false)
         {

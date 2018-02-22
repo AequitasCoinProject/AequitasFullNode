@@ -74,6 +74,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         [Required(ErrorMessage = "The name of the reviewer group. (e.g. 'The Wanted System Reviewer's Group')")]
         public string GroupName { get; set; }
 
+        [Required(ErrorMessage = "The public API URL of the reviewer group. (e.g. 'node.thewantedsystem.com:38221'")]
+        public string PublicAPI { get; set; }
+
         [Required(ErrorMessage = "The generated multi-sig address will be valid from this block index.")]
         public int? ValidFrom { get; set; }
 
@@ -115,6 +118,21 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
         [Required]
         public string AccountName { get; set; }
+    }
+
+    public class ListSpendableTransactionsRequest : RequestModel
+    {
+        [Required]
+        public string Address { get; set; }
+
+        [Required]
+        public string WalletName { get; set; }
+
+        [Required]
+        public string AccountName { get; set; }
+
+        [Required]
+        public int MinConfirmations { get; set; }
     }
 
 }

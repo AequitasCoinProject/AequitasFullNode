@@ -108,6 +108,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
         [JsonProperty(PropertyName = "managerPasswordHash")]
         public string RsaPasswordHashHex { get; set; }
+
+        [JsonProperty(PropertyName = "publicApi")]
+        public string PublicAPI { get; set; }
     }
 
     public class ListPublicReviewerAddressesModel
@@ -160,6 +163,44 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         public string PrivateKeyWif { set; get; }
 
         public int TransactionCount { set; get; }
+    }
+
+
+    public class ListSpendableTransactionsModel
+    {
+        public string Network { set; get; }
+
+        public string WalletName { set; get; }
+
+        public string AccountName { set; get; }
+
+        public ICollection<SpendableTransactionModel> SpendableTransactions { set; get; }
+    }
+
+    public class SpendableTransactionModel
+    {
+        [JsonIgnore]
+        public uint256 TransactionHash { set; get; }
+
+        [JsonProperty(PropertyName = "transactionHash")]
+        public string TransactionHashHex
+        {
+            set
+            {
+                this.TransactionHash = uint256.Parse(value);
+            }
+
+            get
+            {
+                return this.TransactionHash.ToString();
+            }
+        }
+
+        public int Index { set; get; }
+
+        public long Amount { set; get; }
+
+        public string ScriptPubKey { set; get; }
     }
 
 }

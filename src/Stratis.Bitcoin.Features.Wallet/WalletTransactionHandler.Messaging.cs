@@ -52,9 +52,31 @@ namespace Stratis.Bitcoin.Features.Wallet
         {
             this.InitializeTransactionBuilder(context);
 
-            // TODO: replace payer and change addresses
+            //context.TransactionBuilder = new TransactionBuilder();
+            //context.TransactionBuilder.Send(recipient.ScriptPubKey, recipient.Amount);
 
-            // TODO: replace input coins
+            // TODO: set (the payer's) input coins
+            // this.AddCoins(context);
+
+            //var coins = new List<Coin>();
+            //foreach (var item in context.UnspentOutputs.OrderByDescending(a => a.Transaction.Amount))
+            //{
+            //    coins.Add(new Coin(item.Transaction.Id, (uint)item.Transaction.Index, item.Transaction.Amount, item.Transaction.ScriptPubKey));
+            //    sum += item.Transaction.Amount;
+            //}
+
+            //context.TransactionBuilder.AddCoins(coins);
+
+            // TODO: replace change addresses
+            // context.TransactionBuilder.SetChange(context.ChangeAddress.ScriptPubKey);
+
+            // TODO: add the message to the transaction
+            // this.AddMessage(context);
+
+            // TODO: set the fee for the transaction
+            //var fee = context.TransactionBuilder.EstimateFees(feeRate);
+            //context.TransactionBuilder.SendFees(fee);
+            //context.TransactionFee = fee;
 
             // build transaction
             context.Transaction = context.TransactionBuilder.BuildTransaction(false);
