@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Stratis.Bitcoin.Features.RPC.Models;
 using Stratis.Bitcoin.Features.WatchOnlyWallet.Models;
@@ -104,5 +105,69 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
                 return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
             }
         }
+
+        [Route("rescan")]
+        [HttpPost]
+        public IActionResult Rescan([FromQuery]DateTimeOffset fromTime)
+        {
+            try
+            {
+                RescanState rescanState = this.watchOnlyWalletManager.Rescan(fromTime);
+
+                RescanStateModel model = new RescanStateModel()
+                {
+                    IsInProgress = rescanState.IsInProgress,
+                    FromTime = rescanState.FromTime,
+                    UntilTime = rescanState.UntilTime,
+                    ProgressPercentage = rescanState.ProgressPercentage
+                };
+
+                return this.Json(model);
+            }
+            catch (Exception e)
+            {
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.Conflict, e.Message, e.ToString());
+            }
+        }
+
+        [Route("list-transactions")]
+        [HttpPost]
+        public IActionResult ListTransactions([FromQuery]string address)
+        {
+            // Checks the request is valid.
+            if (string.IsNullOrEmpty(address))
+            {
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, "Formatting error", "Address to watch is missing.");
+            }
+
+            try
+            {
+                var watchOnlyWallet = this.watchOnlyWalletManager.GetWatchOnlyWallet();
+
+                if (!watchOnlyWallet.WatchedAddresses.Any(adr => adr.Value.Address == address))
+                {
+                    return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, "Data error", "Address is not in he watchlist. Please add it first with the 'watch' API and use the 'rescan' API if necessary.");
+                }
+
+                var watchedAddress = watchOnlyWallet.WatchedAddresses.First(adr => adr.Value.Address == address).Value;
+                WatchedAddressModel watchedAddressModel = new WatchedAddressModel
+                {
+                    Address = watchedAddress.Address,
+                    Transactions = new List<TransactionVerboseModel>()
+                };
+
+                foreach (var transactionData in watchedAddress.Transactions)
+                {
+                    watchedAddressModel.Transactions.Add(new TransactionVerboseModel(transactionData.Value.Transaction, watchOnlyWallet.Network));
+                }
+
+                return this.Json(watchedAddressModel);
+            }
+            catch (Exception e)
+            {
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.Conflict, e.Message, e.ToString());
+            }
+        }
+
     }
 }

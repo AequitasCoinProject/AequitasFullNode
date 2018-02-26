@@ -2,9 +2,11 @@
 using Microsoft.Extensions.DependencyInjection;
 using Stratis.Bitcoin.Builder;
 using Stratis.Bitcoin.Builder.Feature;
+using Stratis.Bitcoin.Features.BlockStore;
 using Stratis.Bitcoin.Features.Notifications;
 using Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers;
 using Stratis.Bitcoin.Features.WatchOnlyWallet.Notifications;
+using Stratis.Bitcoin.Interfaces;
 
 namespace Stratis.Bitcoin.Features.WatchOnlyWallet
 {
@@ -70,10 +72,12 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
                     .AddFeature<WatchOnlyWalletFeature>()
                     .DependOn<BlockNotificationFeature>()
                     .DependOn<TransactionNotificationFeature>()
+                    .DependOn<BlockStoreFeature>()
                     .FeatureServices(services =>
                     {
                         services.AddSingleton<IWatchOnlyWalletManager, WatchOnlyWalletManager>();
                         services.AddSingleton<WatchOnlyWalletController>();
+                        services.AddSingleton<IBlockRepository, BlockRepository>();
                     });
             });
 

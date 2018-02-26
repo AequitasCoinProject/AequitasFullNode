@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading.Tasks;
 using NBitcoin;
 
 namespace Stratis.Bitcoin.Features.WatchOnlyWallet
@@ -61,5 +62,8 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
         /// </summary>
         /// <returns>The stored watch-only wallet.</returns>
         WatchOnlyWallet LoadWatchOnlyWallet();
+
+
+        RescanState Rescan(DateTimeOffset fromTime);
     }
 }

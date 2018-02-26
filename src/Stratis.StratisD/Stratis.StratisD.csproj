@@ -27,8 +27,10 @@
     <ProjectReference Include="..\Stratis.Bitcoin.Features.Consensus\Stratis.Bitcoin.Features.Consensus.csproj" />
     <ProjectReference Include="..\Stratis.Bitcoin.Features.MemoryPool\Stratis.Bitcoin.Features.MemoryPool.csproj" />
     <ProjectReference Include="..\Stratis.Bitcoin.Features.Miner\Stratis.Bitcoin.Features.Miner.csproj" />
+    <ProjectReference Include="..\Stratis.Bitcoin.Features.Notifications\Stratis.Bitcoin.Features.Notifications.csproj" />
     <ProjectReference Include="..\Stratis.Bitcoin.Features.RPC\Stratis.Bitcoin.Features.RPC.csproj" />
     <ProjectReference Include="..\Stratis.Bitcoin.Features.Wallet\Stratis.Bitcoin.Features.Wallet.csproj" />
+    <ProjectReference Include="..\Stratis.Bitcoin.Features.WatchOnlyWallet\Stratis.Bitcoin.Features.WatchOnlyWallet.csproj" />
     <ProjectReference Include="..\Stratis.Bitcoin\Stratis.Bitcoin.csproj" />    
   </ItemGroup>
 
@@ -49,7 +51,7 @@
   <Target Name="FixRidSpecificHost" AfterTargets="_ComputeNETCoreBuildOutputFiles">
     <ItemGroup>
       <None Remove="@(NativeAppHostNETCore)" />
-      <None Include="@(NativeAppHostNETCore)" Link="$(AssemblyName)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never"/>
+      <None Include="@(NativeAppHostNETCore)" Link="$(AssemblyName)" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Never" />
     </ItemGroup>
   </Target>
   
