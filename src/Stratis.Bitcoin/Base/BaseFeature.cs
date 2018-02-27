@@ -17,6 +17,7 @@ using Stratis.Bitcoin.Connection;
 using Stratis.Bitcoin.Interfaces;
 using Stratis.Bitcoin.P2P;
 using Stratis.Bitcoin.P2P.Peer;
+using Stratis.Bitcoin.P2P.Protocol.Payloads;
 using Stratis.Bitcoin.Signals;
 using Stratis.Bitcoin.Utilities;
 
@@ -193,6 +194,15 @@ namespace Stratis.Bitcoin.Base
         }
 
         /// <summary>
+        /// Prints command-line help.
+        /// </summary>
+        /// <param name="network">The network to extract values from.</param>
+        public static void PrintHelp(Network network)
+        {
+            NodeSettings.PrintHelp(network);
+        }        
+
+        /// <summary>
         /// Initializes node's chain repository.
         /// Creates periodic task to persist changes to the database.
         /// </summary>
@@ -304,6 +314,7 @@ namespace Stratis.Bitcoin.Base
                     services.AddSingleton<NetworkPeerConnectionParameters>(new NetworkPeerConnectionParameters());
                     services.AddSingleton<IConnectionManager, ConnectionManager>();
                     services.AddSingleton<ConnectionManagerSettings>();
+                    services.AddSingleton<PayloadProvider>(new PayloadProvider().DiscoverPayloads());
 
                     // Peer address manager
                     services.AddSingleton<IPeerAddressManager, PeerAddressManager>();

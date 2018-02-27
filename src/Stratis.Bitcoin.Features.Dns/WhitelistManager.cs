@@ -100,12 +100,12 @@ namespace Stratis.Bitcoin.Features.Dns
 
             DateTimeOffset activePeerLimit = this.dateTimeProvider.GetTimeOffset().AddSeconds(-this.dnsPeerBlacklistThresholdInSeconds);
             
-            var whitelist = this.peerAddressManager.Peers.Where(p => p.Value.LastConnectionHandshake > activePeerLimit).Select(p => p.Value);
+            var whitelist = this.peerAddressManager.Peers.Where(p => p.Value.LastSeen > activePeerLimit).Select(p => p.Value);
             
             if (!this.fullNodeMode)
             {
                 // Exclude the current external ip address from DNS as its not a full node.
-                whitelist = whitelist.Where(p => !p.EndPoint.Match(this.externalEndpoint));
+                whitelist = whitelist.Where(p => !p.Endpoint.Match(this.externalEndpoint));
             }
 
             IMasterFile masterFile = new DnsSeedMasterFile();
@@ -113,8 +113,18 @@ namespace Stratis.Bitcoin.Features.Dns
             {
                 Domain domain = new Domain(this.dnsHostName);
 
-                IPAddressResourceRecord resourceRecord = new IPAddressResourceRecord(domain, whitelistEntry.EndPoint.Address);
-                masterFile.Add(resourceRecord);
+                // Is this an IPv4 embedded address? If it is, make sure an 'A' record is added to the DNS master file, rather than an 'AAAA' record.
+                if (whitelistEntry.Endpoint.Address.IsIPv4MappedToIPv6)
+                {
+                    IPAddress ipv4Address = whitelistEntry.Endpoint.Address.MapToIPv4();
+                    IPAddressResourceRecord resourceRecord = new IPAddressResourceRecord(domain, ipv4Address);
+                    masterFile.Add(resourceRecord);
+                }
+                else
+                {
+                    IPAddressResourceRecord resourceRecord = new IPAddressResourceRecord(domain, whitelistEntry.Endpoint.Address);
+                    masterFile.Add(resourceRecord);
+                }
             }
 
             this.dnsServer.SwapMasterfile(masterFile);

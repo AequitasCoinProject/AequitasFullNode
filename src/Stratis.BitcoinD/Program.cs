@@ -23,11 +23,11 @@ namespace Stratis.BitcoinD
         {
             try
             {
-                NodeSettings nodeSettings = new NodeSettings().LoadArguments(args);
+                NodeSettings nodeSettings = new NodeSettings(args:args, loadConfiguration:false);
 
                 var node = new FullNodeBuilder()
                     .UseNodeSettings(nodeSettings)
-                    .UseConsensus()
+                    .UsePowConsensus()
                     .UseBlockStore()
                     .UseMempool()
                     .AddMining()
@@ -35,7 +35,8 @@ namespace Stratis.BitcoinD
                     .UseWallet()
                     .Build();
 
-                await node.RunAsync();
+                if (node != null)
+                    await node.RunAsync();
             }
             catch (Exception ex)
             {

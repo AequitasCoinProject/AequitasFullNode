@@ -195,6 +195,25 @@ namespace Stratis.Bitcoin.Features.Consensus
         }
 
         /// <inheritdoc />
+        public override void CheckTransaction(Transaction transaction)
+        {
+            this.logger.LogTrace("()");
+
+            base.CheckTransaction(transaction);
+
+            foreach (TxOut txout in transaction.Outputs)
+            {
+                if (txout.IsEmpty && !transaction.IsCoinBase && !transaction.IsCoinStake)
+                {
+                    this.logger.LogTrace("(-)[USER_TXOUT_EMPTY]");
+                    ConsensusErrors.BadTransactionEmptyOutput.Throw();
+                }
+            }
+
+            this.logger.LogTrace("(-)[OK]");
+        }
+
+        /// <inheritdoc />
         protected override void UpdateCoinView(RuleContext context, Transaction transaction)
         {
             this.logger.LogTrace("()");
@@ -227,101 +246,6 @@ namespace Stratis.Bitcoin.Features.Consensus
             }
 
             this.logger.LogTrace("(-)");
-        }
-
-        /// <inheritdoc />
-        public override void ContextualCheckBlock(RuleContext context)
-        {
-            this.logger.LogTrace("()");
-
-            base.ContextualCheckBlock(context);
-
-            // TODO: fix this validation code
-
-            //// check proof-of-stake
-            //// Limited duplicity on stake: prevents block flood attack
-            //// Duplicate stake allowed only when there is orphan child block
-            //if (!fReindex && !fImporting && pblock->IsProofOfStake() && setStakeSeen.count(pblock->GetProofOfStake()) && !mapOrphanBlocksByPrev.count(hash))
-            //    return error("ProcessBlock() : duplicate proof-of-stake (%s, %d) for block %s", pblock->GetProofOfStake().first.ToString(), pblock->GetProofOfStake().second, hash.ToString());
-
-            //if (!BlockValidator.IsCanonicalBlockSignature(context.BlockResult.Block, false))
-            //{
-            //    //if (node != null && (int)node.Version >= CANONICAL_BLOCK_SIG_VERSION)
-            //    //node.Misbehaving(100);
-
-            //    //return false; //error("ProcessBlock(): bad block signature encoding");
-            //}
-
-            //if (!BlockValidator.IsCanonicalBlockSignature(context.BlockResult.Block, true))
-            //{
-            //    //if (pfrom && pfrom->nVersion >= CANONICAL_BLOCK_SIG_LOW_S_VERSION)
-            //    //{
-            //    //    pfrom->Misbehaving(100);
-            //    //    return error("ProcessBlock(): bad block signature encoding (low-s)");
-            //    //}
-
-            //    if (!BlockValidator.EnsureLowS(context.BlockResult.Block.BlockSignatur))
-            //        return false; // error("ProcessBlock(): EnsureLowS failed");
-            //}
-
-            this.logger.LogTrace("(-)[OK]");
-        }
-
-        /// <inheritdoc />
-        public override void ContextualCheckBlockHeader(RuleContext context)
-        {
-            this.logger.LogTrace("()");
-            base.ContextualCheckBlockHeader(context);
-
-            ChainedBlock chainedBlock = context.BlockValidationContext.ChainedBlock;
-            this.logger.LogTrace("Height of block is {0}, block timestamp is {1}, previous block timestamp is {2}, block version is 0x{3:x}.", chainedBlock.Height, chainedBlock.Header.Time, chainedBlock.Previous.Header.Time, chainedBlock.Header.Version);
-
-            if (chainedBlock.Header.Version < 7)
-            {
-                this.logger.LogTrace("(-)[BAD_VERSION]");
-                ConsensusErrors.BadVersion.Throw();
-            }
-
-            if (context.Stake.BlockStake.IsProofOfWork() && (chainedBlock.Height > this.ConsensusParams.LastPOWBlock))
-            {
-                this.logger.LogTrace("(-)[POW_TOO_HIGH]");
-                ConsensusErrors.ProofOfWorkTooHeigh.Throw();
-            }
-
-            // Check coinbase timestamp.
-            if (chainedBlock.Header.Time > this.FutureDrift(context.BlockValidationContext.Block.Transactions[0].Time))
-            {
-                this.logger.LogTrace("(-)[TIME_TOO_NEW]");
-                ConsensusErrors.TimeTooNew.Throw();
-            }
-
-            // Check coinstake timestamp.
-            if (context.Stake.BlockStake.IsProofOfStake()
-                && !this.CheckCoinStakeTimestamp(chainedBlock.Header.Time, context.BlockValidationContext.Block.Transactions[1].Time))
-            {
-                this.logger.LogTrace("(-)[BAD_TIME]");
-                ConsensusErrors.StakeTimeViolation.Throw();
-            }
-
-            // Check timestamp against prev.
-            if (chainedBlock.Header.Time <= chainedBlock.Previous.Header.Time)
-            {
-                this.logger.LogTrace("(-)[TIME_TOO_EARLY]");
-                ConsensusErrors.BlockTimestampTooEarly.Throw();
-            }
-
-            this.logger.LogTrace("(-)[OK]");
-        }
-
-        /// <summary>
-        /// Checks whether the coinstake timestamp meets protocol.
-        /// </summary>
-        /// <param name="blockTime">The block time.</param>
-        /// <param name="transactionTime">Transaction UNIX timestamp.</param>
-        /// <returns><c>true</c> if block timestamp is equal to transaction timestamp, <c>false</c> otherwise.</returns>
-        private bool CheckCoinStakeTimestamp(long blockTime, long transactionTime)
-        {
-            return (blockTime == transactionTime) && ((transactionTime & StakeTimestampMask) == 0);
         }
 
         /// <summary>
@@ -412,27 +336,6 @@ namespace Stratis.Bitcoin.Features.Consensus
             bool verifyRes = new PubKey(data).Verify(block.GetHash(this.ConsensusParams.NetworkOptions), new ECDSASignature(block.BlockSignatur.Signature));
             this.logger.LogTrace("(-):{0}", verifyRes);
             return verifyRes;
-        }
-
-        /// <inheritdoc />
-        public override void CheckBlockHeader(RuleContext context)
-        {
-            this.logger.LogTrace("()");
-            context.SetStake();
-
-            if (context.Stake.BlockStake.IsProofOfWork())
-            {
-                if (context.CheckPow && !context.BlockValidationContext.Block.Header.CheckProofOfWork(context.Consensus))
-                {
-                    this.logger.LogTrace("(-)[HIGH_HASH]");
-                    ConsensusErrors.HighHash.Throw();
-                }
-            }
-
-            context.NextWorkRequired = this.StakeValidator.GetNextTargetRequired(this.stakeChain, context.BlockValidationContext.ChainedBlock.Previous, context.Consensus,
-                context.Stake.BlockStake.IsProofOfStake());
-
-            this.logger.LogTrace("(-)[OK]");
         }
 
         /// <summary>

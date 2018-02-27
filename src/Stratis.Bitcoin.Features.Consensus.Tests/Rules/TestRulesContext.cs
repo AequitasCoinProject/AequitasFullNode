@@ -7,6 +7,7 @@ using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Configuration.Logging;
 using Stratis.Bitcoin.Features.Consensus.Rules;
 using Stratis.Bitcoin.Utilities;
+using Xunit.Sdk;
 
 namespace Stratis.Bitcoin.Features.Consensus.Tests.Rules
 {
@@ -43,7 +44,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Tests.Rules
     /// Factory for creating the test chain.
     /// Much of this logic was taken directly from the embedded TestContext class in MinerTest.cs in the integration tests.
     /// </summary>
-    internal class TestRulesContextFactory
+    internal static class TestRulesContextFactory
     {
         /// <summary>
         /// Creates test chain with a consensus loop.
@@ -55,26 +56,56 @@ namespace Stratis.Bitcoin.Features.Consensus.Tests.Rules
             string dataDir = Path.Combine("TestData", pathName);
             Directory.CreateDirectory(dataDir);
 
-            testRulesContext.NodeSettings = new NodeSettings(network).LoadArguments(new[] { $"-datadir={dataDir}" });
+            testRulesContext.NodeSettings = new NodeSettings(network, args:new[] { $"-datadir={dataDir}" });
 
             if (dataDir != null)
             {
                 testRulesContext.NodeSettings.DataDir = dataDir;
             }
 
-            testRulesContext.LoggerFactory = new ExtendedLoggerFactory();
+            testRulesContext.LoggerFactory = testRulesContext.NodeSettings.LoggerFactory;
             testRulesContext.LoggerFactory.AddConsoleWithFilters();
             testRulesContext.DateTimeProvider = DateTimeProvider.Default;
             network.Consensus.Options = new PowConsensusOptions();
 
-            ConsensusSettings consensusSettings = new ConsensusSettings(testRulesContext.NodeSettings, testRulesContext.LoggerFactory);
+            ConsensusSettings consensusSettings = new ConsensusSettings().Load(testRulesContext.NodeSettings);
             testRulesContext.Checkpoints = new Checkpoints();
             testRulesContext.Chain = new ConcurrentChain(network);
 
             NodeDeployments deployments = new NodeDeployments(testRulesContext.Network, testRulesContext.Chain);
-            testRulesContext.Consensus = new ConsensusRules(testRulesContext.Network, testRulesContext.LoggerFactory, testRulesContext.DateTimeProvider, testRulesContext.Chain, deployments, consensusSettings, testRulesContext.Checkpoints).Register(new FullNodeBuilderConsensusExtension.CoreConsensusRules());
+            testRulesContext.Consensus = new PowConsensusRules(testRulesContext.Network, testRulesContext.LoggerFactory, testRulesContext.DateTimeProvider, testRulesContext.Chain, deployments, consensusSettings, testRulesContext.Checkpoints).Register(new FullNodeBuilderConsensusExtension.PowConsensusRulesRegistration());
 
             return testRulesContext;
         }
+
+        public static Block MineBlock(Network network, ConcurrentChain chain)
+        {
+            var block = new Block();
+            var coinbase = new Transaction();
+            coinbase.AddInput(TxIn.CreateCoinbase(chain.Height + 1));
+            coinbase.AddOutput(new TxOut(Money.Zero, new Key()));
+            block.AddTransaction(coinbase);
+
+            block.Header.Version = (int)ThresholdConditionCache.VersionbitsTopBits;
+
+            block.Header.HashPrevBlock = chain.Tip.HashBlock;
+            block.Header.UpdateTime(DateTimeProvider.Default.GetTimeOffset(), network, chain.Tip);
+            block.Header.Bits = block.Header.GetWorkRequired(network, chain.Tip);
+            block.Header.Nonce = 0;
+            
+            var maxTries = int.MaxValue;
+
+            while (maxTries > 0 && !block.CheckProofOfWork(network.Consensus))
+            {
+                ++block.Header.Nonce;
+                --maxTries;
+            }
+
+            if (maxTries == 0)
+                throw new XunitException("Test failed no blocks found");
+
+            return block;
+        }
+
     }
 }

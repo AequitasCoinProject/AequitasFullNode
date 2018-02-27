@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using Microsoft.Extensions.Logging;
+using Stratis.Bitcoin.Utilities;
 
 namespace Stratis.Bitcoin.P2P
 {
@@ -66,6 +67,12 @@ namespace Stratis.Bitcoin.P2P
 
     public sealed class PeerSelector : IPeerSelector
     {
+        /// <summary>Provider of time functions.</summary>
+        private readonly IDateTimeProvider dateTimeProvider;
+
+        /// <summary>The amount of hours we should wait before we try and discover from a peer again.</summary>
+        private const int DiscoveryThresholdHours = 24;
+
         /// <summary>Logger factory to create loggers.</summary>
         private readonly ILoggerFactory loggerFactory;
 
@@ -84,8 +91,9 @@ namespace Stratis.Bitcoin.P2P
         /// Constructor for the peer selector.
         /// </summary>
         /// <param name="peerAddresses">The collection of peer address as managed by the peer address manager.</param>
-        public PeerSelector(ILoggerFactory loggerFactory, ConcurrentDictionary<IPEndPoint, PeerAddress> peerAddresses)
+        public PeerSelector(IDateTimeProvider dateTimeProvider, ILoggerFactory loggerFactory, ConcurrentDictionary<IPEndPoint, PeerAddress> peerAddresses)
         {
+            this.dateTimeProvider = dateTimeProvider;
             this.loggerFactory = loggerFactory;
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
             this.peerAddresses = peerAddresses;
@@ -103,7 +111,7 @@ namespace Stratis.Bitcoin.P2P
             if (peers.Any())
             {
                 peerAddress = Random(peers);
-                this.logger.LogTrace("(-):'{0}'", peerAddress.EndPoint);
+                this.logger.LogTrace("(-):'{0}'", peerAddress.Endpoint);
             }
             else
                 this.logger.LogTrace("(-)[NO_PEER]");
@@ -116,8 +124,6 @@ namespace Stratis.Bitcoin.P2P
         /// </summary>
         private IEnumerable<PeerAddress> SelectPreferredPeers()
         {
-            this.logger.LogTrace("()");
-
             // First check to see if there are handshaked peers. If so,
             // give them a 50% chance to be picked over all the other peers.
             var handshaked = this.Handshaked().ToList();
@@ -126,7 +132,7 @@ namespace Stratis.Bitcoin.P2P
                 int chance = this.random.Next(100);
                 if (chance <= 50)
                 {
-                    this.logger.LogTrace("(-)[RETURN_HANDSHAKED]");
+                    this.logger.LogTrace("[RETURN_HANDSHAKED]");
                     return handshaked;
                 }
             }
@@ -139,7 +145,7 @@ namespace Stratis.Bitcoin.P2P
                 int chance = this.random.Next(100);
                 if (chance <= 50)
                 {
-                    this.logger.LogTrace("(-)[RETURN_CONNECTED]");
+                    this.logger.LogTrace("[RETURN_CONNECTED]");
                     return connected;
                 }
             }
@@ -154,7 +160,7 @@ namespace Stratis.Bitcoin.P2P
             {
                 if (this.random.Next(2) == 0)
                 {
-                    this.logger.LogTrace("(-)[RETURN_ATTEMPTED]");
+                    this.logger.LogTrace("[RETURN_ATTEMPTED]");
                     return attempted;
                 }
                 else
@@ -167,20 +173,21 @@ namespace Stratis.Bitcoin.P2P
             // If there are only fresh peers, return them.
             if (fresh.Any() && !attempted.Any())
             {
-                this.logger.LogTrace("(-)[RETURN_ONLY_FRESH_EXIST]");
+                this.logger.LogTrace("[RETURN_FRESH_HC_FAILED]");
                 return fresh;
             }
 
             // If there are only attempted peers, return them.
             if (!fresh.Any() && attempted.Any())
             {
-                this.logger.LogTrace("(-)[RETURN_ONLY_ATTEMPTED_EXIST]");
+                this.logger.LogTrace("[RETURN_ATTEMPTED_HC_FAILED]");
                 return attempted;
             }
 
             // If all the selection criteria failed to return a set of peers,
             // then let the caller try again.
-            this.logger.LogTrace("(-)[RETURN_NO_PEERS]");
+            else
+                this.logger.LogTrace("[RETURN_NO_PEERS]");
 
             return new PeerAddress[] { };
         }
@@ -188,9 +195,9 @@ namespace Stratis.Bitcoin.P2P
         /// <inheritdoc/>
         public IEnumerable<PeerAddress> SelectPeersForDiscovery(int peerCount)
         {
-            // Randomly order the list of peers and return the amount asked for.
-            var allPeers = this.peerAddresses.OrderBy(p => this.random.Next());
-            return allPeers.Select(p => p.Value).Take(1000);
+            var discoverable = this.peerAddresses.Values.Where(p => p.LastDiscoveredFrom < this.dateTimeProvider.GetUtcNow().AddHours(-PeerSelector.DiscoveryThresholdHours));
+            var allPeers = discoverable.OrderBy(p => this.random.Next()).Take(1000).ToList();
+            return allPeers;
         }
 
         /// <inheritdoc/>
@@ -253,13 +260,16 @@ namespace Stratis.Bitcoin.P2P
         /// <inheritdoc/>
         public IEnumerable<PeerAddress> Attempted()
         {
-            return this.peerAddresses.Values.Where(p => p.Attempted && p.ConnectionAttempts <= 10 && p.LastConnectionAttempt < DateTime.UtcNow.AddSeconds(-60));
+            return this.peerAddresses.Values.Where(p =>
+                                p.Attempted &&
+                                p.ConnectionAttempts < PeerAddress.AttemptThreshold &&
+                                p.LastAttempt < this.dateTimeProvider.GetUtcNow().AddHours(-PeerAddress.AttempThresholdHours));
         }
 
         /// <inheritdoc/>
         public IEnumerable<PeerAddress> Connected()
         {
-            return this.peerAddresses.Values.Where(p => p.Connected && p.LastConnectionSuccess < DateTime.UtcNow.AddSeconds(-60));
+            return this.peerAddresses.Values.Where(p => p.Connected && p.LastConnectionSuccess < this.dateTimeProvider.GetUtcNow().AddSeconds(-60));
         }
 
         /// <inheritdoc/>
@@ -271,7 +281,7 @@ namespace Stratis.Bitcoin.P2P
         /// <inheritdoc/>
         public IEnumerable<PeerAddress> Handshaked()
         {
-            return this.peerAddresses.Values.Where(p => p.Handshaked && p.LastConnectionHandshake < DateTime.UtcNow.AddSeconds(-60));
+            return this.peerAddresses.Values.Where(p => p.Handshaked && p.LastConnectionHandshake < this.dateTimeProvider.GetUtcNow().AddSeconds(-60));
         }
     }
 }

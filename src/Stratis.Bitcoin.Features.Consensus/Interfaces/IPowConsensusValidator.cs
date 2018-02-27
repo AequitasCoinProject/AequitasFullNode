@@ -46,14 +46,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Interfaces
         /// <exception cref="ConsensusErrors.BadMultipleCoinbase">Thrown if block contains more then one coinbase transactions.</exception>
         /// <exception cref="ConsensusErrors.BadBlockSigOps">Thrown if block's signature operation cost is greater than maximum allowed one.</exception>
         void CheckBlock(RuleContext context);
-
-        /// <summary>
-        /// Checks if <paramref name="context.BlockValidationContext.Block"/> has a valid PoW header.
-        /// </summary>
-        /// <param name="context">Context that contains variety of information regarding blocks validation and execution.</param>
-        /// <exception cref="ConsensusErrors.HighHash">Thrown if block doesn't have a valid PoW header.</exception>
-        void CheckBlockHeader(RuleContext context);
-
+    
         /// <summary>
         /// Checks that transaction's inputs are valid.
         /// </summary>
@@ -89,25 +82,6 @@ namespace Stratis.Bitcoin.Features.Consensus.Interfaces
         /// <param name="leaves">Merkle tree leaves.</param>
         /// <param name="mutated"><c>true</c> if at least one leaf of the merkle tree has the same hash as any subtree. Otherwise: <c>false</c>.</param>
         uint256 ComputeMerkleRoot(List<uint256> leaves, out bool mutated);
-
-        /// <summary>
-        /// Context-dependent validity checks.
-        /// </summary>
-        /// <param name="context">Context that contains variety of information regarding blocks validation and execution.</param>
-        /// <exception cref="ConsensusErrors.BadTransactionNonFinal">Thrown if one or more transactions are not finalized.</exception>
-        /// <exception cref="ConsensusErrors.BadCoinbaseHeight">Thrown if coinbase doesn't start with serialized block height.</exception>
-        void ContextualCheckBlock(RuleContext context);
-
-        /// <summary>
-        /// Context-dependent validity checks.
-        /// </summary>
-        /// <param name="context">Context that contains variety of information regarding blocks validation and execution.</param>
-        /// <exception cref="ConsensusErrors.BadDiffBits">Thrown if proof of work is incorrect.</exception>
-        /// <exception cref="ConsensusErrors.TimeTooOld">Thrown if block's timestamp is too early.</exception>
-        /// <exception cref="ConsensusErrors.TimeTooNew">Thrown if block' timestamp too far in the future.</exception>
-        /// <exception cref="ConsensusErrors.BadVersion">Thrown if block's version is outdated.</exception>
-        /// <exception cref="ConsensusErrors.CheckpointViolation">Thrown if block header hash does not match the checkpointed value.</exception>
-        void ContextualCheckBlockHeader(RuleContext context);
 
         /// <summary>
         /// Validates the UTXO set is correctly spent.

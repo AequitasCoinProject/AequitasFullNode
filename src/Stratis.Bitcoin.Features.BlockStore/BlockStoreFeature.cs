@@ -83,8 +83,13 @@ namespace Stratis.Bitcoin.Features.BlockStore
             this.nodeSettings = nodeSettings;
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
             this.loggerFactory = loggerFactory;
-            storeSettings.Load(nodeSettings);
             this.storeSettings = storeSettings;
+        }
+
+        /// <inheritdoc />
+        public override void LoadConfiguration()
+        {
+            this.storeSettings.Load(this.nodeSettings);
         }
 
         public virtual BlockStoreBehavior BlockStoreBehaviorFactory()
@@ -94,7 +99,7 @@ namespace Stratis.Bitcoin.Features.BlockStore
 
         public void AddNodeStats(StringBuilder benchLogs)
         {
-            var highestBlock = (this.blockRepository as BlockRepository)?.HighestPersistedBlock;
+            var highestBlock = this.blockRepository.HighestPersistedBlock;
 
             if (highestBlock != null)
                 benchLogs.AppendLine($"{this.name}.Height: ".PadRight(LoggingConfiguration.ColumnLength + 1) +
