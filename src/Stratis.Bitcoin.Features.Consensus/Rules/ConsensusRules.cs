@@ -1,14 +1,16 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 using Stratis.Bitcoin.Base.Deployments;
+using Stratis.Bitcoin.Features.Consensus.Interfaces;
 using Stratis.Bitcoin.Utilities;
 
 namespace Stratis.Bitcoin.Features.Consensus.Rules
 {
     /// <inheritdoc />
-    public class ConsensusRules : IConsensusRules
+    public abstract class ConsensusRules : IConsensusRules
     {
         /// <summary>A factory to creates logger instances for each rule.</summary>
         private readonly ILoggerFactory loggerFactory;
@@ -17,7 +19,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules
         private readonly ILogger logger;
 
         /// <summary>A collection of rules that well be executed by the rules engine.</summary>
-        private readonly Dictionary<string, ConsensusRule> consensusRules;
+        private readonly Dictionary<string, ConsensusRuleDescriptor> consensusRules;
 
         /// <summary>Specification of the network the node runs on - regtest/testnet/mainnet.</summary>
         public Network Network { get; }
@@ -43,7 +45,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules
         /// <summary>
         /// Initializes an instance of the object.
         /// </summary>
-        public ConsensusRules(Network network, ILoggerFactory loggerFactory, IDateTimeProvider dateTimeProvider, ConcurrentChain chain, NodeDeployments nodeDeployments, ConsensusSettings consensusSettings, ICheckpoints checkpoints)
+        protected ConsensusRules(Network network, ILoggerFactory loggerFactory, IDateTimeProvider dateTimeProvider, ConcurrentChain chain, NodeDeployments nodeDeployments, ConsensusSettings consensusSettings, ICheckpoints checkpoints)
         {
             this.Network = network;
             this.DateTimeProvider = dateTimeProvider;
@@ -54,11 +56,11 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules
             this.Checkpoints = checkpoints;
             this.ConsensusParams = this.Network.Consensus;
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
-            this.consensusRules = new Dictionary<string, ConsensusRule>();
+            this.consensusRules = new Dictionary<string, ConsensusRuleDescriptor>();
         }
         
         /// <inheritdoc />
-        public IEnumerable<ConsensusRule> Rules => this.consensusRules.Values;
+        public IEnumerable<ConsensusRuleDescriptor> Rules => this.consensusRules.Values;
 
         /// <inheritdoc />
         public ConsensusRules Register(IRuleRegistration ruleRegistration)
@@ -69,7 +71,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules
                 consensusRule.Logger = this.loggerFactory.CreateLogger(consensusRule.GetType().FullName);
                 consensusRule.Initialize();
                 
-                this.consensusRules.Add(consensusRule.GetType().FullName, consensusRule);
+                this.consensusRules.Add(consensusRule.GetType().FullName, new ConsensusRuleDescriptor(consensusRule));
             }
 
             return this;
@@ -99,13 +101,13 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules
                 {
                     var rule = consensusRule.Value;
 
-                    if (context.SkipValidation && rule.ValidationOnlyRule)
+                    if (context.SkipValidation && rule.CanSkipValidation)
                     {
                         this.logger.LogTrace("Rule {0} skipped for block at height {1}.", nameof(rule), blockValidationContext.ChainedBlock.Height);
                     }
                     else
                     {
-                        await rule.RunAsync(context).ConfigureAwait(false);
+                        await rule.Rule.RunAsync(context).ConfigureAwait(false);
                     }
                 }
             }
@@ -127,11 +129,50 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules
             {
                 var rule = consensusRule.Value;
 
-                if (rule.ValidationOnlyRule)
+                if (rule.Attributes.Count == 0 || rule.Attributes.OfType<ValidationRuleAttribute>().Any())
                 {
-                    await rule.RunAsync(ruleContext).ConfigureAwait(false);
+                    await rule.Rule.RunAsync(ruleContext).ConfigureAwait(false);
                 }
             }
+        }
+    }
+
+    /// <summary>
+    /// Consensus rules that represent a Proof-Of-Work blockchain.
+    /// </summary>
+    public class PowConsensusRules : ConsensusRules
+    {
+        /// <summary>
+        /// Initializes an instance of the object.
+        /// </summary>
+        public PowConsensusRules(Network network, ILoggerFactory loggerFactory, IDateTimeProvider dateTimeProvider, ConcurrentChain chain, NodeDeployments nodeDeployments, ConsensusSettings consensusSettings, ICheckpoints checkpoints)
+            : base(network, loggerFactory, dateTimeProvider, chain, nodeDeployments, consensusSettings, checkpoints)
+        {
+        }
+    }
+
+    /// <summary>
+    /// Consensus rules that represent a Proof-Of-Stake blockchain.
+    /// </summary>
+    /// <remarks>
+    /// A Proof-Of-Stake blockchain as implemented in this code base represents a hybrid POS/POW consensus model.
+    /// </remarks>
+    public class PosConsensusRules : ConsensusRules
+    {
+        /// <summary>Database of stake related data for the current blockchain.</summary>
+        public StakeChain StakeChain { get; }
+
+        /// <summary>Provides functionality for checking validity of PoS blocks.</summary>
+        public IStakeValidator StakeValidator { get; }
+
+        /// <summary>
+        /// Initializes an instance of the object.
+        /// </summary>
+        public PosConsensusRules(Network network, ILoggerFactory loggerFactory, IDateTimeProvider dateTimeProvider, ConcurrentChain chain, NodeDeployments nodeDeployments, ConsensusSettings consensusSettings, ICheckpoints checkpoints, StakeChain stakeChain, IStakeValidator stakeValidator) 
+            : base(network, loggerFactory, dateTimeProvider, chain, nodeDeployments, consensusSettings, checkpoints)
+        {
+            this.StakeChain = stakeChain;
+            this.StakeValidator = stakeValidator;
         }
     }
 }

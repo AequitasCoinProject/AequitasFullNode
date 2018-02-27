@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NBitcoin;
 using Stratis.Bitcoin.Builder;
 using Stratis.Bitcoin.Builder.Feature;
 using Stratis.Bitcoin.Configuration;
@@ -16,6 +17,8 @@ namespace Stratis.Bitcoin.Features.RPC
     {
         private readonly FullNode fullNode;
 
+        private readonly NodeSettings nodeSettings;
+
         private readonly ILogger logger;
 
         private readonly IFullNodeBuilder fullNodeBuilder;
@@ -26,9 +29,24 @@ namespace Stratis.Bitcoin.Features.RPC
         {
             this.fullNodeBuilder = fullNodeBuilder;
             this.fullNode = fullNode;
+            this.nodeSettings = nodeSettings;
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
-            rpcSettings.Load(nodeSettings);
             this.rpcSettings = rpcSettings;
+        }
+
+        /// <inheritdoc />
+        public override void LoadConfiguration()
+        {
+            this.rpcSettings.Load(this.nodeSettings);
+        }
+
+        /// <summary>
+        /// Prints command-line help.
+        /// </summary>
+        /// <param name="network">The network to extract values from.</param>
+        public static void PrintHelp(Network network)
+        {
+            RpcSettings.PrintHelp(network);
         }
 
         public override void Initialize()
@@ -99,6 +117,7 @@ namespace Stratis.Bitcoin.Features.RPC
                 service.AddSingleton<FullNodeController>();
                 service.AddSingleton<ConnectionManagerController>();
                 service.AddSingleton<RpcSettings>(new RpcSettings(setup));
+                service.AddSingleton<IRPCClientFactory, RPCClientFactory>();
                 service.AddSingleton<RPCController>();
             });
 

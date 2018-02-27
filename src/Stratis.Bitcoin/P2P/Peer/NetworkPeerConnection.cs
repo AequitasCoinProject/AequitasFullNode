@@ -23,6 +23,9 @@ namespace Stratis.Bitcoin.P2P.Peer
         /// <summary>Logger factory to create loggers.</summary>
         private readonly ILoggerFactory loggerFactory;
 
+        /// <summary>A provider of network payload messages.</summary>
+        private readonly PayloadProvider payloadProvider;
+
         /// <summary>Instance logger.</summary>
         private ILogger logger;
 
@@ -61,7 +64,7 @@ namespace Stratis.Bitcoin.P2P.Peer
         }
 
         /// <summary>Network peer this connection connects to.</summary>
-        private NetworkPeer peer;
+        private INetworkPeer peer;
 
         /// <summary>Cancellation to be triggered at shutdown to abort all pending operations on the connection.</summary>
         public CancellationTokenSource CancellationSource { get; private set; }
@@ -118,9 +121,11 @@ namespace Stratis.Bitcoin.P2P.Peer
         /// <param name="processMessageAsync">Callback to be called when a new message arrives from the peer.</param>
         /// <param name="dateTimeProvider">Provider of time functions.</param>
         /// <param name="loggerFactory">Factory for creating loggers.</param>
-        public NetworkPeerConnection(Network network, NetworkPeer peer, TcpClient client, int clientId, ProcessMessageAsync<IncomingMessage> processMessageAsync, IDateTimeProvider dateTimeProvider, ILoggerFactory loggerFactory)
+        /// <param name="payloadProvider">A provider of network payload messages.</param>
+        public NetworkPeerConnection(Network network, INetworkPeer peer, TcpClient client, int clientId, ProcessMessageAsync<IncomingMessage> processMessageAsync, IDateTimeProvider dateTimeProvider, ILoggerFactory loggerFactory, PayloadProvider payloadProvider)
         {
             this.loggerFactory = loggerFactory;
+            this.payloadProvider = payloadProvider;
             this.logger = this.loggerFactory.CreateLogger(this.GetType().FullName, $"[{clientId}-{peer.PeerEndPoint}] ");
 
             this.network = network;
@@ -178,7 +183,6 @@ namespace Stratis.Bitcoin.P2P.Peer
                     {
                         Message = message,
                         Length = message.MessageSize,
-                        NetworkPeer = this.peer
                     };
 
                     this.MessageProducer.PushMessage(incomingMessage);
@@ -350,11 +354,14 @@ namespace Stratis.Bitcoin.P2P.Peer
         /// </summary>
         /// <param name="payload">Payload of the message to send.</param>
         /// <param name="cancellation">Cancellation token that allows aborting the sending operation.</param>
-        /// <exception cref="OperationCanceledException">Thrown when the peer has been disconnected 
-        /// or the cancellation token has been cancelled or another error occurred.</param>
+        /// <exception cref="OperationCanceledException">Thrown when the peer has been disconnected
+        /// or the cancellation token has been cancelled or another error occurred.</exception>
         public async Task SendAsync(Payload payload, CancellationToken cancellation = default(CancellationToken))
         {
             this.logger.LogTrace("({0}:'{1}')", nameof(payload), payload);
+
+            if (!this.payloadProvider.IsPayloadRegistered(payload.GetType()))
+                throw new ProtocolViolationException($"Message payload {payload.GetType()} not found.");
 
             CancellationTokenSource cts = null;
             if (cancellation != default(CancellationToken))
@@ -366,7 +373,7 @@ namespace Stratis.Bitcoin.P2P.Peer
 
             try
             {
-                var message = new Message
+                var message = new Message(this.payloadProvider)
                 {
                     Magic = this.peer.Network.Magic,
                     Payload = payload
@@ -599,8 +606,7 @@ namespace Stratis.Bitcoin.P2P.Peer
             byte[] rawMessage = await this.ReadMessageAsync(protocolVersion, cancellation).ConfigureAwait(false);
             using (var memoryStream = new MemoryStream(rawMessage))
             {
-                PerformanceCounter counter;
-                message = Message.ReadNext(memoryStream, this.network, protocolVersion, cancellation, null, out counter);
+                message = Message.ReadNext(memoryStream, this.network, protocolVersion, cancellation, this.payloadProvider, out PerformanceCounter counter);
                 message.MessageSize = (uint)rawMessage.Length;
             }
 

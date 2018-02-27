@@ -33,14 +33,7 @@ namespace NBitcoin
                 return this.addresses;
             }
 
-            try
-            {
-                this.addresses = Dns.GetHostAddressesAsync(this.Host).Result;
-            }
-            catch (AggregateException ex)
-            {
-                System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
-            }
+            this.addresses = Dns.GetHostAddressesAsync(this.Host).GetAwaiter().GetResult();
 
             return this.addresses;
         }
@@ -269,6 +262,9 @@ namespace NBitcoin
             }
         }
 
+        /// <summary>Maximum tip age in seconds to consider node in initial block download.</summary>
+        public int MaxTipAge { get; private set; }
+
         public long MinTxFee { get; private set; }
 
         public long FallbackFee { get; private set; }
@@ -370,6 +366,7 @@ namespace NBitcoin
 
             NetworksContainer.TryAdd(network.Name.ToLowerInvariant(), network);
 
+            network.MaxTipAge = builder.MaxTipAge;
             network.MinTxFee = builder.MinTxFee;
             network.FallbackFee = builder.FallbackFee;
             network.MinRelayTxFee = builder.MinRelayTxFee;

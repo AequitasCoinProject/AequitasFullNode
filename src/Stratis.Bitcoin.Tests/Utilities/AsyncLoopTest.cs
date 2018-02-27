@@ -85,12 +85,13 @@ namespace Stratis.Bitcoin.Tests.Utilities
         {
             var asyncLoop = new AsyncLoop("TestLoop", NullLogger.Instance, async token =>
             {
-                await this.DoTask(token);
+                this.iterationCount++;
+                await Task.CompletedTask;
             });
 
             await asyncLoop.Run(new CancellationTokenSource(900).Token, TimeSpan.FromMilliseconds(330)).RunningTask;
 
-            Assert.Equal(3, this.iterationCount);
+            Assert.True(this.iterationCount > 1);
         }
 
         [Fact]
@@ -101,9 +102,9 @@ namespace Stratis.Bitcoin.Tests.Utilities
                 await this.DoTask(token);
             });
 
-            await asyncLoop.Run(new CancellationTokenSource(1000).Token, TimeSpan.FromMilliseconds(330), TimeSpan.FromMilliseconds(400)).RunningTask;
+            await asyncLoop.Run(new CancellationTokenSource(1000).Token, TimeSpan.FromMilliseconds(300), TimeSpan.FromMilliseconds(100)).RunningTask;
 
-            Assert.Equal(2, this.iterationCount);
+            Assert.True(this.iterationCount > 1);
         }
 
         [Fact]
@@ -117,13 +118,13 @@ namespace Stratis.Bitcoin.Tests.Utilities
             {
                 iterations++;
 
-                if (iterations == 3)
-                    asyncLoop.RepeatEvery = TimeSpan.FromMilliseconds(100);
+                if (iterations == 2)
+                    asyncLoop.RepeatEvery = TimeSpan.FromMilliseconds(200);
 
                 return Task.CompletedTask;
             });
 
-            Task loopRun = asyncLoop.Run(new CancellationTokenSource(1000).Token, TimeSpan.FromMilliseconds(300)).RunningTask;
+            Task loopRun = asyncLoop.Run(new CancellationTokenSource(5000).Token, TimeSpan.FromMilliseconds(1000)).RunningTask;
             
             await loopRun;
 

@@ -9,6 +9,7 @@ using Stratis.Bitcoin.Base.Deployments;
 using Stratis.Bitcoin.BlockPulling;
 using Stratis.Bitcoin.Builder;
 using Stratis.Bitcoin.Builder.Feature;
+using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Configuration.Logging;
 using Stratis.Bitcoin.Connection;
 using Stratis.Bitcoin.Features.Consensus.CoinViews;
@@ -17,6 +18,7 @@ using Stratis.Bitcoin.Features.Consensus.Rules;
 using Stratis.Bitcoin.Features.Consensus.Rules.CommonRules;
 using Stratis.Bitcoin.Interfaces;
 using Stratis.Bitcoin.P2P.Protocol.Payloads;
+using Stratis.Bitcoin.Utilities;
 
 [assembly: InternalsVisibleTo("Stratis.Bitcoin.Features.Consensus.Tests")]
 
@@ -44,6 +46,11 @@ namespace Stratis.Bitcoin.Features.Consensus
         private readonly StakeChainStore stakeChain;
 
         private readonly IRuleRegistration ruleRegistration;
+
+        private readonly NodeSettings nodeSettings;
+
+        private readonly ConsensusSettings consensusSettings;
+
         private readonly IConsensusRules consensusRules;
 
         /// <summary>Instance logger.</summary>
@@ -69,6 +76,8 @@ namespace Stratis.Bitcoin.Features.Consensus
             ConsensusStats consensusStats,
             IRuleRegistration ruleRegistration,
             IConsensusRules consensusRules,
+            NodeSettings nodeSettings,
+            ConsensusSettings consensusSettings,
             StakeChainStore stakeChain = null)
         {
             this.dBreezeCoinView = dBreezeCoinView;
@@ -84,6 +93,8 @@ namespace Stratis.Bitcoin.Features.Consensus
             this.loggerFactory = loggerFactory;
             this.consensusStats = consensusStats;
             this.ruleRegistration = ruleRegistration;
+            this.nodeSettings = nodeSettings;
+            this.consensusSettings = consensusSettings;
             this.consensusRules = consensusRules;
 
             this.chainState.MaxReorgLength = network.Consensus.Option<PowConsensusOptions>().MaxReorgLength;
@@ -99,6 +110,12 @@ namespace Stratis.Bitcoin.Features.Consensus
                                      " Consensus.Hash: ".PadRight(LoggingConfiguration.ColumnLength - 1) +
                                      this.chainState.ConsensusTip.HashBlock);
             }
+        }
+
+        /// <inheritdoc />
+        public override void LoadConfiguration()
+        {
+            this.consensusSettings.Load(nodeSettings);
         }
 
         /// <inheritdoc />
@@ -146,7 +163,7 @@ namespace Stratis.Bitcoin.Features.Consensus
     /// </summary>
     public static class FullNodeBuilderConsensusExtension
     {
-        public static IFullNodeBuilder UseConsensus(this IFullNodeBuilder fullNodeBuilder)
+        public static IFullNodeBuilder UsePowConsensus(this IFullNodeBuilder fullNodeBuilder)
         {
             LoggingConfiguration.RegisterFeatureNamespace<ConsensusFeature>("consensus");
             LoggingConfiguration.RegisterFeatureClass<ConsensusStats>("bench");
@@ -173,15 +190,15 @@ namespace Stratis.Bitcoin.Features.Consensus
                     services.AddSingleton<ConsensusController>();
                     services.AddSingleton<ConsensusStats>();
                     services.AddSingleton<ConsensusSettings>();
-                    services.AddSingleton<IConsensusRules, ConsensusRules>();
-                    services.AddSingleton<IRuleRegistration, CoreConsensusRules>();
+                    services.AddSingleton<IConsensusRules, PowConsensusRules>();
+                    services.AddSingleton<IRuleRegistration, PowConsensusRulesRegistration>();
                 });
             });
 
             return fullNodeBuilder;
         }
 
-        public static IFullNodeBuilder UseStratisConsensus(this IFullNodeBuilder fullNodeBuilder)
+        public static IFullNodeBuilder UsePosConsensus(this IFullNodeBuilder fullNodeBuilder)
         {
             LoggingConfiguration.RegisterFeatureNamespace<ConsensusFeature>("consensus");
             LoggingConfiguration.RegisterFeatureClass<ConsensusStats>("bench");
@@ -194,7 +211,7 @@ namespace Stratis.Bitcoin.Features.Consensus
                     {
                         fullNodeBuilder.Network.Consensus.Options = new PosConsensusOptions();
 
-                        if (fullNodeBuilder.NodeSettings.Testnet)
+                        if (fullNodeBuilder.Network.IsTest())
                         {
                             fullNodeBuilder.Network.Consensus.Option<PosConsensusOptions>().CoinbaseMaturity = 10;
                             fullNodeBuilder.Network.Consensus.Option<PosConsensusOptions>().StakeMinConfirmations = 10;
@@ -209,41 +226,81 @@ namespace Stratis.Bitcoin.Features.Consensus
                         services.AddSingleton<IConsensusLoop, ConsensusLoop>();
                         services.AddSingleton<StakeChainStore>().AddSingleton<StakeChain, StakeChainStore>(provider => provider.GetService<StakeChainStore>());
                         services.AddSingleton<IStakeValidator, StakeValidator>();
-                        services.AddSingleton<ConsensusManager>().AddSingleton<INetworkDifficulty, ConsensusManager>()
-                            .AddSingleton<IGetUnspentTransaction, ConsensusManager>();
+                        services.AddSingleton<ConsensusManager>().AddSingleton<INetworkDifficulty, ConsensusManager>().AddSingleton<IGetUnspentTransaction, ConsensusManager>();
                         services.AddSingleton<IInitialBlockDownloadState, InitialBlockDownloadState>();
                         services.AddSingleton<ConsensusController>();
                         services.AddSingleton<ConsensusStats>();
                         services.AddSingleton<ConsensusSettings>();
-                        services.AddSingleton<IConsensusRules, ConsensusRules>();
-                        services.AddSingleton<IRuleRegistration, CoreConsensusRules>();
+                        services.AddSingleton<IConsensusRules, PosConsensusRules>();
+                        services.AddSingleton<IRuleRegistration, PosConsensusRulesRegistration>();
                     });
             });
 
             return fullNodeBuilder;
         }
 
-        public class CoreConsensusRules : IRuleRegistration
+        public class PowConsensusRulesRegistration : IRuleRegistration
         {
             public IEnumerable<ConsensusRule> GetRules()
             {
-                yield return new BlockHeaderRule();
+                return new List<ConsensusRule>
+                {
+                    new BlockHeaderRule(),
 
-                // rules that are inside the method ContextualCheckBlockHeader
-                yield return new CheckpointsRule();
-                yield return new AssumeValidRule();
+                    // rules that are inside the method CheckBlockHeader
+                    new CalculateWorkRule(),
 
-                // rules that are inside the method ContextualCheckBlock
-                yield return new Bip113ActivationRule();
-                yield return new Bip34ActivationRule();
-                yield return new WitnessCommitmentsRule();
-                yield return new BlockSizeRule();
+                    // rules that are inside the method ContextualCheckBlockHeader
+                    new CheckpointsRule(),
+                    new AssumeValidRule(),
+                    new BlockHeaderPowContextualRule(),
 
-                // rules that are inside the method CheckBlock
-                yield return new BlockMerkleRootRule();
-                yield return new EnsureCoinbaseRule();
-                yield return new CheckTransactionRule();
-                yield return new CheckSigOpsRule();
+                    // rules that are inside the method ContextualCheckBlock
+                    new TransactionLocktimeActivationRule(), // implements BIP113
+                    new CoinbaseHeighActivationRule(), // implements BIP34
+                    new WitnessCommitmentsRule(), // BIP141, BIP144
+                    new BlockSizeRule(),
+
+                    // rules that are inside the method CheckBlock
+                    new BlockMerkleRootRule(),
+                    new EnsureCoinbaseRule(),
+                    new CheckTransactionRule(),
+                    new CheckSigOpsRule()
+                };
+            }
+        }
+
+        public class PosConsensusRulesRegistration : IRuleRegistration
+        {
+            public IEnumerable<ConsensusRule> GetRules()
+            {
+                return new List<ConsensusRule>
+                {
+                    new BlockHeaderRule(),
+
+                    // rules that are inside the method CheckBlockHeader
+                    new CalculateStakeRule(),
+
+                    // rules that are inside the method ContextualCheckBlockHeader
+                    new CheckpointsRule(),
+                    new AssumeValidRule(),
+                    new BlockHeaderPowContextualRule(),
+                    new BlockHeaderPosContextualRule(),
+
+                    // rules that are inside the method ContextualCheckBlock
+                    new TransactionLocktimeActivationRule(), // implements BIP113
+                    new CoinbaseHeighActivationRule(), // implements BIP34
+                    new WitnessCommitmentsRule(), // BIP141, BIP144 
+                    new BlockSizeRule(),
+
+                    new PosBlockContextRule(), // TODO: this rule needs to be implemented
+
+                    // rules that are inside the method CheckBlock
+                    new BlockMerkleRootRule(),
+                    new EnsureCoinbaseRule(),
+                    new CheckTransactionRule(),
+                    new CheckSigOpsRule()
+                };
             }
         }
     }

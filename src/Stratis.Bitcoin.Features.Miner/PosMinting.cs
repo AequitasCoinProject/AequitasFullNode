@@ -243,6 +243,15 @@ namespace Stratis.Bitcoin.Features.Miner
         /// <summary>Loop in which the node attempts to generate new POS blocks by staking coins from its wallet.</summary>
         private IAsyncLoop stakingLoop;
 
+        /// <summary>Indicates that the stake flag is not in progress.</summary>
+        public const int StakeNotInProgress = -1;
+
+        /// <summary>Indicates that the stake flag is in progress.</summary>
+        public const int StakeInProgress = 1;
+
+        /// <summary>a flag that indicates if stake is on/off based on the <see cref="StakeInProgress"/> and <see cref="StakeNotInProgress"/> constants.</summary>
+        private int stakeProgressFlag;
+
         /// <summary>
         /// Target reserved balance that will not participate in staking.
         /// It is possible that less than this amount will be reserved.
@@ -251,6 +260,9 @@ namespace Stratis.Bitcoin.Features.Miner
 
         /// <summary>Time in milliseconds between attempts to generate PoS blocks.</summary>
         private readonly int minerSleep;
+
+        /// <summary>Time in milliseconds between attempts to generate PoS blocks, when the system time is out of sync.</summary>
+        private readonly int systemTimeOutOfSyncSleep;
 
         /// <summary>A lock for managing asynchronous access to memory pool.</summary>
         protected readonly MempoolSchedulerLock mempoolLock;
@@ -294,6 +306,9 @@ namespace Stratis.Bitcoin.Features.Miner
         /// <summary>Provider of IBD state.</summary>
         private IInitialBlockDownloadState initialBlockDownloadState;
 
+        /// <summary>State of time synchronization feature that stores collected data samples.</summary>
+        private readonly ITimeSyncBehaviorState timeSyncBehaviorState;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="PosMinting"/> class.
         /// </summary>
@@ -312,6 +327,7 @@ namespace Stratis.Bitcoin.Features.Miner
         /// <param name="mempool">Memory pool of pending transactions.</param>
         /// <param name="wallet">A manager providing operations on wallets.</param>
         /// <param name="asyncLoopFactory">Factory for creating background async loop tasks.</param>
+        /// <param name="timeSyncBehaviorState">State of time synchronization feature that stores collected data samples.</param>
         /// <param name="loggerFactory">Factory for creating loggers.</param>
         public PosMinting(
             IConsensusLoop consensusLoop,
@@ -329,6 +345,7 @@ namespace Stratis.Bitcoin.Features.Miner
             ITxMempool mempool,
             IWalletManager wallet,
             IAsyncLoopFactory asyncLoopFactory,
+            ITimeSyncBehaviorState timeSyncBehaviorState,
             ILoggerFactory loggerFactory)
         {
             this.consensusLoop = consensusLoop;
@@ -346,13 +363,16 @@ namespace Stratis.Bitcoin.Features.Miner
             this.mempool = mempool;
             this.asyncLoopFactory = asyncLoopFactory;
             this.walletManager = wallet as WalletManager;
+            this.timeSyncBehaviorState = timeSyncBehaviorState;
             this.loggerFactory = loggerFactory;
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
 
             this.minerSleep = 500; // GetArg("-minersleep", 500);
+            this.systemTimeOutOfSyncSleep = 7000;
             this.lastCoinStakeSearchTime = this.dateTimeProvider.GetAdjustedTimeAsUnixTimestamp();
             this.lastCoinStakeSearchPrevBlockHash = 0;
             this.targetReserveBalance = 0; // TOOD:settings.targetReserveBalance
+            this.stakeProgressFlag = StakeNotInProgress;
 
             this.posConsensusValidator = consensusLoop.Validator as IPosConsensusValidator;
 
@@ -363,7 +383,8 @@ namespace Stratis.Bitcoin.Features.Miner
         public IAsyncLoop Stake(WalletSecret walletSecret)
         {
             this.logger.LogTrace("()");
-            if (this.stakingLoop != null)
+
+            if (Interlocked.CompareExchange(ref this.stakeProgressFlag, StakeInProgress, StakeNotInProgress) == StakeInProgress)
             {
                 this.logger.LogTrace("(-)[ALREADY_MINING]");
                 return this.stakingLoop;
@@ -375,7 +396,7 @@ namespace Stratis.Bitcoin.Features.Miner
             this.stakingLoop = this.asyncLoopFactory.Run("PosMining.Stake", async token =>
             {
                 this.logger.LogTrace("()");
-
+                
                 try
                 {
                     await this.GenerateBlocksAsync(walletSecret).ConfigureAwait(false);
@@ -421,7 +442,7 @@ namespace Stratis.Bitcoin.Features.Miner
         {
             this.logger.LogTrace("()");
 
-            if (this.stakingLoop == null)
+            if (Interlocked.CompareExchange(ref this.stakeProgressFlag, StakeNotInProgress, StakeInProgress) == StakeNotInProgress)
             {
                 this.logger.LogTrace("(-)[NOT_MINING]");
                 return;
@@ -447,16 +468,24 @@ namespace Stratis.Bitcoin.Features.Miner
 
             while (!this.stakeCancellationTokenSource.Token.IsCancellationRequested)
             {
-                // Wait until we have at least one connected peer who's headers are synced with ours AND until not in IBD.
-                while (!this.connection.ConnectedPeers.Any(x => x.Behavior<ChainHeadersBehavior>().IsSynced())
-                    || this.initialBlockDownloadState.IsInitialBlockDownload())
+                // Prevent mining if the system time is not in sync with that of other members on the network.
+                if (this.timeSyncBehaviorState.IsSystemTimeOutOfSync)
                 {
-                    if (this.initialBlockDownloadState.IsInitialBlockDownload()) this.logger.LogTrace("Waiting for IBD to complete...");
-                    else this.logger.LogTrace("Waiting to be connected with at least one synced network peer...");
-
-                    await Task.Delay(TimeSpan.FromMilliseconds(this.minerSleep), this.stakeCancellationTokenSource.Token).ConfigureAwait(false);
+                    this.logger.LogError("Staking cannot start, your system time does not match that of other nodes on the network." + Environment.NewLine
+                                         + "Please adjust your system time and restart the node.");
+                    await Task.Delay(TimeSpan.FromMilliseconds(this.systemTimeOutOfSyncSleep), this.stakeCancellationTokenSource.Token).ConfigureAwait(false);
+                    continue;
                 }
 
+                // Prevent mining if not fully synced.
+                if (this.initialBlockDownloadState.IsInitialBlockDownload() || 
+                    this.consensusLoop.Tip != this.chain.Tip)
+                {
+                    this.logger.LogTrace("Waiting for synchronization before mining can be started...");
+
+                    await Task.Delay(TimeSpan.FromMilliseconds(this.minerSleep), this.stakeCancellationTokenSource.Token).ConfigureAwait(false);
+                    continue;
+                }
 
                 ChainedBlock chainTip = this.chain.Tip;
                 if (chainTip != this.consensusLoop.Tip)
@@ -493,19 +522,19 @@ namespace Stratis.Bitcoin.Features.Miner
                 {
                     UnspentOutputs set = coinset.UnspentOutputs.FirstOrDefault(f => f?.TransactionId == infoTransaction.Transaction.Id);
                     TxOut utxo = (set != null) && (infoTransaction.Transaction.Index < set.Outputs.Length) ? set.Outputs[infoTransaction.Transaction.Index] : null;
+                    uint256 hashBock = this.chain.GetBlock((int) set.Height)?.HashBlock;
 
-                    if ((utxo != null) && (utxo.Value > Money.Zero))
+                    if ((utxo != null) && (utxo.Value > Money.Zero) && (hashBock != null))
                     {
                         var utxoStakeDescription = new UtxoStakeDescription();
 
                         utxoStakeDescription.TxOut = utxo;
                         utxoStakeDescription.OutPoint = new OutPoint(set.TransactionId, infoTransaction.Transaction.Index);
                         utxoStakeDescription.Address = infoTransaction.Address;
-                        utxoStakeDescription.HashBlock = this.chain.GetBlock((int)set.Height).HashBlock;
+                        utxoStakeDescription.HashBlock = hashBock;
                         utxoStakeDescription.UtxoSet = set;
                         utxoStakeDescription.Secret = walletSecret; // Temporary.
                         utxoStakeDescriptions.Add(utxoStakeDescription);
-
                         totalBalance += utxo.Value;
                         this.logger.LogTrace("UTXO '{0}' with value {1} might be available for staking.", utxoStakeDescription.OutPoint, utxo.Value);
                     }

@@ -10,7 +10,6 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NBitcoin;
-using NBitcoin.Protocol;
 using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Configuration.Settings;
 using Stratis.Bitcoin.P2P;
@@ -132,25 +131,30 @@ namespace Stratis.Bitcoin.Features.Dns.Tests
             int inactiveTimePeriod = 2000;
 
             IPAddress activeIpAddressOne = IPAddress.Parse("::ffff:192.168.0.1");
-            NetworkAddress activeNetworkAddressOne = new NetworkAddress(activeIpAddressOne, 80);
+            var activeEndpointOne = new IPEndPoint(activeIpAddressOne, 80);
 
             IPAddress activeIpAddressTwo = IPAddress.Parse("::ffff:192.168.0.2");
-            NetworkAddress activeNetworkAddressTwo = new NetworkAddress(activeIpAddressTwo, 80);
+            var activeEndpointTwo = new IPEndPoint(activeIpAddressTwo, 80);
 
             IPAddress activeIpAddressThree = IPAddress.Parse("::ffff:192.168.0.3");
-            NetworkAddress activeNetworkAddressThree = new NetworkAddress(activeIpAddressThree, 80);
+            var activeEndpointThree = new IPEndPoint(activeIpAddressThree, 80);
 
             IPAddress activeIpAddressFour = IPAddress.Parse("::ffff:192.168.0.4");
-            NetworkAddress activeNetworkAddressFour = new NetworkAddress(activeIpAddressFour, 80);
+            var activeEndpointFour = new IPEndPoint(activeIpAddressFour, 80);
 
-            List<Tuple<NetworkAddress, DateTimeOffset>> testDataSet = new List<Tuple<NetworkAddress, DateTimeOffset>>()
+            IPAddress activeIpAddressFive = IPAddress.Parse("2607:f8b0:4009:80e::200e");
+            var activeEndpointFive = new IPEndPoint(activeIpAddressFive, 80);
+
+            var testDataSet = new List<Tuple<IPEndPoint, DateTimeOffset>>()
             {
-                new Tuple<NetworkAddress, DateTimeOffset> (activeNetworkAddressOne,  dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(10)),
-                new Tuple<NetworkAddress, DateTimeOffset>(activeNetworkAddressTwo, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(20)),
-                new Tuple<NetworkAddress, DateTimeOffset>(activeNetworkAddressThree, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(30)),
-                new Tuple<NetworkAddress, DateTimeOffset>(activeNetworkAddressFour, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(40))
+                new Tuple<IPEndPoint, DateTimeOffset>(activeEndpointOne,  dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(10)),
+                new Tuple<IPEndPoint, DateTimeOffset>(activeEndpointTwo, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(20)),
+                new Tuple<IPEndPoint, DateTimeOffset>(activeEndpointThree, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(30)),
+                new Tuple<IPEndPoint, DateTimeOffset>(activeEndpointFour, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(40)),
+                new Tuple<IPEndPoint, DateTimeOffset>(activeEndpointFive, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(50))
             };
 
+            // PeerAddressManager does not support IPv4 addresses that are not represented as embedded IPv4 addresses in an IPv6 address.
             IPeerAddressManager peerAddressManager = this.CreateTestPeerAddressManager(testDataSet);
 
             IMasterFile spiedMasterFile = null;
@@ -177,16 +181,32 @@ namespace Stratis.Bitcoin.Features.Dns.Tests
             // Assert.
             spiedMasterFile.Should().NotBeNull();
 
-            Question question = new Question(new Domain(dnsSettings.DnsHostName), RecordType.AAAA);
-            IList<IResourceRecord> resourceRecords = spiedMasterFile.Get(question);
-            resourceRecords.Should().NotBeNullOrEmpty();
+            // Check for A records (IPv4 embedded in IPv6 and IPv4 addresses).
+            Question question4 = new Question(new Domain(dnsSettings.DnsHostName), RecordType.A);
+            IList<IResourceRecord> resourceRecordsIpv4 = spiedMasterFile.Get(question4);
+            resourceRecordsIpv4.Should().NotBeNullOrEmpty();
 
-            IList<IPAddressResourceRecord> ipAddressResourceRecords = resourceRecords.OfType<IPAddressResourceRecord>().ToList();
-            ipAddressResourceRecords.Should().HaveSameCount(testDataSet);
+            IList<IPAddressResourceRecord> ipAddressResourceRecords4 = resourceRecordsIpv4.OfType<IPAddressResourceRecord>().ToList();
+            ipAddressResourceRecords4.Should().HaveCount(4);
 
-            foreach (Tuple<NetworkAddress, DateTimeOffset> testData in testDataSet)
+            // Check for AAAA records (IPv6 addresses).
+            Question question6 = new Question(new Domain(dnsSettings.DnsHostName), RecordType.AAAA);
+            IList<IResourceRecord> resourceRecordsIpv6 = spiedMasterFile.Get(question6);
+            resourceRecordsIpv6.Should().NotBeNullOrEmpty();
+
+            IList<IPAddressResourceRecord> ipAddressResourceRecords6 = resourceRecordsIpv6.OfType<IPAddressResourceRecord>().ToList();
+            ipAddressResourceRecords6.Should().HaveCount(1);
+
+            foreach (Tuple<IPEndPoint, DateTimeOffset> testData in testDataSet)
             {
-                ipAddressResourceRecords.SingleOrDefault(i => i.IPAddress.Equals(testData.Item1.Endpoint.Address)).Should().NotBeNull();
+                if (testData.Item1.Address.IsIPv4MappedToIPv6)
+                {
+                    ipAddressResourceRecords4.SingleOrDefault(i => i.IPAddress.Equals(testData.Item1.Address.MapToIPv4())).Should().NotBeNull();
+                }
+                else
+                {
+                    ipAddressResourceRecords6.SingleOrDefault(i => i.IPAddress.Equals(testData.Item1.Address)).Should().NotBeNull();
+                }
             }
         }
 
@@ -208,35 +228,35 @@ namespace Stratis.Bitcoin.Features.Dns.Tests
             int inactiveTimePeriod = 5000;
 
             IPAddress activeIpAddressOne = IPAddress.Parse("::ffff:192.168.0.1");
-            NetworkAddress activeNetworkAddressOne = new NetworkAddress(activeIpAddressOne, 80);
+            var activeEndpointOne = new IPEndPoint(activeIpAddressOne, 80);
 
             IPAddress activeIpAddressTwo = IPAddress.Parse("::ffff:192.168.0.2");
-            NetworkAddress activeNetworkAddressTwo = new NetworkAddress(activeIpAddressTwo, 80);
+            var activeEndpointTwo = new IPEndPoint(activeIpAddressTwo, 80);
 
             IPAddress activeIpAddressThree = IPAddress.Parse("::ffff:192.168.0.3");
-            NetworkAddress activeNetworkAddressThree = new NetworkAddress(activeIpAddressThree, 80);
+            var activeEndpointThree = new IPEndPoint(activeIpAddressThree, 80);
 
-            List<Tuple<NetworkAddress, DateTimeOffset>> activeTestDataSet = new List<Tuple<NetworkAddress, DateTimeOffset>>()
+            var activeTestDataSet = new List<Tuple<IPEndPoint, DateTimeOffset>>()
             {
-                new Tuple<NetworkAddress, DateTimeOffset> (activeNetworkAddressOne,  dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(10)),
-                new Tuple<NetworkAddress, DateTimeOffset>(activeNetworkAddressTwo, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(20)),
-                new Tuple<NetworkAddress, DateTimeOffset>(activeNetworkAddressThree, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(30)),
+                new Tuple<IPEndPoint, DateTimeOffset> (activeEndpointOne,  dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(10)),
+                new Tuple<IPEndPoint, DateTimeOffset>(activeEndpointTwo, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(20)),
+                new Tuple<IPEndPoint, DateTimeOffset>(activeEndpointThree, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(30)),
             };
 
-            IPAddress externalIPAdress = IPAddress.Parse("::ffff:192.168.99.99");
+            var externalIPAdress = IPAddress.Parse("::ffff:192.168.99.99");
             int externalPort = 80;
-            NetworkAddress externalNetworkAddress = new NetworkAddress(externalIPAdress, externalPort);
+            var externalEndpoint = new IPEndPoint(externalIPAdress, externalPort);
 
-            List<Tuple<NetworkAddress, DateTimeOffset>> externalIPTestDataSet = new List<Tuple<NetworkAddress, DateTimeOffset>>()
+            var externalIPTestDataSet = new List<Tuple<IPEndPoint, DateTimeOffset>>()
             {
-                new Tuple<NetworkAddress, DateTimeOffset> (externalNetworkAddress,  dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(40)),
+                new Tuple<IPEndPoint, DateTimeOffset> (externalEndpoint,  dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(40)),
             };
 
             IPeerAddressManager peerAddressManager = this.CreateTestPeerAddressManager(activeTestDataSet.Union(externalIPTestDataSet).ToList());
 
             string[] args = new string[] {
                 $"-dnspeeractivethreshold={inactiveTimePeriod.ToString()}",
-                $"-externalip={externalNetworkAddress.Endpoint.Address.ToString()}",
+                $"-externalip={externalEndpoint.Address.ToString()}",
                 $"-port={externalPort.ToString()}",
             };
 
@@ -250,7 +270,7 @@ namespace Stratis.Bitcoin.Features.Dns.Tests
                 .Verifiable();
 
             Network network = Network.StratisTest;
-            NodeSettings nodeSettings = new NodeSettings(network).LoadArguments(args);
+            NodeSettings nodeSettings = new NodeSettings(network, args:args);
             DnsSettings dnsSettings = new Mock<DnsSettings>().Object;
             dnsSettings.DnsPeerBlacklistThresholdInSeconds = inactiveTimePeriod;
             dnsSettings.DnsHostName = "stratis.test.com";
@@ -266,20 +286,20 @@ namespace Stratis.Bitcoin.Features.Dns.Tests
             // Assert.
             spiedMasterFile.Should().NotBeNull();
 
-            Question question = new Question(new Domain(dnsSettings.DnsHostName), RecordType.AAAA);
+            Question question = new Question(new Domain(dnsSettings.DnsHostName), RecordType.A);
             IList<IResourceRecord> resourceRecords = spiedMasterFile.Get(question);
             resourceRecords.Should().NotBeNullOrEmpty();
 
             IList<IPAddressResourceRecord> ipAddressResourceRecords = resourceRecords.OfType<IPAddressResourceRecord>().ToList();
             ipAddressResourceRecords.Should().HaveSameCount(activeTestDataSet);
 
-            foreach (Tuple<NetworkAddress, DateTimeOffset> testData in activeTestDataSet)
+            foreach (Tuple<IPEndPoint, DateTimeOffset> testData in activeTestDataSet)
             {
-                ipAddressResourceRecords.SingleOrDefault(i => i.IPAddress.Equals(testData.Item1.Endpoint.Address)).Should().NotBeNull();
+                ipAddressResourceRecords.SingleOrDefault(i => i.IPAddress.Equals(testData.Item1.Address.MapToIPv4())).Should().NotBeNull();
             }
 
             // External IP.
-            ipAddressResourceRecords.SingleOrDefault(i => i.IPAddress.Equals(externalNetworkAddress.Endpoint)).Should().BeNull("the external IP peer should not be in DNS as not running full node.");
+            ipAddressResourceRecords.SingleOrDefault(i => i.IPAddress.Equals(externalEndpoint)).Should().BeNull("the external IP peer should not be in DNS as not running full node.");
         }
 
         [Fact]
@@ -300,31 +320,31 @@ namespace Stratis.Bitcoin.Features.Dns.Tests
             int inactiveTimePeriod = 5000;
 
             IPAddress activeIpAddressOne = IPAddress.Parse("::ffff:192.168.0.1");
-            NetworkAddress activeNetworkAddressOne = new NetworkAddress(activeIpAddressOne, 80);
+            var activeEndpointOne = new IPEndPoint(activeIpAddressOne, 80);
 
             IPAddress activeIpAddressTwo = IPAddress.Parse("::ffff:192.168.0.2");
-            NetworkAddress activeNetworkAddressTwo = new NetworkAddress(activeIpAddressTwo, 80);
+            var activeEndpointTwo = new IPEndPoint(activeIpAddressTwo, 80);
 
             IPAddress activeIpAddressThree = IPAddress.Parse("::ffff:192.168.0.3");
-            NetworkAddress activeNetworkAddressThree = new NetworkAddress(activeIpAddressThree, 80);
+            var activeEndpointThree = new IPEndPoint(activeIpAddressThree, 80);
 
             IPAddress externalIPAdress = IPAddress.Parse("::ffff:192.168.99.99");
             int externalPort = 80;
-            NetworkAddress externalNetworkAddress = new NetworkAddress(externalIPAdress, externalPort);
+            var externalEndpoint = new IPEndPoint(externalIPAdress, externalPort);
 
-            List<Tuple<NetworkAddress, DateTimeOffset>> activeTestDataSet = new List<Tuple<NetworkAddress, DateTimeOffset>>()
+            var activeTestDataSet = new List<Tuple<IPEndPoint, DateTimeOffset>>()
             {
-                new Tuple<NetworkAddress, DateTimeOffset> (activeNetworkAddressOne,  dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(10)),
-                new Tuple<NetworkAddress, DateTimeOffset>(activeNetworkAddressTwo, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(20)),
-                new Tuple<NetworkAddress, DateTimeOffset>(activeNetworkAddressThree, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(30)),
-                new Tuple<NetworkAddress, DateTimeOffset> (externalNetworkAddress,  dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(40))
+                new Tuple<IPEndPoint, DateTimeOffset> (activeEndpointOne,  dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(10)),
+                new Tuple<IPEndPoint, DateTimeOffset>(activeEndpointTwo, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(20)),
+                new Tuple<IPEndPoint, DateTimeOffset>(activeEndpointThree, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(30)),
+                new Tuple<IPEndPoint, DateTimeOffset> (externalEndpoint,  dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(40))
             };
 
             IPeerAddressManager peerAddressManager = this.CreateTestPeerAddressManager(activeTestDataSet);
 
             string[] args = new string[] {
                 $"-dnspeeractivethreshold={inactiveTimePeriod.ToString()}",
-                $"-externalip={externalNetworkAddress.Endpoint.Address.ToString()}",
+                $"-externalip={externalEndpoint.Address.ToString()}",
                 $"-port={externalPort.ToString()}",
             };
 
@@ -338,7 +358,7 @@ namespace Stratis.Bitcoin.Features.Dns.Tests
                 .Verifiable();
 
             Network network = Network.StratisTest;
-            NodeSettings nodeSettings = new NodeSettings(network).LoadArguments(args);
+            NodeSettings nodeSettings = new NodeSettings(network, args:args);
             DnsSettings dnsSettings = new Mock<DnsSettings>().Object;
             dnsSettings.DnsFullNode = true;
             dnsSettings.DnsPeerBlacklistThresholdInSeconds = inactiveTimePeriod;
@@ -354,16 +374,16 @@ namespace Stratis.Bitcoin.Features.Dns.Tests
             // Assert.
             spiedMasterFile.Should().NotBeNull();
 
-            Question question = new Question(new Domain(dnsSettings.DnsHostName), RecordType.AAAA);
+            Question question = new Question(new Domain(dnsSettings.DnsHostName), RecordType.A);
             IList<IResourceRecord> resourceRecords = spiedMasterFile.Get(question);
             resourceRecords.Should().NotBeNullOrEmpty();
 
             IList<IPAddressResourceRecord> ipAddressResourceRecords = resourceRecords.OfType<IPAddressResourceRecord>().ToList();
             ipAddressResourceRecords.Should().HaveSameCount(activeTestDataSet);
 
-            foreach (Tuple<NetworkAddress, DateTimeOffset> testData in activeTestDataSet)
+            foreach (Tuple<IPEndPoint, DateTimeOffset> testData in activeTestDataSet)
             {
-                ipAddressResourceRecords.SingleOrDefault(i => i.IPAddress.Equals(testData.Item1.Endpoint.Address)).Should().NotBeNull();
+                ipAddressResourceRecords.SingleOrDefault(i => i.IPAddress.Equals(testData.Item1.Address.MapToIPv4())).Should().NotBeNull();
             }
         }
 
@@ -385,39 +405,39 @@ namespace Stratis.Bitcoin.Features.Dns.Tests
             int inactiveTimePeriod = 3000;
 
             IPAddress activeIpAddressOne = IPAddress.Parse("::ffff:192.168.0.1");
-            NetworkAddress activeNetworkAddressOne = new NetworkAddress(activeIpAddressOne, 80);
+            var activeEndpointOne = new IPEndPoint(activeIpAddressOne, 80);
 
             IPAddress activeIpAddressTwo = IPAddress.Parse("::ffff:192.168.0.2");
-            NetworkAddress activeNetworkAddressTwo = new NetworkAddress(activeIpAddressTwo, 80);
+            var activeEndpointTwo = new IPEndPoint(activeIpAddressTwo, 80);
 
             IPAddress activeIpAddressThree = IPAddress.Parse("::ffff:192.168.0.3");
-            NetworkAddress activeNetworkAddressThree = new NetworkAddress(activeIpAddressThree, 80);
+            var activeEndpointThree = new IPEndPoint(activeIpAddressThree, 80);
 
             IPAddress activeIpAddressFour = IPAddress.Parse("::ffff:192.168.0.4");
-            NetworkAddress activeNetworkAddressFour = new NetworkAddress(activeIpAddressFour, 80);
+            var activeEndpointFour = new IPEndPoint(activeIpAddressFour, 80);
 
-            List<Tuple<NetworkAddress, DateTimeOffset>> activeTestDataSet = new List<Tuple<NetworkAddress, DateTimeOffset>>()
+            var activeTestDataSet = new List<Tuple<IPEndPoint, DateTimeOffset>>()
             {
-                new Tuple<NetworkAddress, DateTimeOffset> (activeNetworkAddressOne,  dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(10)),
-                new Tuple<NetworkAddress, DateTimeOffset>(activeNetworkAddressTwo, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(20)),
-                new Tuple<NetworkAddress, DateTimeOffset>(activeNetworkAddressThree, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(30)),
-                new Tuple<NetworkAddress, DateTimeOffset>(activeNetworkAddressFour, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(40))
+                new Tuple<IPEndPoint, DateTimeOffset> (activeEndpointOne,  dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(10)),
+                new Tuple<IPEndPoint, DateTimeOffset>(activeEndpointTwo, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(20)),
+                new Tuple<IPEndPoint, DateTimeOffset>(activeEndpointThree, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(30)),
+                new Tuple<IPEndPoint, DateTimeOffset>(activeEndpointFour, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(40))
             };
 
             IPAddress inactiveIpAddressOne = IPAddress.Parse("::ffff:192.168.100.1");
-            NetworkAddress inactiveNetworkAddressOne = new NetworkAddress(inactiveIpAddressOne, 80);
+            var inactiveEndpointOne = new IPEndPoint(inactiveIpAddressOne, 80);
 
             IPAddress inactiveIpAddressTwo = IPAddress.Parse("::ffff:192.168.100.2");
-            NetworkAddress inactiveNetworkAddressTwo = new NetworkAddress(inactiveIpAddressTwo, 80);
+            var inactiveEndpointTwo = new IPEndPoint(inactiveIpAddressTwo, 80);
 
             IPAddress inactiveIpAddressThree = IPAddress.Parse("::ffff:192.168.100.3");
-            NetworkAddress inactiveNetworkAddressThree = new NetworkAddress(inactiveIpAddressThree, 80);
+            var inactiveEndpointThree = new IPEndPoint(inactiveIpAddressThree, 80);
 
-            List<Tuple<NetworkAddress, DateTimeOffset>> inactiveTestDataSet = new List<Tuple<NetworkAddress, DateTimeOffset>>()
+            var inactiveTestDataSet = new List<Tuple<IPEndPoint, DateTimeOffset>>()
             {
-                new Tuple<NetworkAddress, DateTimeOffset> (inactiveNetworkAddressOne,  dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(-10)),
-                new Tuple<NetworkAddress, DateTimeOffset>(inactiveNetworkAddressTwo, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(-20)),
-                new Tuple<NetworkAddress, DateTimeOffset>(inactiveNetworkAddressThree, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(-30))
+                new Tuple<IPEndPoint, DateTimeOffset> (inactiveEndpointOne,  dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(-10)),
+                new Tuple<IPEndPoint, DateTimeOffset>(inactiveEndpointTwo, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(-20)),
+                new Tuple<IPEndPoint, DateTimeOffset>(inactiveEndpointThree, dateTimeProvider.GetTimeOffset().AddSeconds(-inactiveTimePeriod).AddSeconds(-30))
             };
 
             IPeerAddressManager peerAddressManager = this.CreateTestPeerAddressManager(activeTestDataSet.Concat(inactiveTestDataSet).ToList());
@@ -446,27 +466,27 @@ namespace Stratis.Bitcoin.Features.Dns.Tests
             // Assert.
             spiedMasterFile.Should().NotBeNull();
 
-            Question question = new Question(new Domain(dnsSettings.DnsHostName), RecordType.AAAA);
+            Question question = new Question(new Domain(dnsSettings.DnsHostName), RecordType.A);
             IList<IResourceRecord> resourceRecords = spiedMasterFile.Get(question);
             resourceRecords.Should().NotBeNullOrEmpty();
 
             IList<IPAddressResourceRecord> ipAddressResourceRecords = resourceRecords.OfType<IPAddressResourceRecord>().ToList();
             ipAddressResourceRecords.Should().HaveSameCount(activeTestDataSet);
 
-            foreach (Tuple<NetworkAddress, DateTimeOffset> testData in activeTestDataSet)
+            foreach (Tuple<IPEndPoint, DateTimeOffset> testData in activeTestDataSet)
             {
-                ipAddressResourceRecords.SingleOrDefault(i => i.IPAddress.Equals(testData.Item1.Endpoint.Address)).Should().NotBeNull("the ip address is active and should be in DNS");
+                ipAddressResourceRecords.SingleOrDefault(i => i.IPAddress.Equals(testData.Item1.Address.MapToIPv4())).Should().NotBeNull("the ip address is active and should be in DNS");
             }
 
-            foreach (Tuple<NetworkAddress, DateTimeOffset> testData in inactiveTestDataSet)
+            foreach (Tuple<IPEndPoint, DateTimeOffset> testData in inactiveTestDataSet)
             {
-                ipAddressResourceRecords.SingleOrDefault(i => i.IPAddress.Equals(testData.Item1.Endpoint.Address)).Should().BeNull("the ip address is inactive and should not be returned from DNS");
+                ipAddressResourceRecords.SingleOrDefault(i => i.IPAddress.Equals(testData.Item1.Address.MapToIPv4())).Should().BeNull("the ip address is inactive and should not be returned from DNS");
             }
         }
 
-        private IPeerAddressManager CreateTestPeerAddressManager(List<Tuple<NetworkAddress, DateTimeOffset>> testDataSet)
+        private IPeerAddressManager CreateTestPeerAddressManager(List<Tuple<IPEndPoint, DateTimeOffset>> testDataSet)
         {
-            ConcurrentDictionary<IPEndPoint, PeerAddress> peers = new ConcurrentDictionary<IPEndPoint, PeerAddress>();
+            var peers = new ConcurrentDictionary<IPEndPoint, PeerAddress>();
 
             string dataFolderDirectory = Path.Combine(AppContext.BaseDirectory, "WhitelistTests");
 
@@ -474,21 +494,22 @@ namespace Stratis.Bitcoin.Features.Dns.Tests
             {
                 Directory.Delete(dataFolderDirectory, true);
             }
+
             Directory.CreateDirectory(dataFolderDirectory);
 
-            var peerFolder = new DataFolder(new NodeSettings { DataDir = dataFolderDirectory }.DataDir);
+            var peerFolder = new DataFolder(new NodeSettings(args:new string[] { $"-datadir={dataFolderDirectory}" }).DataDir);
 
             Mock<ILogger> mockLogger = new Mock<ILogger>();
             Mock<ILoggerFactory> mockLoggerFactory = new Mock<ILoggerFactory>();
             mockLoggerFactory.Setup(l => l.CreateLogger(It.IsAny<string>())).Returns(mockLogger.Object);
             ILoggerFactory loggerFactory = mockLoggerFactory.Object;
 
-            IPeerAddressManager peerAddressManager = new PeerAddressManager(peerFolder, loggerFactory);
+            IPeerAddressManager peerAddressManager = new PeerAddressManager(DateTimeProvider.Default, peerFolder, loggerFactory);
 
-            foreach (Tuple<NetworkAddress, DateTimeOffset> testData in testDataSet)
+            foreach (Tuple<IPEndPoint, DateTimeOffset> testData in testDataSet)
             {
                 peerAddressManager.AddPeer(testData.Item1, IPAddress.Loopback);
-                peerAddressManager.PeerHandshaked(testData.Item1.Endpoint, testData.Item2);
+                peerAddressManager.PeerSeen(testData.Item1, testData.Item2.DateTime);
             }
 
             return peerAddressManager;

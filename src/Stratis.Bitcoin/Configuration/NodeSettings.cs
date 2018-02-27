@@ -35,16 +35,14 @@ namespace Stratis.Bitcoin.Configuration
         /// <summary>Version of the protocol the current implementation supports.</summary>
         public const ProtocolVersion SupportedProtocolVersion = ProtocolVersion.SENDHEADERS_VERSION;
 
-        /// <summary>Default value for Maximum tip age in seconds to consider node in initial block download.</summary>
-        public const int DefaultMaxTipAge = 24 * 60 * 60;
-
         /// <summary>
         /// Initializes a new instance of the object.
         /// </summary>
         /// <param name="innerNetwork">Specification of the network the node runs on - regtest/testnet/mainnet.</param>
         /// <param name="protocolVersion">Supported protocol version for which to create the configuration.</param>
         /// <param name="agent">The nodes user agent that will be shared with peers.</param>
-        public NodeSettings(Network innerNetwork = null, ProtocolVersion protocolVersion = SupportedProtocolVersion, string agent = "StratisBitcoin")
+        public NodeSettings(Network innerNetwork = null, ProtocolVersion protocolVersion = SupportedProtocolVersion, 
+            string agent = "StratisBitcoin", string[] args = null, bool loadConfiguration = true)
         {
             this.Agent = agent;
             this.Network = innerNetwork;
@@ -55,10 +53,62 @@ namespace Stratis.Bitcoin.Configuration
             this.LoggerFactory.AddConsoleWithFilters();
             this.LoggerFactory.AddNLog();
             this.Logger = this.LoggerFactory.CreateLogger(typeof(NodeSettings).FullName);
+
+            // Load arguments or configuration from .ctor?
+            this.LoadArgs = args ?? new string[] { };
+
+            // By default, we look for a file named '<network>.conf' in the network's data directory,
+            // but both the data directory and the configuration file path may be changed using the -datadir and -conf command-line arguments.
+            this.ConfigurationFile = this.LoadArgs.GetValueOf("-conf")?.NormalizeDirectorySeparator();
+            this.DataDir = this.LoadArgs.GetValueOf("-datadir")?.NormalizeDirectorySeparator();
+
+            // If the configuration file is relative then assume it is relative to the data folder and combine the paths
+            if (this.DataDir != null && this.ConfigurationFile != null)
+            {
+                bool isRelativePath = Path.GetFullPath(this.ConfigurationFile).Length > this.ConfigurationFile.Length;
+                if (isRelativePath)
+                    this.ConfigurationFile = Path.Combine(this.DataDir, this.ConfigurationFile);
+            }
+
+            // If the network is not known then derive it from the command line arguments
+            if (this.Network == null)
+            {
+                var regTest = false;
+                var testNet = false;
+
+                // Find out if we need to run on testnet or regtest from the config file.
+                if (this.ConfigurationFile != null)
+                {
+                    AssertConfigFileExists(this.ConfigurationFile);
+                    var configTemp = new TextFileConfiguration(File.ReadAllText(this.ConfigurationFile));
+                    testNet = configTemp.GetOrDefault<bool>("testnet", false);
+                    regTest = configTemp.GetOrDefault<bool>("regtest", false);
+                }
+
+                // Only if args contains -testnet, do we set it to true, otherwise it overwrites file configuration
+                if (this.LoadArgs.Contains("-testnet", StringComparer.CurrentCultureIgnoreCase))
+                    testNet = true;
+
+                // Only if args contains -regtest, do we set it to true, otherwise it overwrites file configuration
+                if (this.LoadArgs.Contains("-regtest", StringComparer.CurrentCultureIgnoreCase))
+                    regTest = true;
+
+                if (testNet && regTest)
+                    throw new ConfigurationException("Invalid combination of -regtest and -testnet.");
+
+                this.Network = testNet ? Network.TestNet : regTest ? Network.RegTest : Network.Main;
+            }
+
+            // Load configuration from .ctor?
+            if (loadConfiguration)
+                this.LoadConfiguration();
         }
 
         /// <summary>Factory to create instance logger.</summary>
         public ILoggerFactory LoggerFactory { get; }
+
+        /// <summary>Arguments to load.</summary>
+        public string[] LoadArgs { get; private set;  }
 
         /// <summary>Instance logger.</summary>
         public ILogger Logger { get; private set; }
@@ -72,17 +122,22 @@ namespace Stratis.Bitcoin.Configuration
         /// <summary>Path to the data directory.</summary>
         public string DataDir { get; set; }
 
-        /// <summary><c>true</c> if the node should run on testnet.</summary>
-        public bool Testnet { get; set; }
-
-        /// <summary><c>true</c> if the node should run in regtest mode.</summary>
-        public bool RegTest { get; set; }
-
         /// <summary>Path to the configuration file.</summary>
         public string ConfigurationFile { get; set; }
 
         /// <summary>Option to skip (most) non-standard transaction checks, for testnet/regtest only.</summary>
         public bool RequireStandard { get; set; }
+
+        /// <summary>Determines whether to print help and exit.</summary>
+        public bool PrintHelpAndExit
+        {
+            get
+            {
+                var args = this.LoadArgs;
+
+                return args != null && args.Length == 1 && (args[0].StartsWith("-help") || args[0].StartsWith("--help"));
+            }
+        }
 
         /// <summary>Maximum tip age in seconds to consider node in initial block download.</summary>
         public int MaxTipAge { get; set; }
@@ -118,69 +173,37 @@ namespace Stratis.Bitcoin.Configuration
         /// <returns>Default node configuration.</returns>
         public static NodeSettings Default(Network network = null, ProtocolVersion protocolVersion = SupportedProtocolVersion)
         {
-            NodeSettings nodeSettings = new NodeSettings(innerNetwork: network);
-            nodeSettings.LoadArguments(new string[0]);
-            return nodeSettings;
+            return new NodeSettings(network, protocolVersion, args:new string[0]);
         }
 
         /// <summary>
-        /// Initializes configuration from command line arguments.
-        /// <para>This includes loading configuration from file.</para>
+        /// Loads the configuration file.
         /// </summary>
-        /// <param name="args">Application command line arguments.</param>
         /// <returns>Initialized node configuration.</returns>
         /// <exception cref="ConfigurationException">Thrown in case of any problems with the configuration file or command line arguments.</exception>
-        public NodeSettings LoadArguments(string[] args)
+        public NodeSettings LoadConfiguration()
         {
-            // By default, we look for a file named '<network>.conf' in the network's data directory,
-            // but both the data directory and the configuration file path may be changed using the -datadir and -conf command-line arguments.
-            this.ConfigurationFile = args.GetValueOf("-conf")?.NormalizeDirectorySeparator();
-            var dataDir = args.GetValueOf("-datadir")?.NormalizeDirectorySeparator();
+            // Configuration already loaded?
+            if (this.ConfigReader != null)
+                return this;
 
-            // If the configuration file is relative then assume it is relative to the data folder and combine the paths
-            if (dataDir != null && this.ConfigurationFile != null)
-            {
-                bool isRelativePath = Path.GetFullPath(this.ConfigurationFile).Length > this.ConfigurationFile.Length;
-                if (isRelativePath)
-                    this.ConfigurationFile = Path.Combine(dataDir, this.ConfigurationFile);
-            }
+            // Get the arguments set previously
+            var args = this.LoadArgs;
 
-            // Find out if we need to run on testnet or regtest from the config file.
-            if (this.ConfigurationFile != null)
-            {
-                AssertConfigFileExists(this.ConfigurationFile);
-                var configTemp = new TextFileConfiguration(File.ReadAllText(this.ConfigurationFile));
-                this.Testnet = configTemp.GetOrDefault<bool>("testnet", false);
-                this.RegTest = configTemp.GetOrDefault<bool>("regtest", false);
-            }
-
-            //Only if args contains -testnet, do we set it to true, otherwise it overwrites file configuration
-            if (args.Contains("-testnet", StringComparer.CurrentCultureIgnoreCase))
-                this.Testnet = true;
-
-            //Only if args contains -regtest, do we set it to true, otherwise it overwrites file configuration
-            if (args.Contains("-regtest", StringComparer.CurrentCultureIgnoreCase))
-                this.RegTest = true;
-
-            if (this.Testnet && this.RegTest)
-                throw new ConfigurationException("Invalid combination of -regtest and -testnet.");
-
-            this.Network = this.GetNetwork();
-            
             // Setting the data directory.
-            if (dataDir == null)
+            if (this.DataDir == null)
             {
                 this.DataDir = this.CreateDefaultDataDirectories(Path.Combine("StratisNode", this.Network.RootFolderName), this.Network);
             }
             else
             {
                 // Create the data directories if they don't exist.
-                string directoryPath = Path.Combine(dataDir, this.Network.RootFolderName, this.Network.Name);
+                string directoryPath = Path.Combine(this.DataDir, this.Network.RootFolderName, this.Network.Name);
                 Directory.CreateDirectory(directoryPath);
                 this.DataDir = directoryPath;
                 this.Logger.LogDebug("Data directory initialized with path {0}.", directoryPath);
             }
-            
+
             // If no configuration file path is passed in the args, load the default file.
             if (this.ConfigurationFile == null)
             {
@@ -204,8 +227,8 @@ namespace Stratis.Bitcoin.Configuration
             this.Logger.LogDebug("Data directory set to '{0}'.", this.DataDir);
             this.Logger.LogDebug("Configuration file set to '{0}'.", this.ConfigurationFile);
 
-            this.RequireStandard = config.GetOrDefault("acceptnonstdtxn", !(this.RegTest || this.Testnet));
-            this.MaxTipAge = config.GetOrDefault("maxtipage", DefaultMaxTipAge);
+            this.RequireStandard = config.GetOrDefault("acceptnonstdtxn", !(this.Network.IsTest()));
+            this.MaxTipAge = config.GetOrDefault("maxtipage", this.Network.MaxTipAge);
             this.Logger.LogDebug("Network: IsTest='{0}', IsBitcoin='{1}'.", this.Network.IsTest(), this.Network.IsBitcoin());
             this.MinTxFeeRate = new FeeRate(config.GetOrDefault("mintxfee", this.Network.MinTxFee));
             this.Logger.LogDebug("MinTxFeeRate set to {0}.", this.MinTxFeeRate);
@@ -297,20 +320,6 @@ namespace Stratis.Bitcoin.Configuration
         }
 
         /// <summary>
-        /// Obtains the network to run on using the current settings.
-        /// </summary>
-        /// <returns>Specification of the network.</returns>
-        public Network GetNetwork()
-        {
-            if (this.Network != null)
-                return this.Network;
-
-            return this.Testnet ? Network.TestNet :
-                this.RegTest ? Network.RegTest :
-                Network.Main;
-        }
-
-        /// <summary>
         /// Creates default data directories respecting different operating system specifics.
         /// </summary>
         /// <param name="appName">Name of the node, which will be reflected in the name of the data directory.</param>
@@ -357,51 +366,42 @@ namespace Stratis.Bitcoin.Configuration
         }
 
         /// <summary>
-        /// Checks whether to show a help and possibly shows the help.
+        /// Displays command-line help.
         /// </summary>
-        /// <param name="args">Application command line arguments.</param>
-        /// <param name="mainNet">Main network description to extract port values from.</param>
-        /// <returns><c>true</c> if the help was displayed, <c>false</c> otherwise.</returns>
-        public static bool PrintHelp(string[] args, Network mainNet)
+        /// <param name="network">The network to extract values from.</param>
+        public static void PrintHelp(Network network)
         {
-            Guard.NotNull(mainNet, nameof(mainNet));
+            Guard.NotNull(network, nameof(network));
 
-            if (args != null && args.Length == 1 && (args[0].StartsWith("-help") || args[0].StartsWith("--help")))
-            {
-                var defaults = Default();
+            var defaults = Default();
 
-                var builder = new StringBuilder();
-                builder.AppendLine("Usage:");
-                // TODO: Shouldn't this be dotnet run instead of dotnet exec?
-                builder.AppendLine(" dotnet exec <Stratis.StratisD/BitcoinD.dll> [arguments]");
-                builder.AppendLine();
-                builder.AppendLine("Command line arguments:");
-                builder.AppendLine();
-                builder.AppendLine($"-help/--help              Show this help.");
-                builder.AppendLine($"-conf=<Path>              Path to the configuration file. Default {defaults.ConfigurationFile}.");
-                builder.AppendLine($"-datadir=<Path>           Path to the data directory. Default {defaults.DataDir}.");
-                builder.AppendLine($"-testnet                  Use the testnet chain.");
-                builder.AppendLine($"-regtest                  Use the regtestnet chain.");
-                builder.AppendLine($"-acceptnonstdtxn=<0 or 1> Accept non-standard transactions. Default {defaults.RequireStandard}.");
-                builder.AppendLine($"-maxtipage=<number>       Max tip age. Default {DefaultMaxTipAge}.");
-                builder.AppendLine($"-connect=<ip:port>        Specified node to connect to. Can be specified multiple times.");
-                builder.AppendLine($"-addnode=<ip:port>        Add a node to connect to and attempt to keep the connection open. Can be specified multiple times.");
-                builder.AppendLine($"-whitebind=<ip:port>      Bind to given address and whitelist peers connecting to it. Use [host]:port notation for IPv6. Can be specified multiple times.");
-                builder.AppendLine($"-externalip=<ip>          Specify your own public address.");
-                builder.AppendLine($"-synctime=<0 or 1>        Sync with peers. Default 1.");
-                builder.AppendLine($"-checkpoints=<0 or 1>     Use checkpoints. Default 1.");
-                builder.AppendLine($"-mintxfee=<number>        Minimum fee rate. Defaults to network specific value.");
-                builder.AppendLine($"-fallbackfee=<number>     Fallback fee rate. Defaults to network specific value.");
-                builder.AppendLine($"-minrelaytxfee=<number>   Minimum relay fee rate. Defaults to network specific value.");
-                builder.AppendLine($"-bantime=<number>         Number of seconds to keep misbehaving peers from reconnecting (Default 24-hour ban).");
-                builder.AppendLine($"-assumevalid=<hex>        If this block is in the chain assume that it and its ancestors are valid and potentially skip their script verification(0 to verify all). Defaults to network specific value.");
+            var builder = new StringBuilder();
+            builder.AppendLine("Usage:");
+            // TODO: Shouldn't this be dotnet run instead of dotnet exec?
+            builder.AppendLine(" dotnet exec <Stratis.StratisD/BitcoinD.dll> [arguments]");
+            builder.AppendLine();
+            builder.AppendLine("Command line arguments:");
+            builder.AppendLine();
+            builder.AppendLine($"-help/--help              Show this help.");
+            builder.AppendLine($"-conf=<Path>              Path to the configuration file. Default {defaults.ConfigurationFile}.");
+            builder.AppendLine($"-datadir=<Path>           Path to the data directory. Default {defaults.DataDir}.");
+            builder.AppendLine($"-testnet                  Use the testnet chain.");
+            builder.AppendLine($"-regtest                  Use the regtestnet chain.");
+            builder.AppendLine($"-acceptnonstdtxn=<0 or 1> Accept non-standard transactions. Default {defaults.RequireStandard}.");
+            builder.AppendLine($"-maxtipage=<number>       Max tip age. Default {network.MaxTipAge}.");
+            builder.AppendLine($"-connect=<ip:port>        Specified node to connect to. Can be specified multiple times.");
+            builder.AppendLine($"-addnode=<ip:port>        Add a node to connect to and attempt to keep the connection open. Can be specified multiple times.");
+            builder.AppendLine($"-whitebind=<ip:port>      Bind to given address and whitelist peers connecting to it. Use [host]:port notation for IPv6. Can be specified multiple times.");
+            builder.AppendLine($"-externalip=<ip>          Specify your own public address.");
+            builder.AppendLine($"-synctime=<0 or 1>        Sync with peers. Default 1.");
+            builder.AppendLine($"-checkpoints=<0 or 1>     Use checkpoints. Default 1.");
+            builder.AppendLine($"-mintxfee=<number>        Minimum fee rate. Defaults to network specific value.");
+            builder.AppendLine($"-fallbackfee=<number>     Fallback fee rate. Defaults to network specific value.");
+            builder.AppendLine($"-minrelaytxfee=<number>   Minimum relay fee rate. Defaults to network specific value.");
+            builder.AppendLine($"-bantime=<number>         Number of seconds to keep misbehaving peers from reconnecting (Default 24-hour ban).");
+            builder.AppendLine($"-assumevalid=<hex>        If this block is in the chain assume that it and its ancestors are valid and potentially skip their script verification(0 to verify all). Defaults to network specific value.");
 
-                defaults.Logger.LogInformation(builder.ToString());
-
-                return true;
-            }
-
-            return false;
+            defaults.Logger.LogInformation(builder.ToString());
         }
     }
 }

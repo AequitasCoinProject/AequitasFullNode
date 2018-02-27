@@ -1268,6 +1268,66 @@ namespace Stratis.Bitcoin.Features.Wallet.Tests
         }
 
         [Fact]
+        public void BuildTransactionWithCustomFeeAmountAndFeeTypeReturnsWalletBuildTransactionModelWithFeeAmount()
+        {
+            var mockWalletWrapper = new Mock<IWalletManager>();
+            var mockWalletTransactionHandler = new Mock<IWalletTransactionHandler>();
+            var key = new Key();
+            var sentTrx = new Transaction();
+            mockWalletTransactionHandler.Setup(m => m.BuildTransaction(It.IsAny<TransactionBuildContext>()))
+                .Returns(sentTrx);
+
+            var controller = new WalletController(this.LoggerFactory.Object, mockWalletWrapper.Object, mockWalletTransactionHandler.Object, new Mock<IWalletSyncManager>().Object, It.IsAny<ConnectionManager>(), Network.Main, new Mock<ConcurrentChain>().Object, new Mock<IBroadcasterManager>().Object, DateTimeProvider.Default);
+            IActionResult result = controller.BuildTransaction(new BuildTransactionRequest
+            {
+                AccountName = "Account 1",
+                AllowUnconfirmed = true,
+                Amount = new Money(150000).ToString(),
+                DestinationAddress = key.PubKey.GetAddress(Network.Main).ToString(),
+                FeeType = "105",
+                FeeAmount = "0.1234",
+                Password = "test",
+                WalletName = "myWallet"
+            });
+
+            JsonResult viewResult = Assert.IsType<JsonResult>(result);
+            var model = viewResult.Value as WalletBuildTransactionModel;
+
+            Assert.NotNull(model);
+            Assert.Equal(new Money(12340000), model.Fee);
+        }
+
+        [Fact]
+        public void BuildTransactionWithCustomFeeAmountAndNoFeeTypeReturnsWalletBuildTransactionModelWithFeeAmount()
+        {
+            var mockWalletWrapper = new Mock<IWalletManager>();
+            var mockWalletTransactionHandler = new Mock<IWalletTransactionHandler>();
+            var key = new Key();
+            var sentTrx = new Transaction();
+            mockWalletTransactionHandler.Setup(m => m.BuildTransaction(It.IsAny<TransactionBuildContext>()))
+                .Returns(sentTrx);
+
+            var controller = new WalletController(this.LoggerFactory.Object, mockWalletWrapper.Object, mockWalletTransactionHandler.Object, new Mock<IWalletSyncManager>().Object, It.IsAny<ConnectionManager>(), Network.Main, new Mock<ConcurrentChain>().Object, new Mock<IBroadcasterManager>().Object, DateTimeProvider.Default);
+            IActionResult result = controller.BuildTransaction(new BuildTransactionRequest
+            {
+                AccountName = "Account 1",
+                AllowUnconfirmed = true,
+                Amount = new Money(150000).ToString(),
+                DestinationAddress = key.PubKey.GetAddress(Network.Main).ToString(),
+                
+                FeeAmount = "0.1234",
+                Password = "test",
+                WalletName = "myWallet"
+            });
+
+            JsonResult viewResult = Assert.IsType<JsonResult>(result);
+            var model = viewResult.Value as WalletBuildTransactionModel;
+
+            Assert.NotNull(model);
+            Assert.Equal(new Money(12340000), model.Fee);
+        }
+        
+        [Fact]
         public void BuildTransactionWithValidRequestNotAllowingUnconfirmedReturnsWalletBuildTransactionModel()
         {
             var mockWalletWrapper = new Mock<IWalletManager>();
@@ -1357,7 +1417,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Tests
 
             var mockWalletWrapper = new Mock<IBroadcasterManager>();
             var connectionManagerMock = new Mock<IConnectionManager>();
-            connectionManagerMock.Setup(c => c.ConnectedPeers).Returns(new TestReadOnlyNetworkPeerCollection());
+            var peers = new List<INetworkPeer>();
+            peers.Add(null);
+            connectionManagerMock.Setup(c => c.ConnectedPeers).Returns(new TestReadOnlyNetworkPeerCollection(peers));
 
             var controller = new WalletController(this.LoggerFactory.Object, new Mock<IWalletManager>().Object, new Mock<IWalletTransactionHandler>().Object,
                 new Mock<IWalletSyncManager>().Object, connectionManagerMock.Object, Network.Main, new Mock<ConcurrentChain>().Object, mockWalletWrapper.Object, DateTimeProvider.Default);
@@ -1781,32 +1843,38 @@ namespace Stratis.Bitcoin.Features.Wallet.Tests
         public event EventHandler<NetworkPeerEventArgs> Added;
         public event EventHandler<NetworkPeerEventArgs> Removed;
 
-        private List<NetworkPeer> networkPeers;
+        private List<INetworkPeer> networkPeers;
 
         public TestReadOnlyNetworkPeerCollection()
         {
             this.Added = new EventHandler<NetworkPeerEventArgs>((obj, eventArgs) => { });
             this.Removed = new EventHandler<NetworkPeerEventArgs>((obj, eventArgs) => { });
-            this.networkPeers = new List<NetworkPeer>();
-            this.networkPeers.Add(null);
+            this.networkPeers = new List<INetworkPeer>();            
         }
 
-        public NetworkPeer FindByEndpoint(IPEndPoint endpoint)
+        public TestReadOnlyNetworkPeerCollection(List<INetworkPeer> peers)
+        {
+            this.Added = new EventHandler<NetworkPeerEventArgs>((obj, eventArgs) => { });
+            this.Removed = new EventHandler<NetworkPeerEventArgs>((obj, eventArgs) => { });
+            this.networkPeers = peers;
+        }
+
+        public INetworkPeer FindByEndpoint(IPEndPoint endpoint)
         {
             return null;
         }
 
-        public NetworkPeer FindByIp(IPAddress ip)
+        public INetworkPeer FindByIp(IPAddress ip)
         {
             return null;
         }
 
-        public NetworkPeer FindLocal()
+        public INetworkPeer FindLocal()
         {
             return null;
         }
 
-        public IEnumerator<NetworkPeer> GetEnumerator()
+        public IEnumerator<INetworkPeer> GetEnumerator()
         {
             return this.networkPeers.GetEnumerator();
         }

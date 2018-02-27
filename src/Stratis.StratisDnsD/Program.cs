@@ -42,8 +42,8 @@ namespace Stratis.StratisDnsD
             try
             {
                 Network network = args.Contains("-testnet") ? Network.StratisTest : Network.StratisMain;
-                NodeSettings nodeSettings = new NodeSettings(network, ProtocolVersion.ALT_PROTOCOL_VERSION).LoadArguments(args);
-                DnsSettings dnsSettings = DnsSettings.Load(nodeSettings);
+                NodeSettings nodeSettings = new NodeSettings(network, ProtocolVersion.ALT_PROTOCOL_VERSION, args:args);
+                DnsSettings dnsSettings = new DnsSettings().Load(nodeSettings);
 
                 // Verify that the DNS host, nameserver and mailbox arguments are set.
                 if (string.IsNullOrWhiteSpace(dnsSettings.DnsHostName) || string.IsNullOrWhiteSpace(dnsSettings.DnsNameServer) || string.IsNullOrWhiteSpace(dnsSettings.DnsMailBox))
@@ -57,7 +57,7 @@ namespace Stratis.StratisDnsD
                     // Build the Dns full node.
                     IFullNode node = new FullNodeBuilder()
                         .UseNodeSettings(nodeSettings)
-                        .UseStratisConsensus()
+                        .UsePosConsensus()
                         .UseBlockStore()
                         .UseMempool()
                         .UseWallet()
@@ -68,21 +68,23 @@ namespace Stratis.StratisDnsD
                         .Build();
 
                     // Run node.
-                    await node.RunAsync();
+                    if (node != null)
+                        await node.RunAsync();
                 }
                 else
                 {
                     // Build the Dns node.
                     IFullNode node = new FullNodeBuilder()
                         .UseNodeSettings(nodeSettings)
-                        .UseStratisConsensus()
+                        .UsePosConsensus()
                         .UseApi()
                         .AddRPC()
                         .UseDns()
                         .Build();
 
                     // Run node.
-                    await node.RunAsync();
+                    if (node != null)
+                        await node.RunAsync();
                 }
             }
             catch (Exception ex)

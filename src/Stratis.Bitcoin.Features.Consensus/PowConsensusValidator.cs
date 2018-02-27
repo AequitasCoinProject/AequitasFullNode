@@ -60,120 +60,6 @@ namespace Stratis.Bitcoin.Features.Consensus
         }
 
         /// <inheritdoc />
-        public virtual void CheckBlockHeader(RuleContext context)
-        {
-            if (context.CheckPow && !context.BlockValidationContext.Block.Header.CheckProofOfWork(context.Consensus))
-                ConsensusErrors.HighHash.Throw();
-
-            context.NextWorkRequired = context.BlockValidationContext.ChainedBlock.GetWorkRequired(context.Consensus);
-        }
-
-        /// <inheritdoc />
-        public virtual void ContextualCheckBlock(RuleContext context)
-        {
-            this.logger.LogTrace("()");
-
-            Block block = context.BlockValidationContext.Block;
-            DeploymentFlags deploymentFlags = context.Flags;
-
-            int height = context.BestBlock == null ? 0 : context.BestBlock.Height + 1;
-
-            // Start enforcing BIP113 (Median Time Past) using versionbits logic.
-            DateTimeOffset lockTimeCutoff = deploymentFlags.LockTimeFlags.HasFlag(Transaction.LockTimeFlags.MedianTimePast) ?
-                context.BestBlock.MedianTimePast :
-                block.Header.BlockTime;
-
-            // Check that all transactions are finalized.
-            foreach (Transaction transaction in block.Transactions)
-            {
-                if (!transaction.IsFinal(lockTimeCutoff, height))
-                {
-                    this.logger.LogTrace("(-)[TX_NON_FINAL]");
-                    ConsensusErrors.BadTransactionNonFinal.Throw();
-                }
-            }
-
-            // Enforce rule that the coinbase starts with serialized block height.
-            if (deploymentFlags.EnforceBIP34)
-            {
-                var expect = new Script(Op.GetPushOp(height));
-                Script actual = block.Transactions[0].Inputs[0].ScriptSig;
-                if (!this.StartWith(actual.ToBytes(true), expect.ToBytes(true)))
-                {
-                    this.logger.LogTrace("(-)[BAD_COINBASE_HEIGHT]");
-                    ConsensusErrors.BadCoinbaseHeight.Throw();
-                }
-            }
-
-            // Validation for witness commitments.
-            // * We compute the witness hash (which is the hash including witnesses) of all the block's transactions, except the
-            //   coinbase (where 0x0000....0000 is used instead).
-            // * The coinbase scriptWitness is a stack of a single 32-byte vector, containing a witness nonce (unconstrained).
-            // * We build a merkle tree with all those witness hashes as leaves (similar to the hashMerkleRoot in the block header).
-            // * There must be at least one output whose scriptPubKey is a single 36-byte push, the first 4 bytes of which are
-            //   {0xaa, 0x21, 0xa9, 0xed}, and the following 32 bytes are SHA256^2(witness root, witness nonce). In case there are
-            //   multiple, the last one is used.
-            bool haveWitness = false;
-            if (deploymentFlags.ScriptFlags.HasFlag(ScriptVerify.Witness))
-            {
-                int commitpos = this.GetWitnessCommitmentIndex(block);
-                if (commitpos != -1)
-                {
-                    uint256 hashWitness = this.BlockWitnessMerkleRoot(block, out bool unused);
-
-                    // The malleation check is ignored; as the transaction tree itself
-                    // already does not permit it, it is impossible to trigger in the
-                    // witness tree.
-                    WitScript witness = block.Transactions[0].Inputs[0].WitScript;
-                    if ((witness.PushCount != 1) || (witness.Pushes.First().Length != 32))
-                    {
-                        this.logger.LogTrace("(-)[BAD_WITNESS_NONCE_SIZE]");
-                        ConsensusErrors.BadWitnessNonceSize.Throw();
-                    }
-
-                    var hashed = new byte[64];
-                    Buffer.BlockCopy(hashWitness.ToBytes(), 0, hashed, 0, 32);
-                    Buffer.BlockCopy(witness.Pushes.First(), 0, hashed, 32, 32);
-                    hashWitness = Hashes.Hash256(hashed);
-
-                    if (!this.EqualsArray(hashWitness.ToBytes(), block.Transactions[0].Outputs[commitpos].ScriptPubKey.ToBytes(true).Skip(6).ToArray(), 32))
-                    {
-                        this.logger.LogTrace("(-)[WITNESS_MERKLE_MISMATCH]");
-                        ConsensusErrors.BadWitnessMerkleMatch.Throw();
-                    }
-
-                    haveWitness = true;
-                }
-            }
-
-            if (!haveWitness)
-            {
-                for (int i = 0; i < block.Transactions.Count; i++)
-                {
-                    if (block.Transactions[i].HasWitness)
-                    {
-                        this.logger.LogTrace("(-)[UNEXPECTED_WITNESS]");
-                        ConsensusErrors.UnexpectedWitness.Throw();
-                    }
-                }
-            }
-
-            // After the coinbase witness nonce and commitment are verified,
-            // we can check if the block weight passes (before we've checked the
-            // coinbase witness, it would be possible for the weight to be too
-            // large by filling up the coinbase witness, which doesn't change
-            // the block hash, so we couldn't mark the block as permanently
-            // failed).
-            if (this.GetBlockWeight(block) > this.ConsensusOptions.MaxBlockWeight)
-            {
-                this.logger.LogTrace("(-)[BAD_BLOCK_WEIGHT]");
-                ConsensusErrors.BadBlockWeight.Throw();
-            }
-
-            this.logger.LogTrace("(-)[OK]");
-        }
-
-        /// <inheritdoc />
         public virtual void ExecuteBlock(RuleContext context, TaskScheduler taskScheduler = null)
         {
             this.logger.LogTrace("()");
@@ -521,14 +407,6 @@ namespace Stratis.Bitcoin.Features.Consensus
             // because we receive the wrong transactions for it.
             // Note that witness malleability is checked in ContextualCheckBlock, so no
             // checks that use witness data may be performed here.
-
-            // Size limits.
-            if ((block.Transactions.Count == 0) || (block.Transactions.Count > this.ConsensusOptions.MaxBlockBaseSize) ||
-                (this.GetSize(block, NetworkOptions.TemporaryOptions & ~NetworkOptions.Witness) > this.ConsensusOptions.MaxBlockBaseSize))
-            {
-                this.logger.LogTrace("(-)[BAD_BLOCK_LEN]");
-                ConsensusErrors.BadBlockLength.Throw();
-            }
 
             // First transaction must be coinbase, the rest must not be
             if ((block.Transactions.Count == 0) || !block.Transactions[0].IsCoinBase)
@@ -910,50 +788,6 @@ namespace Stratis.Bitcoin.Features.Consensus
             }
 
             return true;
-        }
-
-        /// <inheritdoc />
-        public virtual void ContextualCheckBlockHeader(RuleContext context)
-        {
-            Guard.NotNull(context.BestBlock, nameof(context.BestBlock));
-            this.logger.LogTrace("()");
-
-            BlockHeader header = context.BlockValidationContext.Block.Header;
-
-            int height = context.BestBlock.Height + 1;
-
-            // Check proof of work.
-            if (header.Bits != context.NextWorkRequired)
-            {
-                this.logger.LogTrace("(-)[BAD_DIFF_BITS]");
-                ConsensusErrors.BadDiffBits.Throw();
-            }
-
-            // Check timestamp against prev.
-            if (header.BlockTime <= context.BestBlock.MedianTimePast)
-            {
-                this.logger.LogTrace("(-)[TIME_TOO_OLD]");
-                ConsensusErrors.TimeTooOld.Throw();
-            }
-
-            // Check timestamp.
-            if (header.BlockTime > (context.Time + TimeSpan.FromHours(2)))
-            {
-                this.logger.LogTrace("(-)[TIME_TOO_NEW]");
-                ConsensusErrors.TimeTooNew.Throw();
-            }
-
-            // Reject outdated version blocks when 95% (75% on testnet) of the network has upgraded:
-            // check for version 2, 3 and 4 upgrades.
-            if (((header.Version < 2) && (height >= this.ConsensusParams.BuriedDeployments[BuriedDeployments.BIP34])) ||
-               ((header.Version < 3) && (height >= this.ConsensusParams.BuriedDeployments[BuriedDeployments.BIP66])) ||
-               ((header.Version < 4) && (height >= this.ConsensusParams.BuriedDeployments[BuriedDeployments.BIP65])))
-            {
-                this.logger.LogTrace("(-)[BAD_VERSION]");
-                ConsensusErrors.BadVersion.Throw();
-            }
-
-            this.logger.LogTrace("(-)[OK]");
         }
     }
 }
