@@ -96,8 +96,14 @@ namespace Stratis.Bitcoin.Features.Wallet
 
                 foreach (var walletName in walletNames)
                 {
-                    var items = this.walletManager.GetSpendableTransactionsInWallet(walletName, 1);
-                    benchLog.AppendLine("Wallet: " + (walletName + ",").PadRight(LoggingConfiguration.ColumnLength) + " Confirmed balance: " + new Money(items.Sum(s => s.Transaction.Amount)).ToString());
+                    var spendable = this.walletManager.GetSpendableTransactionsInWallet(walletName, 1);
+                    var unspendable = this.walletManager.GetSpendableTransactionsInWallet(walletName, 0);
+
+                    benchLog.AppendLine(
+                        "Wallet: " + (walletName + ",").PadRight(LoggingConfiguration.ColumnLength) 
+                        + " Confirmed balance: " + new Money(spendable.Sum(s => s.Transaction.Amount)).ToString()
+                        + $" (+{(new Money(unspendable.Sum(s => s.Transaction.Amount)) - new Money(spendable.Sum(s => s.Transaction.Amount))).ToString()} unconfirmed)"
+                        );
                 }
             }
         }
