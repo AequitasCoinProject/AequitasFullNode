@@ -360,12 +360,12 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     Address = scriptPubKey.Hash.GetAddress(this.network).ToString(),
                     PublicName = request.PublicName,
                     GroupName = request.GroupName,
-                    ValidFrom = request.ValidFrom.HasValue ? request.ValidFrom.Value : 0,
-                    ValidUntil = request.ValidUntil.HasValue && (request.ValidUntil.Value != 0) ? request.ValidUntil.Value : Int32.MaxValue,
+                    ValidFrom = (request.ValidFrom.HasValue ? request.ValidFrom.Value : DateTimeOffset.MinValue).ToString("o"),
+                    ValidUntil = (request.ValidUntil.HasValue ? request.ValidUntil.Value : DateTimeOffset.MaxValue).ToString("o"),
                     RsaPublicKeyHex = pbk.ToHex(),
                     RsaPrivateKeyHex = prk.ToHex(),
                     RsaPasswordHashHex = rsaPasswordHashHex,
-                    PublicAPI = request.PublicAPI
+                    PublicAPI = request.PublicApiUrl
                 };
 
                 ((WalletManager)this.walletManager).AddReviewerAddressToReviewerStore(model);
@@ -399,7 +399,6 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             try
             {
                 var walletManager = (WalletManager)this.walletManager;
-                int blockHeight = request.ValidAtBlockHeight;
 
                 var reviewerAddresses = walletManager.ReviewerAddresses.Values.Where(address => true);
 
@@ -413,9 +412,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     reviewerAddresses = reviewerAddresses.Where(address => address.PublicName.ToLowerInvariant().Contains(request.PublicNameFragment.ToLowerInvariant()));
                 }
 
-                if (request.ValidAtBlockHeight > 0)
+                if (request.ValidAt.HasValue)
                 {
-                    reviewerAddresses = reviewerAddresses.Where(address => (address.ValidFrom <= request.ValidAtBlockHeight) && (address.ValidUntil >= request.ValidAtBlockHeight));
+                    reviewerAddresses = reviewerAddresses.Where(address => (DateTimeOffset.Parse(address.ValidFrom) <= request.ValidAt.Value) && (DateTimeOffset.Parse(address.ValidUntil) >= request.ValidAt.Value));
                 }
 
                 ListPublicReviewerAddressesModel model = new ListPublicReviewerAddressesModel

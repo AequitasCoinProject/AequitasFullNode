@@ -95,10 +95,10 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         public string GroupName { get; set; }
 
         [JsonProperty(PropertyName = "validFrom")]
-        public int ValidFrom { get; set; }
+        public string ValidFrom { get; set; }
 
         [JsonProperty(PropertyName = "validUntil")]
-        public int ValidUntil { get; set; }
+        public string ValidUntil { get; set; }
 
         [JsonProperty(PropertyName = "encryptionPublicKey")]
         public string RsaPublicKeyHex { get; set; }        

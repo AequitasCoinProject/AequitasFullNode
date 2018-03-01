@@ -74,14 +74,14 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         [Required(ErrorMessage = "The name of the reviewer group. (e.g. 'The Wanted System Reviewer's Group')")]
         public string GroupName { get; set; }
 
-        [Required(ErrorMessage = "The public API URL of the reviewer group. (e.g. 'node.thewantedsystem.com:38221'")]
-        public string PublicAPI { get; set; }
+        [Required(ErrorMessage = "The public API URL of the reviewer group. (e.g. 'node.thewantedsystem.com:38221')")]
+        public string PublicApiUrl { get; set; }
 
-        [Required(ErrorMessage = "The generated multi-sig address will be valid from this block index.")]
-        public int? ValidFrom { get; set; }
+        [Required(ErrorMessage = "The generated multi-sig address will be valid from this time. (e.g. '2018-03-01 14:43:25 +01:00')")]
+        public DateTimeOffset? ValidFrom { get; set; }
 
-        [Required(ErrorMessage = "The generated multi-sig address will be valid until this block index.")]
-        public int? ValidUntil { get; set; }
+        [Required(ErrorMessage = "The generated multi-sig address will be valid until this time. (e.g. '2018-03-08 08:00:00 +00:00')")]
+        public DateTimeOffset? ValidUntil { get; set; }
     }
 
     public class ListReviewerAddressesRequest : RequestModel
@@ -90,7 +90,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
         public string PublicNameFragment { get; set; }
 
-        public int ValidAtBlockHeight { get; set; }
+        public DateTimeOffset? ValidAt { get; set; }
     }
 
     public class SignWantedSystemMessageRequest : RequestModel
