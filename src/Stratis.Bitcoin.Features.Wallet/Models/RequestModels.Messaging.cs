@@ -77,11 +77,56 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         [Required(ErrorMessage = "The public API URL of the reviewer group. (e.g. 'node.thewantedsystem.com:38221')")]
         public string PublicApiUrl { get; set; }
 
-        [Required(ErrorMessage = "The generated multi-sig address will be valid from this time. (e.g. '2018-03-01 14:43:25 +01:00')")]
-        public DateTimeOffset? ValidFrom { get; set; }
+        [JsonIgnore]
+        public DateTimeOffset ValidFrom
+        {
+            get
+            {
+                DateTimeOffset result;
 
+                if (!DateTimeOffset.TryParse(this.ValidFromStr, out result))
+                {
+                    result = DateTimeOffset.MinValue;
+                }
+
+                return result;
+            }
+
+            set
+            {
+                this.ValidFromStr = value.ToString("o");
+            }
+        }
+
+        [JsonIgnore]
+        public DateTimeOffset ValidUntil
+        {
+            get
+            {
+                DateTimeOffset result;
+
+                if (!DateTimeOffset.TryParse(this.ValidUntilStr, out result))
+                {
+                    result = DateTimeOffset.MaxValue;
+                }
+
+                return result;
+            }
+
+            set
+            {
+                this.ValidUntilStr = value.ToString("o");
+            }
+        }
+
+    [JsonProperty(PropertyName = "validFrom")]
+        [Required(ErrorMessage = "The generated multi-sig address will be valid from this time. (e.g. '2018-03-01 14:43:25 +01:00')")]
+        public string ValidFromStr { get; set; }
+
+        [JsonProperty(PropertyName = "validUntil")]
         [Required(ErrorMessage = "The generated multi-sig address will be valid until this time. (e.g. '2018-03-08 08:00:00 +00:00')")]
-        public DateTimeOffset? ValidUntil { get; set; }
+        public string ValidUntilStr { get; set; }
+
     }
 
     public class ListReviewerAddressesRequest : RequestModel

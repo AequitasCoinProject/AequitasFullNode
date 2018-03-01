@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Security;
+using System.Text;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -330,6 +331,40 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     .GenerateScriptPubKey(request.RequeiredSignatureCount, groupMemberKeys);
 
 
+                // check if the API is reachable and the address can be added to the watch list
+                Uri apiRequestUri = new Uri(new Uri("http://" + request.PublicApiUrl + ":38221"), $"/api/WatchOnlyWallet/watch?address={scriptPubKey.Hash.GetAddress(this.network).ToString()}");
+                try
+                {
+                    HttpWebRequest apiRequest = (HttpWebRequest)WebRequest.Create(apiRequestUri);
+
+                    ASCIIEncoding encoding = new ASCIIEncoding();
+                    string postData = "";
+                    byte[] data = encoding.GetBytes(postData);
+
+                    apiRequest.Method = "POST";
+                    apiRequest.ContentType = "application/x-www-form-urlencoded";
+                    apiRequest.ContentLength = data.Length;
+
+                    using (Stream stream = apiRequest.GetRequestStream())
+                    {
+                        stream.Write(data, 0, data.Length);
+                    }
+
+                    HttpWebResponse apiResponse = (HttpWebResponse)apiRequest.GetResponse();
+
+                    string responseString = new StreamReader(apiResponse.GetResponseStream()).ReadToEnd();
+
+                    if (apiResponse.StatusCode != HttpStatusCode.OK)
+                    {
+                        throw new Exception($"The API request '{apiRequestUri.ToString()}' returned the status code '{apiResponse.StatusCode}'.");
+                    }
+                }
+                catch (Exception e)
+                {
+                    throw new Exception($"The API request '{apiRequestUri.ToString()}' returned an error '{e.Message}'.");
+                }
+
+
                 // generate the RSA keypair for the address
                 AsymmetricCipherKeyPair rsaKeyPair = GetRSAKeyPairFromSeed(request.RsaPassword + scriptPubKey.Hash.GetAddress(this.network).ToString());
 
@@ -360,8 +395,8 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     Address = scriptPubKey.Hash.GetAddress(this.network).ToString(),
                     PublicName = request.PublicName,
                     GroupName = request.GroupName,
-                    ValidFrom = (request.ValidFrom.HasValue ? request.ValidFrom.Value : DateTimeOffset.MinValue).ToString("o"),
-                    ValidUntil = (request.ValidUntil.HasValue ? request.ValidUntil.Value : DateTimeOffset.MaxValue).ToString("o"),
+                    ValidFrom = request.ValidFrom.ToString("o"),
+                    ValidUntil = request.ValidUntil.ToString("o"),
                     RsaPublicKeyHex = pbk.ToHex(),
                     RsaPrivateKeyHex = prk.ToHex(),
                     RsaPasswordHashHex = rsaPasswordHashHex,
