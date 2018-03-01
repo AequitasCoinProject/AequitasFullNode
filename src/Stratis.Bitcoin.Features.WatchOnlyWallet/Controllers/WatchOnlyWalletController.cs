@@ -58,6 +58,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
         /// </summary>
         /// <example>Request URL: /api/watchonlywallet </example>
         /// <returns>The watch-only wallet or a collection of errors, if any.</returns>
+        [Route("list-watched-addresses")]
         [HttpGet]
         public IActionResult GetWatchOnlyWallet()
         {
@@ -169,5 +170,16 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
             }
         }
 
+        [Route("watch-and-rescan")]
+        [HttpPost]
+        public IActionResult WatchAndRescan([FromQuery]string address, [FromQuery]DateTimeOffset fromTime)
+        {
+            if (Watch(address) == this.Ok())
+            {
+                return Rescan(fromTime);
+            }
+
+            return this.BadRequest();
+        }
     }
 }
