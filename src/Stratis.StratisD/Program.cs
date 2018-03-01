@@ -44,7 +44,7 @@ namespace Stratis.StratisD
                     .UseBlockNotification()
                     .UseTransactionNotification()
                     .UseWatchOnlyWallet()
-                    .AddPowPosMining()
+                    //.AddPowPosMining()
                     .UseApi()
                     .AddRPC()
                     .Build();
