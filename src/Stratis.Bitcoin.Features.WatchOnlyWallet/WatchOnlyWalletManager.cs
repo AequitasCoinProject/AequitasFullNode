@@ -1,8 +1,11 @@
-﻿using System.Collections.Concurrent;
+using System;
+using System.Threading.Tasks;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 using Stratis.Bitcoin.Configuration;
+using Stratis.Bitcoin.Features.BlockStore;
 using Stratis.Bitcoin.Features.Wallet;
 using Stratis.Bitcoin.Utilities;
 
@@ -36,6 +39,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
 
         /// <summary>Provider of date time functionality.</summary>
         private readonly IDateTimeProvider dateTimeProvider;
+        private readonly IBlockRepository blockRepository;
 
         /// <summary>
         /// Provides a rapid lookup of transactions appearing in the watch-only wallet.
@@ -44,13 +48,17 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
         /// </summary>
         private ConcurrentDictionary<uint256, TransactionData> txLookup;
 
-        public WatchOnlyWalletManager(IDateTimeProvider dateTimeProvider, ILoggerFactory loggerFactory, Network network, DataFolder dataFolder)
+        private RescanState rescanState;
+
+        public WatchOnlyWalletManager(IDateTimeProvider dateTimeProvider, ILoggerFactory loggerFactory, Network network, DataFolder dataFolder, IBlockRepository blockRepository = null)
         {
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
             this.network = network;
             this.coinType = (CoinType)network.Consensus.CoinType;
             this.fileStorage = new FileStorage<WatchOnlyWallet>(dataFolder.WalletPath);
             this.dateTimeProvider = dateTimeProvider;
+            this.blockRepository = blockRepository;
+            this.rescanState = new RescanState();
         }
         
         /// <inheritdoc />
@@ -334,6 +342,54 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
             });
 
             this.SaveWatchOnlyWallet();
+        }
+
+
+        public RescanState Rescan(DateTimeOffset fromTime)
+        {
+            if (!this.rescanState.IsInProgress)
+            {
+                this.rescanState.IsInProgress = true;
+                this.rescanState.ProgressPercentage = 0.0;
+
+                // request blocks from the BlockStore
+                uint256 currentBlockHash = this.blockRepository.BlockHash;
+                var task = this.blockRepository.GetAsync(currentBlockHash);
+                task.Wait();
+                var block = task.Result as Block;
+
+                this.rescanState.UntilTime = block.Header.BlockTime;
+                this.rescanState.FromTime = fromTime;
+
+                Task.Factory.StartNew(() =>
+                {
+                    while (true)
+                    {
+                        var getBlockTask = this.blockRepository.GetAsync(currentBlockHash);
+                        getBlockTask.Wait();
+                        var newBlock = getBlockTask.Result as Block;
+
+                        ProcessBlock(newBlock);
+
+                        lock (this.rescanState)
+                        {
+                            this.rescanState.ProgressPercentage = ((this.rescanState.UntilTime - newBlock.Header.BlockTime).TotalSeconds / (this.rescanState.UntilTime - this.rescanState.FromTime).TotalSeconds) * 100.0;
+
+                            currentBlockHash = newBlock.Header.HashPrevBlock;
+                            if (newBlock.Header.BlockTime <= fromTime)
+                            {
+                                this.rescanState.ProgressPercentage = 100.0;
+                                break;
+                            }
+                        }
+                    }
+
+                    this.rescanState.IsInProgress = false;
+                });
+
+            }
+
+            return this.rescanState;
         }
 
         /// <summary>

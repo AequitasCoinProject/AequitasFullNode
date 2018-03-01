@@ -479,6 +479,12 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// </summary>
         public string Message { get; set; }
 
+        public string MessageRecipient { get; set; }
+
+        public string MessageReplyToAddress { get; set; }
+
+        public string MessageRewardAddress { get; set; }
+
         /// <summary>
         /// Should we encrypt the message?
         /// </summary>

@@ -89,6 +89,7 @@ namespace Stratis.Bitcoin.P2P.Peer
         public async Task ConnectAsync(IPEndPoint endPoint, CancellationToken cancellation)
         {
             if (bannedPeers.Contains(endPoint.ToString())) return;
+            bannedPeers.Add(endPoint.ToString());
 
             this.logger = this.loggerFactory.CreateLogger(this.GetType().FullName, $"[{this.Id}-{endPoint}] ");
             this.logger.LogTrace("({0}:'{1}')", nameof(endPoint), endPoint);

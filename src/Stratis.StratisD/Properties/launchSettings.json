@@ -2,11 +2,11 @@
   "profiles": {
     "Stratis.StratisD": {
       "commandName": "Project",
-      "commandLineArgs": "-datadir=n:\\Blockchains\\StratisNode\\stratis\\StratisTest\\"
+      "commandLineArgs": "-datadir=n:\\Blockchains\\StratisNode\\"
     },
     "Stratis.StratisD Test": {
       "commandName": "Project",
-      "commandLineArgs": "-testnet -datadir=n:\\Blockchains\\StratisNode\\stratis\\StratisTest\\"
+      "commandLineArgs": "-testnet -datadir=n:\\Blockchains\\StratisNode\\"
     },
     "Stratis.StratisD Test with RPC": {
       "commandName": "Project",

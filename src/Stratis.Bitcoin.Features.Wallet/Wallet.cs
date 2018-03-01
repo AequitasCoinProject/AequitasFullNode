@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 using NBitcoin;
 using NBitcoin.JsonConverters;
@@ -652,9 +653,8 @@ namespace Stratis.Bitcoin.Features.Wallet
     {
         public HdAddress()
         {
-            //this.Transactions = new List<TransactionData>();
-            this.Transactions = new System.Collections.ObjectModel.ObservableCollection<TransactionData>();
-            this.Transactions.CollectionChanged += Transactions_CollectionChanged;
+            this.Transactions = new List<TransactionData>();
+            this.transactions.CollectionChanged += Transactions_CollectionChanged;
         }
 
         private void Transactions_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
@@ -695,12 +695,30 @@ namespace Stratis.Bitcoin.Features.Wallet
         [JsonProperty(PropertyName = "hdPath")]
         public string HdPath { get; set; }
 
+        private ObservableCollection<TransactionData> transactions;
+
         /// <summary>
         /// A list of transactions involving this address.
         /// </summary>
         [JsonProperty(PropertyName = "transactions")]
-        //public ICollection<TransactionData> Transactions { get; set; }
-        public System.Collections.ObjectModel.ObservableCollection<TransactionData> Transactions { get; set; }
+        public ICollection<TransactionData> Transactions
+        {
+            get
+            {
+                return this.transactions;
+            }
+
+            set
+            {
+                if (value is ObservableCollection<TransactionData>)
+                {
+                    this.transactions = value as ObservableCollection<TransactionData>;
+                } else
+                {
+                    this.transactions = new ObservableCollection<TransactionData>(value);
+                }
+            }
+        }
 
         /// <summary>
         /// Determines whether this is a change address or a receive address.
