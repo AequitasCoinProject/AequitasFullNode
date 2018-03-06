@@ -21,11 +21,37 @@ namespace NBitcoin.JsonConverters
 
         public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer)
         {
-            if (reader.Value == null)
-                return null;
-            var result = Utils.UnixTimeToDateTime((ulong)(long)reader.Value);
-            if (objectType == typeof(DateTime))
-                return result.UtcDateTime;
+            Nullable<DateTimeOffset> result = null;
+
+            if (reader.Value != null)
+            {
+                if (reader.Value is Nullable<DateTimeOffset>)
+                {
+                    result = reader.Value as Nullable<DateTimeOffset>;
+                }
+                else if (reader.Value is Nullable<DateTime>)
+                {
+                    result = reader.Value as Nullable<DateTime>;
+                }
+                else if (reader.Value is string)
+                {
+                    if (!String.IsNullOrWhiteSpace(reader.Value as string))
+                    {
+                        DateTimeOffset dto;
+                        if (DateTimeOffset.TryParse(reader.Value as string, out dto))
+                        {
+                            result = dto;
+                        }
+                    }
+                }
+                else
+                {
+                    result = Utils.UnixTimeToDateTime((ulong)(long)reader.Value);
+                }
+            }
+
+            if (objectType == typeof(DateTime)) return result.Value.UtcDateTime;
+            if (objectType == typeof(DateTimeOffset)) return result.Value;
             return result;
         }
 
