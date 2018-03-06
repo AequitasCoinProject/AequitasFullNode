@@ -50,22 +50,22 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// <inheritdoc />
         public Transaction BuildWantedSystemMessage(TransactionBuildContext context)
         {
+            WalletManager wm = this.walletManager as WalletManager;
+
             this.InitializeTransactionBuilder(context);
 
-            //context.TransactionBuilder = new TransactionBuilder();
+            context.TransactionBuilder = new TransactionBuilder();
             //context.TransactionBuilder.Send(recipient.ScriptPubKey, recipient.Amount);
 
             // TODO: set (the payer's) input coins
-            // this.AddCoins(context);
-
-            //var coins = new List<Coin>();
-            //foreach (var item in context.UnspentOutputs.OrderByDescending(a => a.Transaction.Amount))
-            //{
-            //    coins.Add(new Coin(item.Transaction.Id, (uint)item.Transaction.Index, item.Transaction.Amount, item.Transaction.ScriptPubKey));
-            //    sum += item.Transaction.Amount;
-            //}
-
-            //context.TransactionBuilder.AddCoins(coins);
+            if (wm.ReviewerAddresses.ContainsKey(context.Payer.ToString()))
+            {
+                //this.AddCoinsFromReviewersAddress(context);
+            }
+            else
+            {
+                //this.AddCoins(context);
+            }
 
             // TODO: replace change addresses
             // context.TransactionBuilder.SetChange(context.ChangeAddress.ScriptPubKey);
@@ -94,6 +94,36 @@ namespace Stratis.Bitcoin.Features.Wallet
             //}
 
             return context.Transaction;
+        }
+
+        private void AddCoinsFromReviewersAddress(TransactionBuildContext context)
+        {
+            Money totalToSend = new Money(123456789, MoneyUnit.Satoshi);
+
+            Money sum = 0;
+            int index = 0;
+            var coins = new List<Coin>();
+            foreach (var item in context.UnspentOutputs.OrderByDescending(a => a.Transaction.Amount))
+            {
+                coins.Add(new Coin(item.Transaction.Id, (uint)item.Transaction.Index, item.Transaction.Amount, item.Transaction.ScriptPubKey));
+                sum += item.Transaction.Amount;
+                index++;
+
+                // If threshold is reached and the total value is above the target
+                // then its safe to stop adding UTXOs to the coin list.
+                // The primery goal is to reduce the time it takes to build a trx
+                // when the wallet is bloated with UTXOs.
+                if (index > SendCountThresholdLimit && sum > totalToSend)
+                    break;
+            }
+
+            // All the UTXOs are added to the builder without filtering.
+            // The builder then has its own coin selection mechanism
+            // to select the best UTXO set for the corresponding amount.
+            // To add a custom implementation of a coin selection override
+            // the builder using builder.SetCoinSelection().
+
+            context.TransactionBuilder.AddCoins(coins);
         }
     }
 }

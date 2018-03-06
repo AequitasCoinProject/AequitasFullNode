@@ -100,6 +100,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     FeeType = FeeType.Low,
                     MinConfirmations = 0,
                     Shuffle = false,
+                    Payer = payer,
                     Message = request.Message,
                     MessageRecipient = request.DestinationAddress,
                     EncryptMessage = request.EncryptMessage,

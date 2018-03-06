@@ -475,6 +475,11 @@ namespace Stratis.Bitcoin.Features.Wallet
         public bool Shuffle { get; set; }
 
         /// <summary>
+        /// The payer who will pay for the transaction
+        /// </summary>
+        public Script Payer { get; set; }
+
+        /// <summary>
         /// Message to embed in the transaction
         /// </summary>
         public string Message { get; set; }
