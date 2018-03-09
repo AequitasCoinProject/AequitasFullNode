@@ -179,6 +179,8 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
     public class SpendableTransactionModel
     {
+        public string Address { set; get; }
+
         [JsonIgnore]
         public uint256 TransactionHash { set; get; }
 

@@ -6,6 +6,12 @@ using Stratis.Bitcoin.Features.Wallet.Validations;
 
 namespace Stratis.Bitcoin.Features.Wallet.Models
 {
+    public class DeserializeTransactionRequest : RequestModel
+    {
+        [Required(ErrorMessage = "A transaction in hexadecimal format is required.")]
+        public string Hex { get; set; }
+    }
+
     /// <summary>
     /// Model object for <see cref="WalletController.GetTipFeeEstimate"/> request.
     /// </summary>
@@ -167,13 +173,10 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
     public class ListSpendableTransactionsRequest : RequestModel
     {
-        [Required]
         public string Address { get; set; }
 
-        [Required]
         public string WalletName { get; set; }
 
-        [Required]
         public string AccountName { get; set; }
 
         [Required]

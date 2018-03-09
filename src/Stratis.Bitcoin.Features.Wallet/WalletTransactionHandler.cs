@@ -477,7 +477,7 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// <summary>
         /// The payer who will pay for the transaction
         /// </summary>
-        public Script Payer { get; set; }
+        public IDestination PayerAddress { get; set; }
 
         /// <summary>
         /// Message to embed in the transaction

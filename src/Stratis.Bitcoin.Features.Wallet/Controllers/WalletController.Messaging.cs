@@ -26,11 +26,43 @@ using Stratis.Bitcoin.Features.Wallet.Models;
 using Stratis.Bitcoin.Interfaces;
 using Stratis.Bitcoin.Utilities;
 using Stratis.Bitcoin.Utilities.JsonErrors;
+using Newtonsoft.Json;
 
 namespace Stratis.Bitcoin.Features.Wallet.Controllers
 {
     public partial class WalletController : Controller
-    { 
+    {
+        /// <summary>
+        /// Deserializes a transaction hex into json format
+        /// </summary>
+        /// <param name="request">The transaction parameters.</param>
+        /// <returns>The estimated fee for the transaction.</returns>
+        [Route("deserialize-transaction")]
+        [HttpPost]
+        public IActionResult Deserialize([FromBody] DeserializeTransactionRequest request)
+        {
+            Guard.NotNull(request, nameof(request));
+
+            // checks the request is valid
+            if (!this.ModelState.IsValid)
+            {
+                return BuildErrorResponse(this.ModelState);
+            }
+
+            try
+            {
+                var transaction = new Transaction(request.Hex);
+                return Content(transaction.ToString());
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError("Exception occurred: {0}", e.ToString());
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
+            }
+        }
+
+
+
         /// <summary>
         /// Gets a wanted system message (WSM) fee estimate.
         /// Fee can be estimated by creating a <see cref="TransactionBuildContext"/> with no password
@@ -89,8 +121,8 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
-                // TODO: in wanted message transactions the payer address must be the input address (of the Tipster or the Reviewers multi-sig address) and the transaction fee must be the parameter.
-                var payer = BitcoinAddress.Create(request.PayerAddress, this.network).ScriptPubKey;
+                // in wanted message transactions the payer address must be the input address (of the Tipster or the Reviewers multi-sig address) and the transaction fee must be the parameter.
+                var payer = BitcoinAddress.Create(request.PayerAddress, this.network);
                 var destination = BitcoinAddress.Create(request.DestinationAddress, this.network).ScriptPubKey;
                 var context = new TransactionBuildContext(
                     new WalletAccountReference(request.WalletName, request.AccountName),
@@ -100,7 +132,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     FeeType = FeeType.Low,
                     MinConfirmations = 0,
                     Shuffle = false,
-                    Payer = payer,
+                    PayerAddress = payer,
                     Message = request.Message,
                     MessageRecipient = request.DestinationAddress,
                     EncryptMessage = request.EncryptMessage,
@@ -648,37 +680,45 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
-                // let's find the proper wallet and account first
                 string requestWalletName = null;
                 string requestAccountName = null;
 
-                foreach (var walletName in this.walletManager.GetWalletsNames())
+                if (String.IsNullOrWhiteSpace(request.WalletName) || String.IsNullOrWhiteSpace(request.AccountName))
                 {
-                    HdAddress address = null;
-                    foreach (var hdAccount in this.walletManager.GetWallet(walletName).GetAccountsByCoinType(this.coinType))
+                    // let's find the proper wallet and account first
+                    foreach (var walletName in this.walletManager.GetWalletsNames())
                     {
-                        address = hdAccount.ExternalAddresses.FirstOrDefault(hdAddress => hdAddress.ScriptPubKey.Hash.GetAddress(this.network).ToString() == request.Address);
-                        if (address == null)
+                        HdAddress address = null;
+                        foreach (var hdAccount in this.walletManager.GetWallet(walletName).GetAccountsByCoinType(this.coinType))
                         {
-                            address = hdAccount.InternalAddresses.FirstOrDefault(hdAddress => hdAddress.ScriptPubKey.Hash.GetAddress(this.network).ToString() == request.Address);
+                            address = hdAccount.ExternalAddresses.FirstOrDefault(hdAddress => hdAddress.Address.ToString() == request.Address);
+                            if (address == null)
+                            {
+                                address = hdAccount.InternalAddresses.FirstOrDefault(hdAddress => hdAddress.Address.ToString() == request.Address);
+                            }
+
+                            if (address != null)
+                            {
+                                requestAccountName = hdAccount.Name;
+                                break;
+                            }
                         }
 
-                        if (address != null)
+                        if (requestAccountName != null)
                         {
-                            requestAccountName = hdAccount.Name;
+                            requestWalletName = walletName;
+                            break;
                         }
                     }
 
-                    if (requestAccountName != null)
+                    if ((requestWalletName == null) || (requestAccountName == null))
                     {
-                        requestWalletName = walletName;
-                        break;
+                        throw new Exception("The address you requested is not in this wallet.");
                     }
-                }
-
-                if ((requestWalletName == null) || (requestAccountName == null))
+                } else
                 {
-                    throw new Exception("The address you requested is not in this wallet.");
+                    requestWalletName = request.WalletName;
+                    requestAccountName = request.AccountName;
                 }
 
                 WalletAccountReference account = new WalletAccountReference(requestWalletName, requestAccountName);
@@ -688,8 +728,11 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 {
                     if (spendableOutput.Transaction.Amount == 0) continue;
 
+                    if (!String.IsNullOrWhiteSpace(request.Address) && (spendableOutput.Address.Address.ToString() != request.Address)) continue;
+
                     transactionList.Add(new SpendableTransactionModel()
                     {
+                        Address = spendableOutput.Address.Address.ToString(),
                         TransactionHash = spendableOutput.Transaction.Id,
                         Index = spendableOutput.Transaction.Index,
                         Amount = spendableOutput.Transaction.Amount.Satoshi,

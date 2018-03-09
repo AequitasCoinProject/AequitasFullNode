@@ -57,26 +57,34 @@ namespace Stratis.Bitcoin.Features.Wallet
             context.TransactionBuilder = new TransactionBuilder();
             //context.TransactionBuilder.Send(recipient.ScriptPubKey, recipient.Amount);
 
-            // TODO: set (the payer's) input coins
-            if (wm.ReviewerAddresses.ContainsKey(context.Payer.ToString()))
+            // set (the payer's) input coins and change address
+            if (wm.ReviewerAddresses.ContainsKey(context.PayerAddress.ToString()))
             {
-                //this.AddCoinsFromReviewersAddress(context);
+                this.AddCoinsFromReviewersAddress(context);
+                context.TransactionBuilder.SetChange(context.PayerAddress);
             }
             else
             {
-                //this.AddCoins(context);
+                var hdAccounts = wm.Wallets.SelectMany(w => w.GetAccountsByCoinType(this.coinType));
+                var internalAddresses = hdAccounts.SelectMany(a => a.InternalAddresses).ToList();
+                var externalAddresses = hdAccounts.SelectMany(a => a.ExternalAddresses).ToList();
+                var allKnownAddresses = internalAddresses.Union(externalAddresses);
+
+                if (allKnownAddresses.Any(address => address.Address.ToString() == context.PayerAddress.ToString()))
+                {
+                    this.AddCoins(context);
+                    context.TransactionBuilder.SetChange(context.ChangeAddress.ScriptPubKey);
+                } else
+                {
+                    throw new Exception("The payer address was not recognised as an address from a known wallet and it is not a known Reviewers' Group address.");
+                }
             }
 
-            // TODO: replace change addresses
-            // context.TransactionBuilder.SetChange(context.ChangeAddress.ScriptPubKey);
+            // add the message to the transaction
+            this.AddMessage(context);
 
-            // TODO: add the message to the transaction
-            // this.AddMessage(context);
-
-            // TODO: set the fee for the transaction
-            //var fee = context.TransactionBuilder.EstimateFees(feeRate);
-            //context.TransactionBuilder.SendFees(fee);
-            //context.TransactionFee = fee;
+            // set the fee for the transaction
+            this.AddFee(context);
 
             // build transaction
             context.Transaction = context.TransactionBuilder.BuildTransaction(false);
