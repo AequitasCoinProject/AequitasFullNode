@@ -157,12 +157,6 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
         public uint256 Id { get; set; }
 
         /// <summary>
-        /// Hexadecimal representation of a transaction affecting a script being watched.
-        /// </summary>
-        [JsonProperty(PropertyName = "hex")]
-        public string Hex { get; set; }
-
-        /// <summary>
         /// A transaction affecting a script being watched.
         /// </summary>
         [JsonIgnore]
@@ -181,6 +175,12 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
         [JsonProperty(PropertyName = "merkleProof", NullValueHandling = NullValueHandling.Ignore)]
         [JsonConverter(typeof(BitcoinSerializableJsonConverter))]
         public PartialMerkleTree MerkleProof { get; set; }
+
+        /// <summary>
+        /// Hexadecimal representation of a transaction affecting a script being watched.
+        /// </summary>
+        [JsonProperty(PropertyName = "hex")]
+        public string Hex { get; set; }
     }
 
     /// <summary>

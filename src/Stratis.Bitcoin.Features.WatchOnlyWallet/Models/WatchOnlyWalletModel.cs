@@ -91,4 +91,40 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Models
         [JsonProperty(PropertyName = "transaction")]
         public TransactionVerboseModel Transaction { get; set; }
     }
+
+    public class ListSpendableTransactionsModel
+    {
+        public string Network { set; get; }
+
+        public ICollection<SpendableTransactionModel> SpendableTransactions { set; get; }
+    }
+
+    public class SpendableTransactionModel
+    {
+        public string Address { set; get; }
+
+        [JsonIgnore]
+        public uint256 TransactionHash { set; get; }
+
+        [JsonProperty(PropertyName = "transactionHash")]
+        public string TransactionHashHex
+        {
+            set
+            {
+                this.TransactionHash = uint256.Parse(value);
+            }
+
+            get
+            {
+                return this.TransactionHash.ToString();
+            }
+        }
+
+        public uint Index { set; get; }
+
+        public long Amount { set; get; }
+
+        public string ScriptPubKey { set; get; }
+    }
+
 }

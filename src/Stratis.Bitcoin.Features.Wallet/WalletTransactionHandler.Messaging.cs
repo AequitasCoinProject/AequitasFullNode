@@ -55,16 +55,18 @@ namespace Stratis.Bitcoin.Features.Wallet
             this.InitializeTransactionBuilder(context);
 
             context.TransactionBuilder = new TransactionBuilder();
-            //context.TransactionBuilder.Send(recipient.ScriptPubKey, recipient.Amount);
+            //context.TransactionBuilder.Send(context.Recipients[0].ScriptPubKey, context.Recipients[0].Amount);
 
             // set (the payer's) input coins and change address
             if (wm.ReviewerAddresses.ContainsKey(context.PayerAddress.ToString()))
             {
                 this.AddCoinsFromReviewersAddress(context);
                 context.TransactionBuilder.SetChange(context.PayerAddress);
+                context.Sign = false;
             }
             else
             {
+                // we are going to pay for this transaction
                 var hdAccounts = wm.Wallets.SelectMany(w => w.GetAccountsByCoinType(this.coinType));
                 var internalAddresses = hdAccounts.SelectMany(a => a.InternalAddresses).ToList();
                 var externalAddresses = hdAccounts.SelectMany(a => a.ExternalAddresses).ToList();
@@ -72,11 +74,14 @@ namespace Stratis.Bitcoin.Features.Wallet
 
                 if (allKnownAddresses.Any(address => address.Address.ToString() == context.PayerAddress.ToString()))
                 {
+                    // we recognise the address, so let's add our inputs/coins and sign the transaction
+                    context.Sign = true;
                     this.AddCoins(context);
+                    this.AddSecrets(context);
                     context.TransactionBuilder.SetChange(context.ChangeAddress.ScriptPubKey);
                 } else
                 {
-                    throw new Exception("The payer address was not recognised as an address from a known wallet and it is not a known Reviewers' Group address.");
+                    throw new Exception("The payer address was not recognised as an address from an opened wallet and it is not a known Reviewers' Group address.");
                 }
             }
 
@@ -92,14 +97,14 @@ namespace Stratis.Bitcoin.Features.Wallet
             if (context.Sign)
             {
                 context.Transaction = context.TransactionBuilder.SignTransaction(context.Transaction);
+
+                if (!context.TransactionBuilder.Verify(context.Transaction, out TransactionPolicyError[] errors))
+                {
+                    this.logger.LogError($"Build transaction failed: {string.Join(" - ", errors.Select(s => s.ToString()))}");
+
+                    throw new WalletException($"Could not build a transaction, please make sure you entered the correct data. (Error: '{errors[0].ToString()}', Transaction hex: '{context.Transaction.ToHex()}')");
+                }
             }
-
-            //if (!context.TransactionBuilder.Verify(context.Transaction, out TransactionPolicyError[] errors))
-            //{
-            //    this.logger.LogError($"Build transaction failed: {string.Join(" - ", errors.Select(s => s.ToString()))}");
-
-            //    throw new WalletException("Could not build a transaction, please make sure you entered the correct data.");
-            //}
 
             return context.Transaction;
         }

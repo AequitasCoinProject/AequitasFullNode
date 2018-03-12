@@ -193,8 +193,8 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     {
                         model.Outputs.Add(new TransactionOutputModel
                         {
-                            Address = "N/A - Wanted System Secure Message",
-                            Amount = output.Value,                           
+                            Address = $"N/A (Wanted System Message)",
+                            Amount = output.Value
                         });
                     }
                     else
@@ -202,9 +202,19 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                         model.Outputs.Add(new TransactionOutputModel
                         {
                             Address = output.ScriptPubKey.GetDestinationAddress(this.network).ToString(),
-                            Amount = output.Value,
+                            Amount = output.Value
                         });
                     }
+                }
+
+                if (transaction.Inputs.All(tri => String.IsNullOrEmpty(tri.ScriptSig.ToString())))
+                {
+                    throw new Exception("This transcation is not signed. In order to publish a transaction on the network, it must be fully signed first.");
+                }
+
+                if (transaction.Inputs.Any(tri => String.IsNullOrEmpty(tri.ScriptSig.ToString())))
+                {
+                    throw new Exception("This transcation is only partially signed. In order to publish a transaction on the network, it must be fully signed first.");
                 }
 
                 this.walletManager.ProcessTransaction(transaction, null, null, false);

@@ -109,10 +109,10 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
             this.logger.LogDebug($"added transaction: {transactionData.Id} to the watch list. coin: {this.coinType}");
             this.Wallet.WatchedTransactions.TryAdd(transactionData.Id.ToString(), new TransactionData
             {
-                BlockHash = transactionData.BlockHash,
-                Hex = transactionData.Hex,
                 Id = transactionData.Id,
-                MerkleProof = transactionData.MerkleProof
+                BlockHash = transactionData.BlockHash,
+                MerkleProof = transactionData.MerkleProof,
+                Hex = transactionData.Hex
             });
 
             this.SaveWatchOnlyWallet();
@@ -160,8 +160,8 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
                             TransactionData newTransaction = new TransactionData
                             {
                                 Id = transactionHash,
-                                Hex = transaction.ToHex(),
-                                BlockHash = block?.GetHash()
+                                BlockHash = block?.GetHash(),
+                                Hex = transaction.ToHex()
                             };
 
                             // Add the Merkle proof to the transaction.

@@ -6,6 +6,10 @@ using Microsoft.AspNetCore.Mvc;
 using Stratis.Bitcoin.Features.RPC.Models;
 using Stratis.Bitcoin.Features.WatchOnlyWallet.Models;
 using Stratis.Bitcoin.Utilities.JsonErrors;
+using Stratis.Bitcoin.Utilities;
+using Microsoft.AspNetCore.Mvc.ModelBinding;
+using Microsoft.Extensions.Logging;
+using NBitcoin;
 
 namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
 {
@@ -18,39 +22,19 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
         /// <summary> The watch-only wallet manager. </summary>
         private readonly IWatchOnlyWalletManager watchOnlyWalletManager;
 
+        /// <summary>Instance logger.</summary>
+        private readonly ILogger logger;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="WatchOnlyWalletController"/> class.
         /// </summary>
         /// <param name="watchOnlyWalletManager">The watch-only wallet manager.</param>
-        public WatchOnlyWalletController(IWatchOnlyWalletManager watchOnlyWalletManager)
+        public WatchOnlyWalletController(
+            ILoggerFactory loggerFactory, 
+            IWatchOnlyWalletManager watchOnlyWalletManager)
         {
             this.watchOnlyWalletManager = watchOnlyWalletManager;
-        }
-
-        /// <summary>
-        /// Adds a base58 address to the watch list.
-        /// </summary>
-        /// <example>Request URL: /api/watchonlywallet/watch?address=mpK6g... </example>
-        /// <param name="address">The base58 address to add to the watch list.</param>
-        [Route("watch")]
-        [HttpPost]
-        public IActionResult Watch([FromQuery]string address)
-        {
-            // Checks the request is valid.
-            if (string.IsNullOrEmpty(address))
-            {
-                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, "Formatting error", "Address to watch is missing.");
-            }
-
-            try
-            {
-                this.watchOnlyWalletManager.WatchAddress(address);
-                return this.Ok();
-            }
-            catch (Exception e)
-            {
-                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.Conflict, e.Message, e.ToString());
-            }
+            this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
         }
 
         /// <summary>
@@ -107,6 +91,32 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
             }
         }
 
+        /// <summary>
+        /// Adds a base58 address to the watch list.
+        /// </summary>
+        /// <example>Request URL: /api/watchonlywallet/watch?address=mpK6g... </example>
+        /// <param name="address">The base58 address to add to the watch list.</param>
+        [Route("watch")]
+        [HttpPost]
+        public IActionResult Watch([FromQuery]string address)
+        {
+            // Checks the request is valid.
+            if (string.IsNullOrEmpty(address))
+            {
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, "Formatting error", "Address to watch is missing.");
+            }
+
+            try
+            {
+                this.watchOnlyWalletManager.WatchAddress(address);
+                return this.Ok();
+            }
+            catch (Exception e)
+            {
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.Conflict, e.Message, e.ToString());
+            }
+        }
+
         [Route("rescan")]
         [HttpPost]
         public IActionResult Rescan([FromQuery]DateTimeOffset fromTime)
@@ -129,6 +139,18 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
             {
                 return ErrorHelpers.BuildErrorResponse(HttpStatusCode.Conflict, e.Message, e.ToString());
             }
+        }
+
+        [Route("watch-and-rescan")]
+        [HttpPost]
+        public IActionResult WatchAndRescan([FromQuery]string address, [FromQuery]DateTimeOffset fromTime)
+        {
+            if (Watch(address) == this.Ok())
+            {
+                return Rescan(fromTime);
+            }
+
+            return this.BadRequest();
         }
 
         [Route("list-transactions")]
@@ -170,16 +192,75 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
             }
         }
 
-        [Route("watch-and-rescan")]
+        [Route("list-spendable-transactions")]
         [HttpPost]
-        public IActionResult WatchAndRescan([FromQuery]string address, [FromQuery]DateTimeOffset fromTime)
+        public IActionResult ListSpendableTransactions([FromBody] ListWatchedSpendableTransactionsRequest request)
         {
-            if (Watch(address) == this.Ok())
+            Guard.NotNull(request, nameof(request));
+
+            // checks the request is valid
+            if (!this.ModelState.IsValid)
             {
-                return Rescan(fromTime);
+                return BuildErrorResponse(this.ModelState);
             }
 
-            return this.BadRequest();
+            try
+            {
+                var watchOnlyWallet = this.watchOnlyWalletManager.GetWatchOnlyWallet();
+
+                if (!watchOnlyWallet.WatchedAddresses.Any(adr => adr.Value.Address == request.Address))
+                {
+                    return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, "Data error", "Address is not in he watchlist. Please add it first with the 'watch' API and use the 'rescan' API if necessary.");
+                }
+
+                var watchedAddress = watchOnlyWallet.WatchedAddresses.First(adr => adr.Value.Address == request.Address).Value;
+
+                List<SpendableTransactionModel> transactionList = new List<SpendableTransactionModel>();
+                foreach (TransactionData watchedTransaction in watchedAddress.Transactions.Values)
+                {
+                    Transaction tr = watchedTransaction.Transaction;
+
+                    foreach (var txOut in tr.Outputs.AsIndexedOutputs())
+                    {
+                        if (txOut.TxOut.Value == 0) continue;
+
+                        transactionList.Add(new SpendableTransactionModel()
+                        {
+                            Address = BitcoinAddress.Create(txOut.TxOut.ScriptPubKey.Hash., watchOnlyWallet.Network).ScriptPubKey,
+                            TransactionHash = tr.GetHash(),
+                            Index = txOut.N,
+                            Amount = txOut.TxOut.Value,
+                            ScriptPubKey = txOut.TxOut.ScriptPubKey.ToHex()
+                        });
+                    }
+                }
+
+                ListSpendableTransactionsModel model = new ListSpendableTransactionsModel
+                {
+                    Network = watchOnlyWallet.Network.ToString(),
+                    SpendableTransactions = transactionList
+                };
+
+                return this.Json(model);
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError("Exception occurred: {0}", e.ToString());
+                return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
+            }
+        }
+
+        /// <summary>
+        /// Builds an <see cref="IActionResult"/> containing errors contained in the <see cref="ControllerBase.ModelState"/>.
+        /// </summary>
+        /// <returns>A result containing the errors.</returns>
+        private static IActionResult BuildErrorResponse(ModelStateDictionary modelState)
+        {
+            List<ModelError> errors = modelState.Values.SelectMany(e => e.Errors).ToList();
+            return ErrorHelpers.BuildErrorResponse(
+                HttpStatusCode.BadRequest,
+                string.Join(Environment.NewLine, errors.Select(m => m.ErrorMessage)),
+                string.Join(Environment.NewLine, errors.Select(m => m.Exception?.Message)));
         }
     }
 }
