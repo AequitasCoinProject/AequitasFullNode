@@ -127,7 +127,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 var context = new TransactionBuildContext(
                     new WalletAccountReference(request.WalletName, request.AccountName),
                     new[] { new Recipient { Amount = new Money(500, MoneyUnit.Satoshi), ScriptPubKey = destination } }.ToList(),
-                    request.Password)
+                    request.WalletPassword)
                 {
                     FeeType = FeeType.Low,
                     MinConfirmations = 0,
@@ -143,9 +143,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
                 var model = new WalletBuildTransactionModel
                 {
+                    TransactionId = transactionResult.GetHash(),
                     Hex = transactionResult.ToHex(),
-                    Fee = context.TransactionFee,
-                    TransactionId = transactionResult.GetHash()
+                    Fee = context.TransactionFee
                 };
 
                 return this.Json(model);
@@ -443,7 +443,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     RsaPublicKeyHex = pbk.ToHex(),
                     RsaPrivateKeyHex = prk.ToHex(),
                     RsaPasswordHashHex = rsaPasswordHashHex,
-                    PublicAPI = request.PublicApiUrl
+                    PublicApiUrl = request.PublicApiUrl
                 };
 
                 ((WalletManager)this.walletManager).AddReviewerAddressToReviewerStore(model);
@@ -544,11 +544,10 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
                 if (!wm.WantedSystemMessages.Any(t => t.Key == tx.GetHash()))
                 {
-                    throw new Exception($"The transcation with hash '{tx.GetHash()}' is not in the message store.");
+                    throw new Exception($"The transcation with hash '{tx.GetHash()}' is not in the message store. You must upload it first by using the upload-wanted-system-message API.");
                 }
 
-                WantedSystemMessageModel wsmm = wm.WantedSystemMessages.First(t => t.Key == tx.GetHash()).Value;
-
+                
                 // get the signing keys
                 List<BitcoinExtKey> privateKeys = new List<BitcoinExtKey>();
                 if (!String.IsNullOrWhiteSpace(request.SigningKey))
@@ -564,8 +563,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     }
                 } else
                 {
-                    // TODO: add our own private keys
+                    throw new Exception($"You must provide a signing key in order to sign the message.");
 
+                    // TODO: add our own private keys                    
                 }
 
                 // sign the transaction with the key
@@ -577,18 +577,11 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     throw new Exception($"The signing key you provided is not associated with the message or it is already signed with that key.");
                 }
 
-                // add the partially signed transaction to the message store
-                wm.AddPartiallySignedTxToMessageStore(wsmm.TransactionHash, signedTx.ToHex());
-
-                // try to combine the partially signed signatures                
-                tx = tb.CombineSignatures(wsmm.PartiallySignedTransactions.Select(stx => Transaction.Parse(stx.TransactionHex)).ToArray());
-                var checkResults = tx.Check();
-
                 // return the (partially) signed transaction
                 SignWantedSystemMessageModel model = new SignWantedSystemMessageModel
                 {
-                    TransactionHex = tx.ToHex(),
-                    WasSigned = request.TransactionHex != tx.ToHex()
+                    TransactionHex = signedTx.ToHex(),
+                    WasSigned = request.TransactionHex != signedTx.ToHex()
                 };                
 
                 return this.Json(model);
@@ -619,15 +612,41 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
-                // TODO: store the (partially) signed transaction in the local message store
+                Transaction transaction = new Transaction(request.TransactionHex);
 
-                // TODO: try to combine all partially signed messages into a fully signed one
+                var wantedMessageOuts = transaction.Outputs.Where(txOut => WantedSystemMessageTemplate.Instance.CheckScriptPubKey(txOut.ScriptPubKey));
 
+                if (wantedMessageOuts.Count() == 0)
+                {
+                    throw new Exception("The transaction you provided doesn't contain any Wanted System Messages.");
+                }
 
-                // TODO: return the fully signed transaction if available
+                var wm = this.walletManager as WalletManager;
+
+                // let's make sure that the transaction is put into the message store
+                wm.AddWantedSystemMessageToMessageStore(transaction);
+
+                // add the partially signed transaction to the message store
+                wm.AddPartiallySignedTxToMessageStore(transaction);
+
+                // try to combine the partially signed signatures                
+                TransactionBuilder tb = new TransactionBuilder();
+
+                WantedSystemMessageModel wsmm = wm.WantedSystemMessages.First(t => t.Key == transaction.GetHash()).Value;
+
+                var fullySignedTx = tb.CombineSignatures(wsmm.PartiallySignedTransactions.Select(stx => Transaction.Parse(stx.TransactionHex)).ToArray());
+                var checkResults = fullySignedTx.Check();
+
+                if ((checkResults != TransactionCheckResult.Success) || (wsmm.PartiallySignedTransactions.Any(tr => tr.TransactionHex == fullySignedTx.ToHex())))
+                {
+                    fullySignedTx = null;
+                }
+
+                // return the fully signed transaction if available
                 UploadWantedSystemMessageModel model = new UploadWantedSystemMessageModel
                 {
-                    
+                    WantedSystemMessage = wsmm,
+                    FullySignedTransactionHex = fullySignedTx == null ? "" : fullySignedTx.ToHex()
                 };
 
                 return this.Json(model);
@@ -676,9 +695,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             }
         }
 
-        [Route("list-spendable-transactions")]
+        [Route("list-spendable-transaction-outs")]
         [HttpPost]
-        public IActionResult ListSpendableTransactions([FromBody] ListSpendableTransactionsRequest request)
+        public IActionResult ListSpendableTransactionOuts([FromBody] ListSpendableTransactionOutsRequest request)
         {
             Guard.NotNull(request, nameof(request));
 

@@ -44,6 +44,18 @@ namespace Stratis.Bitcoin.Features.Wallet
             }
         }
 
+        public void AddWantedSystemMessageToMessageStore(Transaction transaction)
+        {
+            var wantedMessageOuts = transaction.Outputs.AsIndexedOutputs().Where(txOut => WantedSystemMessageTemplate.Instance.CheckScriptPubKey(txOut.TxOut.ScriptPubKey));
+
+            if (wantedMessageOuts.Count() == 0)
+            {
+                throw new Exception("The transaction you provided doesn't contain any Wanted System Messages.");
+            }
+
+            this.AddWantedSystemMessageToMessageStore(transaction.ToHex(), transaction.GetHash(), (int)wantedMessageOuts.First().N, null, null, null, false);
+        }
+
         private void AddWantedSystemMessageToMessageStore(string transactionHex, uint256 transactionHash, int utxoIndex, Script script,
             int? blockHeight, Block block, bool isPropagated)
         {
@@ -81,8 +93,11 @@ namespace Stratis.Bitcoin.Features.Wallet
             this.logger.LogTrace("(-)");
         }
 
-        public void AddPartiallySignedTxToMessageStore(uint256 transactionHash, string partiallySignedTransactionHex)
+        public void AddPartiallySignedTxToMessageStore(Transaction transaction)
         {
+            uint256 transactionHash = transaction.GetHash();
+            string partiallySignedTransactionHex = transaction.ToHex();
+
             if (!this.WantedSystemMessages.ContainsKey(transactionHash))
             {
                 throw new Exception($"The transcation with hash '{transactionHash}' is not in the message store.");
@@ -95,12 +110,15 @@ namespace Stratis.Bitcoin.Features.Wallet
 
             if (!this.WantedSystemMessages[transactionHash].PartiallySignedTransactions.Any(pswsmm => pswsmm.TransactionHex == partiallySignedTransactionHex))
             {
-                this.WantedSystemMessages[transactionHash].PartiallySignedTransactions.Add(
-                    new PartiallySignedWantedSystemMessagesModel()
-                    {
-                        TransactionHex = partiallySignedTransactionHex
-                    }
-                );
+                //if (this.WantedSystemMessages[transactionHash].TransactionHex != partiallySignedTransactionHex)
+                {
+                    this.WantedSystemMessages[transactionHash].PartiallySignedTransactions.Add(
+                        new PartiallySignedWantedSystemMessagesModel()
+                        {
+                            TransactionHex = partiallySignedTransactionHex
+                        }
+                    );
+                }
             }
 
             this.SaveWantedSystemMessages();

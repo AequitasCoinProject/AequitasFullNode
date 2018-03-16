@@ -62,12 +62,12 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
                     WatchedAddressModel watchedAddressModel = new WatchedAddressModel
                     {
                         Address = watchAddress.Value.Address,
-                        Transactions = new List<TransactionVerboseModel>()
+                        Transactions = new List<TransactionModel>()
                     };
 
                     foreach (var transactionData in watchAddress.Value.Transactions)
                     {
-                        watchedAddressModel.Transactions.Add(new TransactionVerboseModel(transactionData.Value.Transaction, watchOnlyWallet.Network));
+                        watchedAddressModel.Transactions.Add(new TransactionBriefModel(transactionData.Value.Transaction, watchOnlyWallet.Network));
                     }
 
                     model.WatchedAddresses.Add(watchedAddressModel);
@@ -77,7 +77,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
                 {
                     WatchedTransactionModel watchedTransactionModel = new WatchedTransactionModel
                     {
-                        Transaction = new TransactionVerboseModel(transaction.Value.Transaction, watchOnlyWallet.Network)
+                        Transaction = new TransactionBriefModel(transaction.Value.Transaction, watchOnlyWallet.Network)
                     };
 
                     model.WatchedTransactions.Add(watchedTransactionModel);
@@ -176,7 +176,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
                 WatchedAddressModel watchedAddressModel = new WatchedAddressModel
                 {
                     Address = watchedAddress.Address,
-                    Transactions = new List<TransactionVerboseModel>()
+                    Transactions = new List<TransactionModel>()
                 };
 
                 foreach (var transactionData in watchedAddress.Transactions)
@@ -192,9 +192,9 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
             }
         }
 
-        [Route("list-spendable-transactions")]
+        [Route("list-spendable-transaction-outs")]
         [HttpPost]
-        public IActionResult ListSpendableTransactions([FromBody] ListWatchedSpendableTransactionsRequest request)
+        public IActionResult ListSpendableTransactionOuts([FromBody] ListWatchedSpendableTransactionOutsRequest request)
         {
             Guard.NotNull(request, nameof(request));
 
@@ -215,7 +215,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
 
                 var watchedAddress = watchOnlyWallet.WatchedAddresses.First(adr => adr.Value.Address == request.Address).Value;
 
-                List<SpendableTransactionModel> transactionList = new List<SpendableTransactionModel>();
+                List<SpendableTransactionOutModel> transactionOutList = new List<SpendableTransactionOutModel>();
                 foreach (TransactionData watchedTransaction in watchedAddress.Transactions.Values)
                 {
                     Transaction tr = watchedTransaction.Transaction;
@@ -224,9 +224,13 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
                     {
                         if (txOut.TxOut.Value == 0) continue;
 
-                        transactionList.Add(new SpendableTransactionModel()
+                        BitcoinAddress txOutAddress = txOut.TxOut.ScriptPubKey.GetDestinationAddress(watchOnlyWallet.Network);
+
+                        if ((txOutAddress == null) || (txOutAddress.ToString() != watchedAddress.Address)) continue;
+
+                        transactionOutList.Add(new SpendableTransactionOutModel()
                         {
-                            Address = BitcoinAddress.Create(txOut.TxOut.ScriptPubKey.Hash., watchOnlyWallet.Network).ScriptPubKey,
+                            Address = txOutAddress.ToString(),
                             TransactionHash = tr.GetHash(),
                             Index = txOut.N,
                             Amount = txOut.TxOut.Value,
@@ -235,10 +239,10 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
                     }
                 }
 
-                ListSpendableTransactionsModel model = new ListSpendableTransactionsModel
+                ListSpendableTransactionOutsModel model = new ListSpendableTransactionOutsModel
                 {
                     Network = watchOnlyWallet.Network.ToString(),
-                    SpendableTransactions = transactionList
+                    SpendableTransactionOuts = transactionOutList
                 };
 
                 return this.Json(model);

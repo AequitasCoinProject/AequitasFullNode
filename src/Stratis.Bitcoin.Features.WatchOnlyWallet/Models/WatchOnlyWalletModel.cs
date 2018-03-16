@@ -64,7 +64,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Models
         /// </summary>
         public WatchedAddressModel()
         {
-            this.Transactions = new List<TransactionVerboseModel>();
+            this.Transactions = new List<TransactionModel>();
         }
 
         /// <summary>
@@ -77,7 +77,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Models
         /// The list of transactions affecting the address being watched.
         /// </summary>
         [JsonProperty(PropertyName = "transactions")]
-        public ICollection<TransactionVerboseModel> Transactions { get; set; }
+        public ICollection<TransactionModel> Transactions { get; set; }
     }
 
     /// <summary>
@@ -89,17 +89,17 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Models
         /// The transaction being watched.
         /// </summary>
         [JsonProperty(PropertyName = "transaction")]
-        public TransactionVerboseModel Transaction { get; set; }
+        public TransactionModel Transaction { get; set; }
     }
 
-    public class ListSpendableTransactionsModel
+    public class ListSpendableTransactionOutsModel
     {
         public string Network { set; get; }
 
-        public ICollection<SpendableTransactionModel> SpendableTransactions { set; get; }
+        public ICollection<SpendableTransactionOutModel> SpendableTransactionOuts { set; get; }
     }
 
-    public class SpendableTransactionModel
+    public class SpendableTransactionOutModel
     {
         public string Address { set; get; }
 

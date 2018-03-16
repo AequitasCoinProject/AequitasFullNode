@@ -109,8 +109,8 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         [JsonProperty(PropertyName = "managerPasswordHash")]
         public string RsaPasswordHashHex { get; set; }
 
-        [JsonProperty(PropertyName = "publicApi")]
-        public string PublicAPI { get; set; }
+        [JsonProperty(PropertyName = "publicApiUrl")]
+        public string PublicApiUrl { get; set; }
     }
 
     public class ListPublicReviewerAddressesModel
@@ -130,9 +130,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
     public class UploadWantedSystemMessageModel
     {
-        [JsonProperty(PropertyName = "transactionHex")]
-        public string TransactionHex { set; get; }
-
+        [JsonProperty(PropertyName = "wantedSystemMessage")]
+        public WantedSystemMessageModel WantedSystemMessage { set; get; }
+        
         [JsonProperty(PropertyName = "fullySignedTransactionHex")]
         public string FullySignedTransactionHex { set; get; }
     }

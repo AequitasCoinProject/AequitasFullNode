@@ -18,30 +18,36 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
     /// <seealso cref="Stratis.Bitcoin.Features.Wallet.Models.RequestModel" />
     public class EstimateWantedSystemMessageFeeRequest : RequestModel
     {
+        [JsonProperty(Order = 1)]
         [Required(ErrorMessage = "The name of the wallet is missing.")]
         public string WalletName { get; set; }
 
+        [JsonProperty(Order = 3)]
         [Required(ErrorMessage = "The name of the account is missing.")]
         public string AccountName { get; set; }
 
+        [JsonProperty(Order = 4)]
         [Required(ErrorMessage = "A payer address is required.")]
         [IsBitcoinAddress()]
         public string PayerAddress { get; set; }
 
+        [JsonProperty(Order = 5)]
         [Required(ErrorMessage = "A destination address is required.")]
         [IsBitcoinAddress()]
         public string DestinationAddress { get; set; }
 
+        [JsonProperty(Order = 6)]
         [Required(ErrorMessage = "The text message of the tip.")]
         public string Message { get; set; }
 
+        [JsonProperty(Order = 7)]
         public bool EncryptMessage { get; set; }
     }
 
     public class BuildWantedSystemMessageRequest : EstimateWantedSystemMessageFeeRequest
     {
-        [Required(ErrorMessage = "A password is required.")]
-        public string Password { get; set; }
+        [JsonProperty(Order = 2)]
+        public string WalletPassword { get; set; }
     }
 
     public class SendWantedSystemMessageRequest : RequestModel
@@ -171,7 +177,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         public string AccountName { get; set; }
     }
 
-    public class ListSpendableTransactionsRequest : RequestModel
+    public class ListSpendableTransactionOutsRequest : RequestModel
     {
         public string Address { get; set; }
 

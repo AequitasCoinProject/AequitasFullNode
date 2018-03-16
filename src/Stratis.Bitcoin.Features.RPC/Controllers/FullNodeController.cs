@@ -100,7 +100,7 @@ namespace Stratis.Bitcoin.Features.RPC.Controllers
                 return new TransactionVerboseModel(trx, this.Network, block, this.ChainState?.ConsensusTip);
             }
             else
-                return new TransactionBriefModel(trx);
+                return new TransactionBriefModel(trx, this.Network, null, this.ChainState?.ConsensusTip);
         }
 
         /// <summary>

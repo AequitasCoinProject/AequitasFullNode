@@ -34,7 +34,7 @@ namespace Stratis.Bitcoin.Features.RPC.Models
         {
         }
 
-        public TransactionBriefModel(Transaction trx) : base(trx)
+        public TransactionBriefModel(Transaction trx, Network network, ChainedBlock block = null, ChainedBlock tip = null) : base(trx)
         {
         }
     }

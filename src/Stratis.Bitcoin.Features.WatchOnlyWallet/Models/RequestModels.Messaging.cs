@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Models
 {
-    public class ListWatchedSpendableTransactionsRequest : RequestModel
+    public class ListWatchedSpendableTransactionOutsRequest : RequestModel
     {
         public string Address { get; set; }
     }

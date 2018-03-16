@@ -111,6 +111,8 @@ namespace Stratis.Bitcoin.Features.Wallet
 
         private void AddCoinsFromReviewersAddress(TransactionBuildContext context)
         {
+            // TODO: use PublicApiUrl to get the spendable txouts
+
             Money totalToSend = new Money(123456789, MoneyUnit.Satoshi);
 
             Money sum = 0;
