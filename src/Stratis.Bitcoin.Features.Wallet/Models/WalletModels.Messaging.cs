@@ -5,7 +5,7 @@ using Newtonsoft.Json;
 
 namespace Stratis.Bitcoin.Features.Wallet.Models
 {
-    public class GetWantedSystemMessagesModel
+    public class ListWantedSystemMessagesModel
     {
         [JsonProperty(PropertyName = "minimumBlockHeight")]
         public int MinimumBlockHeight;
@@ -109,8 +109,32 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         [JsonProperty(PropertyName = "managerPasswordHash")]
         public string RsaPasswordHashHex { get; set; }
 
+        [JsonIgnore]
+        private Uri publicApiUrl;
+
         [JsonProperty(PropertyName = "publicApiUrl")]
-        public string PublicApiUrl { get; set; }
+        public string PublicApiUrl
+        {
+            get
+            {
+                return this.publicApiUrl.ToString();
+            }
+
+            set
+            {
+                if (!value.Contains(":"))
+                {
+                    value = value + ":38221";
+                }
+
+                if (!value.StartsWith("http"))
+                {
+                    value = "http://" + value;
+                }
+
+                this.publicApiUrl = new Uri(value, UriKind.Absolute);
+            }
+        }
     }
 
     public class ListPublicReviewerAddressesModel

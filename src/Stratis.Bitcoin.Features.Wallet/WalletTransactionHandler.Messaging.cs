@@ -2,10 +2,13 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 using NBitcoin.Crypto;
 using NBitcoin.Policy;
+using Newtonsoft.Json;
 using Org.BouncyCastle.Crypto;
 using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Parameters;
@@ -16,6 +19,7 @@ using Org.BouncyCastle.Security;
 using Org.BouncyCastle.Utilities;
 using Stratis.Bitcoin.Features.Wallet.Interfaces;
 using Stratis.Bitcoin.Features.Wallet.Models;
+using Stratis.Bitcoin.Features.WatchOnlyWallet.Models;
 using Stratis.Bitcoin.Utilities;
 using static HashLib.HashFactory.Crypto;
 
@@ -60,7 +64,8 @@ namespace Stratis.Bitcoin.Features.Wallet
             // set (the payer's) input coins and change address
             if (wm.ReviewerAddresses.ContainsKey(context.PayerAddress.ToString()))
             {
-                this.AddCoinsFromReviewersAddress(context);
+                var coins = this.GetCoinsForReviewersAddress(wm.ReviewerAddresses[context.PayerAddress.ToString()]);
+                context.TransactionBuilder.AddCoins(coins);
                 context.TransactionBuilder.SetChange(context.PayerAddress);
                 context.Sign = false;
             }
@@ -109,26 +114,61 @@ namespace Stratis.Bitcoin.Features.Wallet
             return context.Transaction;
         }
 
-        private void AddCoinsFromReviewersAddress(TransactionBuildContext context)
+        public Coin[] GetCoinsForReviewersAddress(PublicReviewerAddressModel reviewerAddress)
         {
-            // TODO: use PublicApiUrl to get the spendable txouts
+            var result = new List<Coin>();
 
-            Money totalToSend = new Money(123456789, MoneyUnit.Satoshi);
+            // use PublicApiUrl to get the spendable txouts
+            ListSpendableTransactionOutsModel spendableTxOuts;
+
+            Uri apiRequestUri = new Uri(new Uri(reviewerAddress.PublicApiUrl), "/api/WatchOnlyWallet/list-spendable-transaction-outs");
+            try
+            {
+                HttpWebRequest apiRequest = (HttpWebRequest)WebRequest.Create(apiRequestUri);
+
+                ASCIIEncoding encoding = new ASCIIEncoding();
+                string postData = "{\"address\": \"" + reviewerAddress.Address + "\"}";
+                byte[] data = encoding.GetBytes(postData);
+
+                apiRequest.Method = "POST";
+                apiRequest.ContentType = "application/json";
+                apiRequest.ContentLength = data.Length;
+
+                using (Stream stream = apiRequest.GetRequestStream())
+                {
+                    stream.Write(data, 0, data.Length);
+                }
+
+                HttpWebResponse apiResponse = (HttpWebResponse)apiRequest.GetResponse();
+
+                string responseString = new StreamReader(apiResponse.GetResponseStream()).ReadToEnd();
+
+                spendableTxOuts = JsonConvert.DeserializeObject<ListSpendableTransactionOutsModel>(responseString);
+
+                if (apiResponse.StatusCode != HttpStatusCode.OK)
+                {
+                    throw new Exception($"The API request '{apiRequestUri.ToString()}' returned the status code '{apiResponse.StatusCode}'.");
+                }
+            }
+            catch (Exception e)
+            {
+                throw new Exception($"The API request '{apiRequestUri.ToString()}' returned an error '{e.Message}'.");
+            }
+
 
             Money sum = 0;
             int index = 0;
-            var coins = new List<Coin>();
-            foreach (var item in context.UnspentOutputs.OrderByDescending(a => a.Transaction.Amount))
+            foreach (var item in spendableTxOuts.SpendableTransactionOuts.OrderByDescending(a => a.Amount))
             {
-                coins.Add(new Coin(item.Transaction.Id, (uint)item.Transaction.Index, item.Transaction.Amount, item.Transaction.ScriptPubKey));
-                sum += item.Transaction.Amount;
+                result.Add(new Coin(item.TransactionHash, (uint)item.Index, item.Amount, new Script(item.ScriptPubKey)));
+                sum += item.Amount;
                 index++;
 
                 // If threshold is reached and the total value is above the target
                 // then its safe to stop adding UTXOs to the coin list.
                 // The primery goal is to reduce the time it takes to build a trx
                 // when the wallet is bloated with UTXOs.
-                if (index > SendCountThresholdLimit && sum > totalToSend)
+                if (index > SendCountThresholdLimit)
                     break;
             }
 
@@ -138,7 +178,7 @@ namespace Stratis.Bitcoin.Features.Wallet
             // To add a custom implementation of a coin selection override
             // the builder using builder.SetCoinSelection().
 
-            context.TransactionBuilder.AddCoins(coins);
+            return result.ToArray();
         }
     }
 }

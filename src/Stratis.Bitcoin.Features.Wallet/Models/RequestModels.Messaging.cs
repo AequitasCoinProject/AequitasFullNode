@@ -56,7 +56,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
         public string Hex { get; set; }
     }
 
-    public class GetWantedSystemMessagesRequest : RequestModel
+    public class ListWantedSystemMessagesRequest : RequestModel
     {
         public string BlockHeight { get; set; }
     }
@@ -154,6 +154,10 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
     {
         [JsonProperty(PropertyName = "transactionHex")]
         public string TransactionHex { set; get; }
+
+        [Required(ErrorMessage = "Reviewer address is required.")]
+        [IsBitcoinAddress()]
+        public string ReviewerAddress { get; set; }
 
         [JsonProperty(PropertyName = "signingKey")]
         public string SigningKey { set; get; }

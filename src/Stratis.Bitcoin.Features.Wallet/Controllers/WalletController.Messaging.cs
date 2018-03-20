@@ -235,9 +235,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
         /// </summary>
         /// <param name="request"></param>
         /// <returns></returns>
-        [Route("get-wanted-system-messages")]
+        [Route("list-wanted-system-messages")]
         [HttpPost]
-        public IActionResult GetWantedSystemMessagesAsync([FromBody] GetWantedSystemMessagesRequest request)
+        public IActionResult ListWantedSystemMessagesAsync([FromBody] ListWantedSystemMessagesRequest request)
         {
             Guard.NotNull(request, nameof(request));
             
@@ -254,7 +254,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
                 var messages = walletManager.WantedSystemMessages.Values.Where(msg => (msg.BlockHeight >= requestedBlockHeight) || (requestedBlockHeight == 0));
 
-                GetWantedSystemMessagesModel model = new GetWantedSystemMessagesModel
+                ListWantedSystemMessagesModel model = new ListWantedSystemMessagesModel
                 {
                     MinimumBlockHeight = requestedBlockHeight,
                     Messages = new List<WantedSystemMessageModel>()
@@ -268,7 +268,8 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                         BlockHeight = message.BlockHeight,
                         TransactionHashHex = message.TransactionHashHex,
                         MessageOutputIndex = message.MessageOutputIndex,
-                        TransactionHex = message.TransactionHex
+                        TransactionHex = message.TransactionHex,
+                        PartiallySignedTransactions = message.PartiallySignedTransactions
                     });
                 }
 
@@ -373,9 +374,13 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     .Instance
                     .GenerateScriptPubKey(request.RequeiredSignatureCount, groupMemberKeys);
 
+                PublicReviewerAddressModel model = new PublicReviewerAddressModel
+                {
+                    PublicApiUrl = request.PublicApiUrl
+                };
 
                 // check if the API is reachable and the address can be added to the watch list
-                Uri apiRequestUri = new Uri(new Uri("http://" + request.PublicApiUrl + ":38221"), $"/api/WatchOnlyWallet/watch?address={scriptPubKey.Hash.GetAddress(this.network).ToString()}");
+                Uri apiRequestUri = new Uri(new Uri(model.PublicApiUrl), $"/api/WatchOnlyWallet/watch?address={scriptPubKey.Hash.GetAddress(this.network).ToString()}");
                 try
                 {
                     HttpWebRequest apiRequest = (HttpWebRequest)WebRequest.Create(apiRequestUri);
@@ -432,7 +437,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 };
 
                 // return all the information we have
-                PublicReviewerAddressModel model = new PublicReviewerAddressModel
+                model = new PublicReviewerAddressModel
                 {
                     Network = this.network.ToString(),
                     Address = scriptPubKey.Hash.GetAddress(this.network).ToString(),
@@ -541,13 +546,12 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
                 // check if we have the message transaction in our message store
                 WalletManager wm = this.walletManager as WalletManager;
-
                 if (!wm.WantedSystemMessages.Any(t => t.Key == tx.GetHash()))
                 {
                     throw new Exception($"The transcation with hash '{tx.GetHash()}' is not in the message store. You must upload it first by using the upload-wanted-system-message API.");
                 }
+                //WantedSystemMessageModel wantedMessage = wm.WantedSystemMessages.First(t => t.Key == tx.GetHash()).Value;
 
-                
                 // get the signing keys
                 List<BitcoinExtKey> privateKeys = new List<BitcoinExtKey>();
                 if (!String.IsNullOrWhiteSpace(request.SigningKey))
@@ -569,8 +573,16 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 }
 
                 // sign the transaction with the key
+                var reviewerAddress = wm.ReviewerAddresses[request.ReviewerAddress];
+                if (reviewerAddress == null)
+                {                    
+                    throw new Exception($"The reviewer '{request.ReviewerAddress}' was not found in the address book.");
+                }
+
                 TransactionBuilder tb = new TransactionBuilder();
-                Transaction signedTx = tb.AddCoins(tx).AddKeys(privateKeys.ToArray()).SignTransaction(tx);
+                tb.AddCoins((this.walletTransactionHandler as WalletTransactionHandler).GetCoinsForReviewersAddress(reviewerAddress));
+                tb.AddCoins(tx);
+                Transaction signedTx = tb.AddKeys(privateKeys.ToArray()).SignTransaction(tx);
 
                 if (signedTx.GetHash() == tx.GetHash())
                 {

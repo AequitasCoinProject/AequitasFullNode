@@ -257,10 +257,18 @@ namespace Stratis.Bitcoin.Features.Wallet
             if (this.reviewerAddresses.Any() == false)
                 return;
 
-            this.reviewersFileWatcher.EnableRaisingEvents = false;
+            if (this.reviewersFileWatcher != null)
+            {
+                this.reviewersFileWatcher.EnableRaisingEvents = false;
+            }
+
             var fileStorage = new FileStorage<List<PublicReviewerAddressModel>>(this.fileStorage.FolderPath);
             fileStorage.SaveToFile(this.reviewerAddresses.OrderBy(ra => ra.Value.GroupId).Select(ra => ra.Value).ToList(), ReviewerAddressesFileName);
-            this.reviewersFileWatcher.EnableRaisingEvents = true;
+
+            if (this.reviewersFileWatcher != null)
+            {
+                this.reviewersFileWatcher.EnableRaisingEvents = true;
+            }
         }
     }
 }
