@@ -165,6 +165,10 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
     public class UploadWantedSystemMessageRequest : RequestModel
     {
+        [Required(ErrorMessage = "Reviewer address is required.")]
+        [IsBitcoinAddress()]
+        public string ReviewerAddress { get; set; }
+
         [JsonProperty(PropertyName = "transactionHex")]
         public string TransactionHex { set; get; }
     }

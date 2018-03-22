@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using NBitcoin;
+using NBitcoin.DataEncoders;
 using Newtonsoft.Json;
 
 namespace Stratis.Bitcoin.Features.Wallet.Models
@@ -99,6 +100,18 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
         [JsonProperty(PropertyName = "validUntil")]
         public string ValidUntil { get; set; }
+
+        [JsonIgnore]
+        public Script ScriptPubKey
+        {
+            get
+            {
+                return new Script(Encoders.Hex.DecodeData(this.ScriptPubKeyHex));
+            }
+        }
+
+        [JsonProperty(PropertyName = "scriptPubKey")]
+        public string ScriptPubKeyHex { get; set; }
 
         [JsonProperty(PropertyName = "encryptionPublicKey")]
         public string RsaPublicKeyHex { get; set; }        

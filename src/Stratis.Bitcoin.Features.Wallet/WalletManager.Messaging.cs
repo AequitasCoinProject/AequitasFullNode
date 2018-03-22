@@ -44,7 +44,7 @@ namespace Stratis.Bitcoin.Features.Wallet
             }
         }
 
-        public void AddWantedSystemMessageToMessageStore(Transaction transaction)
+        public WantedSystemMessageModel AddWantedSystemMessageToMessageStore(Transaction transaction)
         {
             var wantedMessageOuts = transaction.Outputs.AsIndexedOutputs().Where(txOut => WantedSystemMessageTemplate.Instance.CheckScriptPubKey(txOut.TxOut.ScriptPubKey));
 
@@ -53,10 +53,14 @@ namespace Stratis.Bitcoin.Features.Wallet
                 throw new Exception("The transaction you provided doesn't contain any Wanted System Messages.");
             }
 
-            this.AddWantedSystemMessageToMessageStore(transaction.ToHex(), transaction.GetHash(), (int)wantedMessageOuts.First().N, null, null, null, false);
+            var txClone = transaction.Clone();
+            txClone.Inputs.ForEach(txIn => txIn.ScriptSig = null);
+            uint256 transactionHash = txClone.GetHash();
+
+            return this.AddWantedSystemMessageToMessageStore(transaction.ToHex(), transactionHash, (int)wantedMessageOuts.First().N, null, null, null, false);
         }
 
-        private void AddWantedSystemMessageToMessageStore(string transactionHex, uint256 transactionHash, int utxoIndex, Script script,
+        private WantedSystemMessageModel AddWantedSystemMessageToMessageStore(string transactionHex, uint256 transactionHash, int utxoIndex, Script script,
             int? blockHeight, Block block, bool isPropagated)
         {
             this.logger.LogTrace("({0}:'{1}',{2}:'{3}',{4}:{5},{6}:{7})", nameof(transactionHex), transactionHex,
@@ -91,11 +95,16 @@ namespace Stratis.Bitcoin.Features.Wallet
             }
 
             this.logger.LogTrace("(-)");
+
+            return this.WantedSystemMessages[transactionHash];
         }
 
-        public void AddPartiallySignedTxToMessageStore(Transaction transaction)
+        public WantedSystemMessageModel AddPartiallySignedTxToMessageStore(Transaction transaction)
         {
-            uint256 transactionHash = transaction.GetHash();
+            var txClone = transaction.Clone();
+            txClone.Inputs.ForEach(txIn => txIn.ScriptSig = null);
+            uint256 transactionHash = txClone.GetHash();
+
             string partiallySignedTransactionHex = transaction.ToHex();
 
             if (!this.WantedSystemMessages.ContainsKey(transactionHash))
@@ -122,6 +131,8 @@ namespace Stratis.Bitcoin.Features.Wallet
             }
 
             this.SaveWantedSystemMessages();
+
+            return this.WantedSystemMessages[transactionHash];
         }
 
         /// <inheritdoc />

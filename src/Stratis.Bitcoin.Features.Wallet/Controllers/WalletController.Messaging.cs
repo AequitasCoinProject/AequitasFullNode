@@ -445,6 +445,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     GroupName = request.GroupName,
                     ValidFrom = request.ValidFrom.ToString("o"),
                     ValidUntil = request.ValidUntil.ToString("o"),
+                    ScriptPubKeyHex = scriptPubKey.ToHex(),
                     RsaPublicKeyHex = pbk.ToHex(),
                     RsaPrivateKeyHex = prk.ToHex(),
                     RsaPasswordHashHex = rsaPasswordHashHex,
@@ -635,23 +636,44 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
                 var wm = this.walletManager as WalletManager;
 
+                WantedSystemMessageModel wsmm = null;
+
                 // let's make sure that the transaction is put into the message store
-                wm.AddWantedSystemMessageToMessageStore(transaction);
+                wsmm = wm.AddWantedSystemMessageToMessageStore(transaction);
 
                 // add the partially signed transaction to the message store
-                wm.AddPartiallySignedTxToMessageStore(transaction);
+                // TODO: do not limit this check to the first input
+                if (transaction.Inputs[0].ScriptSig.Length > 0)
+                {
+                    wsmm = wm.AddPartiallySignedTxToMessageStore(transaction);
+                }
+
+
+                // get the reviewer's address details
+                var reviewerAddress = wm.ReviewerAddresses[request.ReviewerAddress];
+                if (reviewerAddress == null)
+                {
+                    throw new Exception($"The reviewer '{request.ReviewerAddress}' was not found in the address book.");
+                }
+                var multiSigParams = PayToMultiSigTemplate.Instance.ExtractScriptPubKeyParameters(reviewerAddress.ScriptPubKey);
 
                 // try to combine the partially signed signatures                
                 TransactionBuilder tb = new TransactionBuilder();
-
-                WantedSystemMessageModel wsmm = wm.WantedSystemMessages.First(t => t.Key == transaction.GetHash()).Value;
+                tb.AddCoins((this.walletTransactionHandler as WalletTransactionHandler).GetCoinsForReviewersAddress(reviewerAddress));
 
                 var fullySignedTx = tb.CombineSignatures(wsmm.PartiallySignedTransactions.Select(stx => Transaction.Parse(stx.TransactionHex)).ToArray());
-                var checkResults = fullySignedTx.Check();
-
-                if ((checkResults != TransactionCheckResult.Success) || (wsmm.PartiallySignedTransactions.Any(tr => tr.TransactionHex == fullySignedTx.ToHex())))
+                if (fullySignedTx != null)
                 {
-                    fullySignedTx = null;
+                    var checkResults = fullySignedTx.Check();
+
+                    // TODO: do not limit this check to the first input
+                    string[] signatures = fullySignedTx.Inputs[0].ScriptSig.ToString().Split(' ');
+                    int signatureCount = signatures.Count(s => s != "0");
+
+                    if ((checkResults != TransactionCheckResult.Success) || (signatureCount < multiSigParams.SignatureCount))
+                    {
+                        fullySignedTx = null;
+                    }
                 }
 
                 // return the fully signed transaction if available

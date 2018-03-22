@@ -7,6 +7,7 @@ using System.Text;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 using NBitcoin.Crypto;
+using NBitcoin.DataEncoders;
 using NBitcoin.Policy;
 using Newtonsoft.Json;
 using Org.BouncyCastle.Crypto;
@@ -160,23 +161,13 @@ namespace Stratis.Bitcoin.Features.Wallet
             int index = 0;
             foreach (var item in spendableTxOuts.SpendableTransactionOuts.OrderByDescending(a => a.Amount))
             {
-                result.Add(new Coin(item.TransactionHash, (uint)item.Index, item.Amount, new Script(item.ScriptPubKey)));
+                result.Add(new Coin(item.TransactionHash, (uint)item.Index, item.Amount, reviewerAddress.ScriptPubKey));
                 sum += item.Amount;
                 index++;
 
-                // If threshold is reached and the total value is above the target
-                // then its safe to stop adding UTXOs to the coin list.
-                // The primery goal is to reduce the time it takes to build a trx
-                // when the wallet is bloated with UTXOs.
                 if (index > SendCountThresholdLimit)
                     break;
             }
-
-            // All the UTXOs are added to the builder without filtering.
-            // The builder then has its own coin selection mechanism
-            // to select the best UTXO set for the corresponding amount.
-            // To add a custom implementation of a coin selection override
-            // the builder using builder.SetCoinSelection().
 
             return result.ToArray();
         }
