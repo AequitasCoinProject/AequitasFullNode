@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using NBitcoin;
+using NBitcoin.DataEncoders;
 using Newtonsoft.Json;
 using Stratis.Bitcoin.Features.RPC.Models;
 using Stratis.Bitcoin.Features.Wallet;
@@ -40,7 +41,17 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Models
 
         public long Amount { set; get; }
 
-        public string ScriptPubKey { set; get; }
+        [JsonIgnore]
+        public NBitcoin.Script ScriptPubKey
+        {
+            get
+            {
+                return new NBitcoin.Script(Encoders.Hex.DecodeData(this.ScriptPubKeyHex));
+            }
+        }
+
+        [JsonProperty(PropertyName = "scriptPubKey")]
+        public string ScriptPubKeyHex { get; set; }
     }
 
 }

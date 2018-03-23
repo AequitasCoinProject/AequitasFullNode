@@ -234,7 +234,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
                             TransactionHash = tr.GetHash(),
                             Index = txOut.N,
                             Amount = txOut.TxOut.Value,
-                            ScriptPubKey = txOut.TxOut.ScriptPubKey.ToHex()
+                            ScriptPubKeyHex = txOut.TxOut.ScriptPubKey.ToHex()
                         });
                     }
                 }

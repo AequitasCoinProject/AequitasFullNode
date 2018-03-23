@@ -161,7 +161,11 @@ namespace Stratis.Bitcoin.Features.Wallet
             int index = 0;
             foreach (var item in spendableTxOuts.SpendableTransactionOuts.OrderByDescending(a => a.Amount))
             {
-                result.Add(new Coin(item.TransactionHash, (uint)item.Index, item.Amount, reviewerAddress.ScriptPubKey));
+                // we would use this if it was not a multi-sig address
+                // result.Add(new Coin(item.TransactionHash, (uint)item.Index, item.Amount, reviewerAddress.ScriptPubKey));
+
+                // but we need to use the ToScriptCoin because of the multi-sig
+                result.Add(new Coin(item.TransactionHash, (uint)item.Index, item.Amount, item.ScriptPubKey).ToScriptCoin(reviewerAddress.ScriptPubKey));
                 sum += item.Amount;
                 index++;
 
