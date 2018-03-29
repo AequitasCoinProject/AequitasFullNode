@@ -91,6 +91,21 @@ namespace Stratis.Bitcoin.Features.Wallet
         }
 
         /// <summary>
+        /// Update the last block synced height and hash in the wallet.
+        /// </summary>
+        /// <param name="coinType">The type of the coin this account is for.</param>
+        /// <param name="block">The block whose details are used to update the wallet.</param>
+        public void SetLastBlockDetailsByCoinType(CoinType coinType, ChainedBlock block)
+        {
+            AccountRoot accountRoot = this.AccountsRoot.SingleOrDefault(a => a.CoinType == coinType);
+
+            if (accountRoot == null) return;
+
+            accountRoot.LastBlockSyncedHeight = block.Height;
+            accountRoot.LastBlockSyncedHash = block.HashBlock;
+        }
+
+        /// <summary>
         /// Gets all the transactions by coin type.
         /// </summary>
         /// <param name="coinType">Type of the coin.</param>
@@ -128,6 +143,23 @@ namespace Stratis.Bitcoin.Features.Wallet
             {
                 yield return script;
             }
+        }
+
+        /// <summary>
+        /// Gets all the addresses contained in this wallet.
+        /// </summary>
+        /// <param name="coinType">Type of the coin.</param>
+        /// <returns>A list of all the addresses contained in this wallet.</returns>
+        public IEnumerable<HdAddress> GetAllAddressesByCoinType(CoinType coinType)
+        {
+            var accounts = this.GetAccountsByCoinType(coinType).ToList();
+
+            List<HdAddress> allAddresses = new List<HdAddress>();
+            foreach (HdAccount account in accounts)
+            {
+                allAddresses.AddRange(account.GetCombinedAddresses());
+            }
+            return allAddresses;
         }
 
         /// <summary>
@@ -563,11 +595,9 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// <param name="network">The network these addresses will be for.</param>
         /// <param name="addressesQuantity">The number of addresses to create.</param>
         /// <param name="isChange">Whether the addresses added are change (internal) addresses or receiving (external) addresses.</param>
-        /// <returns>A list of addresses in Base58 format.</returns>
-        public List<string> CreateAddresses(Network network, int addressesQuantity, bool isChange = false)
+        /// <returns>The created addresses.</returns>
+        public IEnumerable<HdAddress> CreateAddresses(Network network, int addressesQuantity, bool isChange = false)
         {
-            List<string> addressesCreated = new List<string>();
-
             var addresses = isChange ? this.InternalAddresses : this.ExternalAddresses;
 
             // Get the index of the last address that contains transactions.
@@ -577,6 +607,7 @@ namespace Stratis.Bitcoin.Features.Wallet
                 firstNewAddressIndex = addresses.Max(add => add.Index) + 1;
             }
 
+            List<HdAddress> addressesCreated = new List<HdAddress>();
             for (int i = firstNewAddressIndex; i < firstNewAddressIndex + addressesQuantity; i++)
             {
                 // Generate a new address.
@@ -584,7 +615,7 @@ namespace Stratis.Bitcoin.Features.Wallet
                 BitcoinPubKeyAddress address = pubkey.GetAddress(network);
 
                 // Add the new address details to the list of addresses.
-                addresses.Add(new HdAddress
+                HdAddress newAddress = new HdAddress()
                 {
                     Index = i,
                     HdPath = HdOperations.CreateHdPath((int)this.GetCoinType(), this.Index, i, isChange),
@@ -593,9 +624,10 @@ namespace Stratis.Bitcoin.Features.Wallet
                     Address = address.ToString(),
                     //Transactions = new List<TransactionData>()
                     Transactions = new System.Collections.ObjectModel.ObservableCollection<TransactionData>()
-                });
+                };
 
-                addressesCreated.Add(address.ToString());
+                addresses.Add(newAddress);
+                addressesCreated.Add(newAddress);
             }
 
             if (isChange)
@@ -831,7 +863,7 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// Gets or sets the full transaction object.
         /// </summary>
         [JsonIgnore]
-        public Transaction Transaction => Transaction.Parse(this.Hex);
+        public Transaction Transaction => this.Hex == null ? null : Transaction.Parse(this.Hex);
 
         /// <summary>
         /// The details of the transaction in which the output referenced in this transaction is spent.
@@ -949,7 +981,7 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// Gets or sets the full transaction object.
         /// </summary>
         [JsonIgnore]
-        public Transaction Transaction => Transaction.Parse(this.Hex);
+        public Transaction Transaction => this.Hex == null ? null : Transaction.Parse(this.Hex);
 
         /// <summary>
         /// Determines whether this transaction being spent is confirmed.

@@ -138,6 +138,15 @@ namespace Stratis.Bitcoin.Features.Consensus
             this.consensusRules.Register(this.ruleRegistration);
         }
 
+        /// <summary>
+        /// Prints command-line help.
+        /// </summary>
+        /// <param name="network">The network to extract values from.</param>
+        public static void PrintHelp(Network network)
+        {
+            ConsensusSettings.PrintHelp(network);
+        }
+
         /// <inheritdoc />
         public override void Dispose()
         {
@@ -152,8 +161,9 @@ namespace Stratis.Bitcoin.Features.Consensus
             {
                 this.logger.LogInformation("Flushing Cache CoinView...");
                 cache.FlushAsync().GetAwaiter().GetResult();
+                cache.Dispose();
             }
-
+           
             this.dBreezeCoinView.Dispose();
         }
     }
@@ -224,7 +234,7 @@ namespace Stratis.Bitcoin.Features.Consensus
                         services.AddSingleton<CoinView, CachedCoinView>();
                         services.AddSingleton<LookaheadBlockPuller>();
                         services.AddSingleton<IConsensusLoop, ConsensusLoop>();
-                        services.AddSingleton<StakeChainStore>().AddSingleton<StakeChain, StakeChainStore>(provider => provider.GetService<StakeChainStore>());
+                        services.AddSingleton<StakeChainStore>().AddSingleton<IStakeChain, StakeChainStore>(provider => provider.GetService<StakeChainStore>());
                         services.AddSingleton<IStakeValidator, StakeValidator>();
                         services.AddSingleton<ConsensusManager>().AddSingleton<INetworkDifficulty, ConsensusManager>().AddSingleton<IGetUnspentTransaction, ConsensusManager>();
                         services.AddSingleton<IInitialBlockDownloadState, InitialBlockDownloadState>();
@@ -264,7 +274,7 @@ namespace Stratis.Bitcoin.Features.Consensus
                     // rules that are inside the method CheckBlock
                     new BlockMerkleRootRule(),
                     new EnsureCoinbaseRule(),
-                    new CheckTransactionRule(),
+                    new CheckPowTransactionRule(),
                     new CheckSigOpsRule()
                 };
             }
@@ -298,8 +308,12 @@ namespace Stratis.Bitcoin.Features.Consensus
                     // rules that are inside the method CheckBlock
                     new BlockMerkleRootRule(),
                     new EnsureCoinbaseRule(),
-                    new CheckTransactionRule(),
-                    new CheckSigOpsRule()
+                    new CheckPowTransactionRule(),
+                    new CheckPosTransactionRule(),
+                    new CheckSigOpsRule(),
+                    new PosFutureDriftRule(),
+                    new PosCoinstakeRule(),
+                    new PosBlockSignatureRule()
                 };
             }
         }
