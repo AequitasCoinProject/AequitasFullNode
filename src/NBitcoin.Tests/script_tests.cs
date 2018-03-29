@@ -1014,7 +1014,7 @@ namespace NBitcoin.Tests
             var scriptPubKey = new Script("0 05481b7f1d90c5a167a15b00e8af76eb6984ea59");
             Assert.Equal(scriptPubKey, PayToWitPubKeyHashTemplate.Instance.GenerateScriptPubKey(pubkey));
             Assert.Equal(scriptPubKey, PayToWitPubKeyHashTemplate.Instance.GenerateScriptPubKey(pubkey.WitHash));
-            Assert.Equal(scriptPubKey, PayToWitPubKeyHashTemplate.Instance.GenerateScriptPubKey((BitcoinWitPubKeyAddress)pubkey.WitHash.GetAddress(Network.Main)));
+            Assert.Equal(scriptPubKey, PayToWitPubKeyHashTemplate.Instance.GenerateScriptPubKey((BitcoinWitPubKeyAddress)pubkey.WitHash.GetAddress(Network.BitcoinMain)));
             var expected = new WitScript("304402206104c335e4adbb920184957f9f710b09de17d015329fde6807b9d321fd2142db02200b24ad996b4aa4ff103000348b5ad690abfd9fddae546af9e568394ed4a8311301 03a65786c1a48d4167aca08cf6eb8eed081e13f45c02dc6000fd8f3bb16242579a");
             var actual = PayToWitPubKeyHashTemplate.Instance.GenerateWitScript(new PayToWitPubkeyHashScriptSigParameters()
             {
@@ -1086,13 +1086,13 @@ namespace NBitcoin.Tests
             Assert.NotNull(payToScriptHash.GetDestination());
             Assert.IsType<ScriptId>(payToScriptHash.GetDestination());
             Assert.Equal("b5b88dd9befc9236915fcdbb7fd50052df50c855", payToScriptHash.GetDestination().ToString());
-            Assert.True(payToScriptHash.GetDestination().GetAddress(Network.Main).GetType() == typeof(BitcoinScriptAddress));
+            Assert.True(payToScriptHash.GetDestination().GetAddress(Network.BitcoinMain).GetType() == typeof(BitcoinScriptAddress));
 
             var payToPubKeyHash = new Script("OP_DUP OP_HASH160 356facdac5f5bcae995d13e667bb5864fd1e7d59 OP_EQUALVERIFY OP_CHECKSIG");
             Assert.NotNull(payToPubKeyHash.GetDestination());
             Assert.IsType<KeyId>(payToPubKeyHash.GetDestination());
             Assert.Equal("356facdac5f5bcae995d13e667bb5864fd1e7d59", payToPubKeyHash.GetDestination().ToString());
-            Assert.True(payToPubKeyHash.GetDestination().GetAddress(Network.Main).GetType() == typeof(BitcoinPubKeyAddress));
+            Assert.True(payToPubKeyHash.GetDestination().GetAddress(Network.BitcoinMain).GetType() == typeof(BitcoinPubKeyAddress));
 
             var p2shScriptSig = new Script("0 3044022064f45a382a15d3eb5e7fe72076eec4ef0f56fde1adfd710866e729b9e5f3383d02202720a895914c69ab49359087364f06d337a2138305fbc19e20d18da78415ea9301 51210364bd4b02a752798342ed91c681a48793bb1c0853cbcd0b978c55e53485b8e27c210364bd4b02a752798342ed91c681a48793bb1c0853cbcd0b978c55e53485b8e27d52ae");
 

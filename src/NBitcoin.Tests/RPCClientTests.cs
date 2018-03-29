@@ -62,8 +62,8 @@ namespace NBitcoin.Tests
                 builder.StartAll();
                 var response = rpc.SendCommand(RPCOperations.getblockhash, 0);
                 var actualGenesis = (string)response.Result;
-                Assert.Equal(Network.RegTest.GetGenesis().GetHash().ToString(), actualGenesis);
-                Assert.Equal(Network.RegTest.GetGenesis().GetHash(), rpc.GetBestBlockHash());
+                Assert.Equal(Network.BitcoinRegTest.GetGenesis().GetHash().ToString(), actualGenesis);
+                Assert.Equal(Network.BitcoinRegTest.GetGenesis().GetHash(), rpc.GetBestBlockHash());
             }
         }
 
@@ -93,10 +93,10 @@ namespace NBitcoin.Tests
                 var rpc = builder.CreateNode(true).CreateRPCClient();
                 builder.StartAll();
                 var response = rpc.GetBlockHeader(0);
-                AssertEx.CollectionEquals(Network.RegTest.GetGenesis().Header.ToBytes(), response.ToBytes());
+                AssertEx.CollectionEquals(Network.BitcoinRegTest.GetGenesis().Header.ToBytes(), response.ToBytes());
 
                 response = rpc.GetBlockHeader(0);
-                Assert.Equal(Network.RegTest.GenesisHash, response.GetHash());
+                Assert.Equal(Network.BitcoinRegTest.GenesisHash, response.GetHash());
             }
         }
 
@@ -163,7 +163,7 @@ namespace NBitcoin.Tests
                 var rpc = builder.CreateNode(true).CreateRPCClient();
                 builder.StartAll();
                 Key key = new Key();
-                rpc.ImportAddress(key.PubKey.GetAddress(Network.RegTest), TestAccount, false);
+                rpc.ImportAddress(key.PubKey.GetAddress(Network.BitcoinRegTest), TestAccount, false);
                 BitcoinAddress address = rpc.GetAccountAddress(TestAccount);
                 BitcoinSecret secret = rpc.DumpPrivKey(address);
                 BitcoinSecret secret2 = rpc.GetAccountSecret(TestAccount);
@@ -184,7 +184,7 @@ namespace NBitcoin.Tests
                 var passphrase = "password1234";
                 rpc.SendCommand(RPCOperations.encryptwallet, passphrase);
                 builder.Nodes[0].Restart();
-                rpc.ImportAddress(key.PubKey.GetAddress(Network.RegTest), TestAccount, false);
+                rpc.ImportAddress(key.PubKey.GetAddress(Network.BitcoinRegTest), TestAccount, false);
                 BitcoinAddress address = rpc.GetAccountAddress(TestAccount);
                 rpc.WalletPassphrase(passphrase, 60);
                 BitcoinSecret secret = rpc.DumpPrivKey(address);
@@ -202,7 +202,7 @@ namespace NBitcoin.Tests
             foreach(var test in tests)
             {
                 var format = (RawFormat)Enum.Parse(typeof(RawFormat), (string)test[0], true);
-                var network = ((string)test[1]) == "Main" ? Network.Main : Network.TestNet;
+                var network = ((string)test[1]) == "Main" ? Network.BitcoinMain : Network.BitcoinTest;
                 var testData = ((JObject)test[2]).ToString();
 
                 Transaction raw = Transaction.Parse(testData, format, network);
@@ -256,7 +256,7 @@ namespace NBitcoin.Tests
     ""spendable"" : false
 }";
             var testData = JObject.Parse(testJson);
-            var unspentCoin = new UnspentCoin(testData, Network.TestNet);
+            var unspentCoin = new UnspentCoin(testData, Network.BitcoinTest);
 
             Assert.Equal("test label", unspentCoin.Account);
             Assert.False(unspentCoin.IsSpendable);
@@ -277,7 +277,7 @@ namespace NBitcoin.Tests
     ""confirmations"" : 6210
 }";
             var testData = JObject.Parse(testJson);
-            var unspentCoin = new UnspentCoin(testData, Network.TestNet);
+            var unspentCoin = new UnspentCoin(testData, Network.BitcoinTest);
 
             // Versions prior to 0.10.0 were always spendable (but had no JSON field)
             Assert.True(unspentCoin.IsSpendable);
@@ -299,7 +299,7 @@ namespace NBitcoin.Tests
     ""spendable"" : true
 }";
             var testData = JObject.Parse(testJson);
-            var unspentCoin = new UnspentCoin(testData, Network.TestNet);
+            var unspentCoin = new UnspentCoin(testData, Network.BitcoinTest);
 
             Console.WriteLine("Redeem Script: {0}", unspentCoin.RedeemScript);
             Assert.NotNull(unspentCoin.RedeemScript);
@@ -312,7 +312,7 @@ namespace NBitcoin.Tests
             {
                 var rpc = builder.CreateNode(true).CreateRPCClient();
                 builder.StartAll();
-                var tx = Network.TestNet.GetGenesis().Transactions[0];
+                var tx = Network.BitcoinTest.GetGenesis().Transactions[0];
 
                 var tx2 = rpc.DecodeRawTransaction(tx.ToBytes());
                 AssertJsonEquals(tx.ToString(RawFormat.Satoshi), tx2.ToString(RawFormat.Satoshi));
@@ -406,7 +406,7 @@ namespace NBitcoin.Tests
             {
                 //Sanity check that it does not throw
 #pragma warning disable CS0618
-                new RPCClient(new NetworkCredential("toto", "tata:blah"), "localhost:10393", Network.Main);
+                new RPCClient(new NetworkCredential("toto", "tata:blah"), "localhost:10393", Network.BitcoinMain);
 
                 var node = builder.CreateNode();
                 node.CookieAuth = true;
@@ -415,11 +415,11 @@ namespace NBitcoin.Tests
                 rpc.GetBlockCount();
                 node.Restart();
                 rpc.GetBlockCount();
-                Assert.Throws<ArgumentException>(() => new RPCClient("cookiefile=Data\\tx_valid.json", new Uri("http://localhost/"), Network.RegTest));
-                Assert.Throws<FileNotFoundException>(() => new RPCClient("cookiefile=Data\\efpwwie.json", new Uri("http://localhost/"), Network.RegTest));
+                Assert.Throws<ArgumentException>(() => new RPCClient("cookiefile=Data\\tx_valid.json", new Uri("http://localhost/"), Network.BitcoinRegTest));
+                Assert.Throws<FileNotFoundException>(() => new RPCClient("cookiefile=Data\\efpwwie.json", new Uri("http://localhost/"), Network.BitcoinRegTest));
 
-                rpc = new RPCClient("bla:bla", null as Uri, Network.RegTest);
-                Assert.Equal("http://127.0.0.1:" + Network.RegTest.RPCPort + "/", rpc.Address.AbsoluteUri);
+                rpc = new RPCClient("bla:bla", null as Uri, Network.BitcoinRegTest);
+                Assert.Equal("http://127.0.0.1:" + Network.BitcoinRegTest.RPCPort + "/", rpc.Address.AbsoluteUri);
 
                 rpc = node.CreateRPCClient();
                 rpc = rpc.PrepareBatch();
@@ -434,7 +434,7 @@ namespace NBitcoin.Tests
                 rpc.SendBatch();
                 blockCount = blockCountAsync.GetAwaiter().GetResult();
 
-                rpc = new RPCClient("bla:bla", "http://toto/", Network.RegTest);
+                rpc = new RPCClient("bla:bla", "http://toto/", Network.BitcoinRegTest);
             }
 #endif
         }

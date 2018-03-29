@@ -52,8 +52,8 @@ namespace Stratis.Bitcoin.Features.Consensus.Tests
         {
             NodeSettings nodeSettings = NodeSettings.Default();
             ConsensusSettings consensusSettings = new ConsensusSettings().Load(nodeSettings);
-            Network.Main.Consensus.Options = new PosConsensusOptions();
-            var consensusValidator = new PowConsensusValidator(Network.Main, new Checkpoints(Network.Main, consensusSettings), DateTimeProvider.Default, nodeSettings.LoggerFactory);
+            Network.BitcoinMain.Consensus.Options = new PosConsensusOptions();
+            var consensusValidator = new PowConsensusValidator(Network.BitcoinMain, new Checkpoints(Network.BitcoinMain, consensusSettings), DateTimeProvider.Default, nodeSettings.LoggerFactory);
 
             return consensusValidator.ComputeMerkleRoot(leaves, out mutated);
         }

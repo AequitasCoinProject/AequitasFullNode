@@ -164,7 +164,7 @@ namespace NBitcoin.Tests
                 var scanSecret = new Key(TestUtils.ParseHex(test.ScanSecret));
                 AssertEx.CollectionEquals(scanSecret.PubKey.ToBytes(), TestUtils.ParseHex(test.ScanPubKey));
 
-                var stealth = new BitcoinStealthAddress(test.StealthAddress, Network.Main);
+                var stealth = new BitcoinStealthAddress(test.StealthAddress, Network.BitcoinMain);
                 Assert.Equal(test.RequiredSignature, stealth.SignatureCount);
                 Assert.Equal(test.PrefixLength, stealth.Prefix.BitCount);
                 AssertEx.CollectionEquals(stealth.Prefix.GetRawForm(), TestUtils.ParseHex(test.PrefixValue));
@@ -233,10 +233,10 @@ namespace NBitcoin.Tests
                 var ephem = AssertKeys(test.EphemSecret, test.EphemPubKey);
                 var stealth = AssertKeys(test.StealthSecret, test.StealthPubKey);
 
-                var address = spend.PubKey.CreateStealthAddress(scan.PubKey, Network.Main);
+                var address = spend.PubKey.CreateStealthAddress(scan.PubKey, Network.BitcoinMain);
                 Assert.Equal(test.StealthAddress, address.ToString());
                 //Try roundtrip
-                address = new BitcoinStealthAddress(address.ToBytes(), Network.Main);
+                address = new BitcoinStealthAddress(address.ToBytes(), Network.BitcoinMain);
                 Assert.Equal(test.StealthAddress, address.ToString());
 
                 var payment = address.CreatePayment(ephem);
@@ -342,7 +342,7 @@ namespace NBitcoin.Tests
                 data.ScanPubKey = ToString(scan.PubKey);
                 data.EphemSecret = ToString(ephem);
                 data.EphemPubKey = ToString(ephem.PubKey);
-                data.StealthAddress = spend.PubKey.CreateStealthAddress(scan.PubKey, Network.Main).ToString();
+                data.StealthAddress = spend.PubKey.CreateStealthAddress(scan.PubKey, Network.BitcoinMain).ToString();
                 yield return data;
             }
         }

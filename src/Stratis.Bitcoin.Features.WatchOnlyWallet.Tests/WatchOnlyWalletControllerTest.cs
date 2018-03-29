@@ -4,12 +4,13 @@ using Microsoft.AspNetCore.Mvc;
 using Moq;
 using Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers;
 using Stratis.Bitcoin.Features.WatchOnlyWallet.Models;
+using Stratis.Bitcoin.Tests.Logging;
 using Stratis.Bitcoin.Utilities.JsonErrors;
 using Xunit;
 
 namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Tests
 {
-    public class WatchOnlyWalletControllerTest
+    public class WatchOnlyWalletControllerTest : LogsTestBase
     {
         [Theory]
         [InlineData(null)]
@@ -18,7 +19,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Tests
         public void Given_AddressIsNullOrEmpty_When_WatchIsCalled_Then_BadRequestIsReturned(string address)
         {
             var mockWalletManager = new Mock<IWatchOnlyWalletManager>();
-            var controller = new WatchOnlyWalletController(mockWalletManager.Object);
+            var controller = new WatchOnlyWalletController(this.LoggerFactory.Object, mockWalletManager.Object);
 
             IActionResult result = controller.Watch(address);
             ErrorResult errorResult = Assert.IsType<ErrorResult>(result);
@@ -36,7 +37,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Tests
             var mockWalletManager = new Mock<IWatchOnlyWalletManager>();
             mockWalletManager.Setup(wallet => wallet.WatchAddress(It.IsAny<string>())).Throws(new Exception());
 
-            var controller = new WatchOnlyWalletController(mockWalletManager.Object);
+            var controller = new WatchOnlyWalletController(this.LoggerFactory.Object, mockWalletManager.Object);
 
             IActionResult result = controller.Watch(address);
             ErrorResult errorResult = Assert.IsType<ErrorResult>(result);
@@ -54,7 +55,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Tests
             var mockWalletManager = new Mock<IWatchOnlyWalletManager>();
             mockWalletManager.Setup(wallet => wallet.WatchAddress(It.IsAny<string>()));
 
-            var controller = new WatchOnlyWalletController(mockWalletManager.Object);
+            var controller = new WatchOnlyWalletController(this.LoggerFactory.Object, mockWalletManager.Object);
 
             IActionResult result = controller.Watch(address);
             Assert.NotNull(result);
@@ -68,7 +69,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Tests
             var mockWalletManager = new Mock<IWatchOnlyWalletManager>();
             mockWalletManager.Setup(wallet => wallet.GetWatchOnlyWallet()).Throws(new Exception());
 
-            var controller = new WatchOnlyWalletController(mockWalletManager.Object);
+            var controller = new WatchOnlyWalletController(this.LoggerFactory.Object, mockWalletManager.Object);
 
             IActionResult result = controller.GetWatchOnlyWallet();
             ErrorResult errorResult = Assert.IsType<ErrorResult>(result);
@@ -85,7 +86,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Tests
             var mockWalletManager = new Mock<IWatchOnlyWalletManager>();
             mockWalletManager.Setup(wallet => wallet.GetWatchOnlyWallet()).Returns(new WatchOnlyWallet());
 
-            var controller = new WatchOnlyWalletController(mockWalletManager.Object);
+            var controller = new WatchOnlyWalletController(this.LoggerFactory.Object, mockWalletManager.Object);
 
             IActionResult result = controller.GetWatchOnlyWallet();
 

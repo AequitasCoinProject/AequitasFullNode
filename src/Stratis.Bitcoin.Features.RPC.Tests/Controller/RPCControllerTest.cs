@@ -45,7 +45,7 @@ namespace Stratis.Bitcoin.Features.RPC.Tests.Controller
             this.initialBlockSignature = Block.BlockSignature;
 
             Block.BlockSignature = false;
-            this.network = Network.TestNet;
+            this.network = Network.BitcoinTest;
             this.fullNode = new Mock<IFullNode>();
             this.fullNode.Setup(f => f.Network)
                 .Returns(this.network);
@@ -185,7 +185,7 @@ namespace Stratis.Bitcoin.Features.RPC.Tests.Controller
                 this.rpcClient.Verify();
                 var jsonResult = Assert.IsType<JsonResult>(controllerResult);
                 var result = jsonResult.Value as JToken;
-                Assert.Equal(Network.TestNet.GenesisHash.ToString(), result["hashPrevBlock"].ToString());
+                Assert.Equal(Network.BitcoinTest.GenesisHash.ToString(), result["hashPrevBlock"].ToString());
             }
         }
 
@@ -227,7 +227,7 @@ namespace Stratis.Bitcoin.Features.RPC.Tests.Controller
         {
             public BlockHeaderObject result = new BlockHeaderObject()
             {
-                hashPrevBlock = Network.TestNet.GenesisHash.ToString()
+                hashPrevBlock = Network.BitcoinTest.GenesisHash.ToString()
             };
 
             public RPCErrorObject error = new RPCErrorObject()

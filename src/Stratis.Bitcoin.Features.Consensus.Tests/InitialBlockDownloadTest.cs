@@ -17,7 +17,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Tests
 
         public InitialBlockDownloadTest()
         {
-            this.network = Network.Main;
+            this.network = Network.BitcoinMain;
             this.consensusSettings = new ConsensusSettings().Load(NodeSettings.Default());
             this.checkpoints = new Checkpoints(this.network, this.consensusSettings);
             this.nodeSettings = new NodeSettings(this.network);

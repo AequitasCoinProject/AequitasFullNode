@@ -26,9 +26,9 @@ namespace Stratis.Bitcoin.Features.RPC.Tests.Models
             Block.BlockSignature = false;
             Transaction.TimeStamp = false;
 
-            this.txBlock10CoinbaseModelBrief = new TransactionBriefModel(Transaction.Parse(TxBlock10Hex));
-            this.txBlock460373CoinbaseModelVerbose = new TransactionVerboseModel(Transaction.Parse(TxBlock460373CoinbaseHex), Network.Main);
-            this.txTwoInTwoOutModelVerbose = new TransactionVerboseModel(Transaction.Parse(TxTwoInTwoOutHex), Network.Main);
+            this.txBlock10CoinbaseModelBrief = new TransactionBriefModel(Transaction.Parse(TxBlock10Hex), Network.BitcoinMain);
+            this.txBlock460373CoinbaseModelVerbose = new TransactionVerboseModel(Transaction.Parse(TxBlock460373CoinbaseHex), Network.BitcoinMain);
+            this.txTwoInTwoOutModelVerbose = new TransactionVerboseModel(Transaction.Parse(TxTwoInTwoOutHex), Network.BitcoinMain);
         }
 
         public void Dispose()

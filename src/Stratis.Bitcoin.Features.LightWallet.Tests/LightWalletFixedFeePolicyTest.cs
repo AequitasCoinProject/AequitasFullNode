@@ -75,9 +75,9 @@ namespace Stratis.Bitcoin.Features.LightWallet.Tests
         public void MinTxFee_OnBitcoinNetwork_IsBitcoinDefault()
         {
             ILoggerFactory loggerFactory = new LoggerFactory();
-            NodeSettings nodeSettings = new NodeSettings(Network.TestNet);
+            NodeSettings nodeSettings = new NodeSettings(Network.BitcoinTest);
             LightWalletFixedFeePolicy policy = new LightWalletFixedFeePolicy(loggerFactory, nodeSettings);
-            Assert.Equal(new FeeRate(Network.TestNet.FallbackFee), policy.FallbackTxFeeRate);
+            Assert.Equal(new FeeRate(Network.BitcoinTest.FallbackFee), policy.FallbackTxFeeRate);
         }
     }
 }

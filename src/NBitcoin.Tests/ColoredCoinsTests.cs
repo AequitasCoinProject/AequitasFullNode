@@ -73,7 +73,7 @@ namespace NBitcoin.Tests
             public AssetKey()
             {
                 Key = new Key();
-                ScriptPubKey = Key.PubKey.GetAddress(Network.Main).ScriptPubKey;
+                ScriptPubKey = Key.PubKey.GetAddress(Network.BitcoinMain).ScriptPubKey;
                 Id = ScriptPubKey.Hash.ToAssetId();
             }
             public Key Key
@@ -97,25 +97,25 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void CanParseColoredAddress()
         {
-            var address = new BitcoinPubKeyAddress("16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM", Network.Main);
+            var address = new BitcoinPubKeyAddress("16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM", Network.BitcoinMain);
             var colored = address.ToColoredAddress();
             Assert.Equal("akB4NBW9UuCmHuepksob6yfZs6naHtRCPNy", colored.ToWif());
             Assert.Equal(address.ScriptPubKey, colored.ScriptPubKey);
 
-            var testAddress = address.ToNetwork(Network.TestNet);
+            var testAddress = address.ToNetwork(Network.BitcoinTest);
             var testColored = testAddress.ToColoredAddress();
 
-            Assert.Equal(Network.TestNet, testAddress.Network);
+            Assert.Equal(Network.BitcoinTest, testAddress.Network);
             Assert.Equal(address.Hash, testAddress.Hash);
 
-            Assert.Equal(colored.ToNetwork(Network.TestNet), testColored);
+            Assert.Equal(colored.ToNetwork(Network.BitcoinTest), testColored);
 
             Assert.Equal(testAddress.ScriptPubKey, testColored.ScriptPubKey);
 
-            Assert.Equal(Network.TestNet, testColored.Network);
+            Assert.Equal(Network.BitcoinTest, testColored.Network);
             testColored = new BitcoinColoredAddress("bWqaKUZETiECYgmJNbNZUoanBxnAzoVjCNx");
-            Assert.Equal(Network.TestNet, testColored.Network);
-            Assert.Equal(colored.ToNetwork(Network.TestNet), testColored);
+            Assert.Equal(Network.BitcoinTest, testColored.Network);
+            Assert.Equal(colored.ToNetwork(Network.BitcoinTest), testColored);
         }
 
         [Fact]
@@ -129,8 +129,8 @@ namespace NBitcoin.Tests
             var a1 = new AssetKey();
             var a2 = new AssetKey();
             var h = new AssetKey();
-            var sender = new Key().PubKey.GetAddress(Network.Main);
-            var receiver = new Key().PubKey.GetAddress(Network.Main);
+            var sender = new Key().PubKey.GetAddress(Network.BitcoinMain);
+            var receiver = new Key().PubKey.GetAddress(Network.BitcoinMain);
 
             colored.Marker = new ColorMarker(new ulong[] { 0, 10, 6, 0, 7, 3 });
             colored.Inputs.Add(new ColoredEntry(0, new AssetMoney(a1.Id, 3UL)));
@@ -284,7 +284,7 @@ namespace NBitcoin.Tests
             Assert.True(colored1.Inputs.Count == 0);
             Assert.True(colored1.Issuances.Count == 1);
             Assert.True(colored1.Transfers.Count == 0);
-            Assert.Equal("Af59wop4VJjXk2DAzoX9scAUCcAsghPHFX", colored1.Issuances[0].Asset.Id.GetWif(Network.Main).ToString());
+            Assert.Equal("Af59wop4VJjXk2DAzoX9scAUCcAsghPHFX", colored1.Issuances[0].Asset.Id.GetWif(Network.BitcoinMain).ToString());
 
             tester = CreateTester("CanColorizeTransferTransaction");
             var colored2 = ColoredTransaction.FetchColors(tester.TestedTxId, tester.Repository);
@@ -292,7 +292,7 @@ namespace NBitcoin.Tests
             Assert.True(colored2.Inputs[0].Asset == colored1.Issuances[0].Asset);
             Assert.True(colored2.Issuances.Count == 0);
             Assert.True(colored2.Transfers.Count == 2);
-            Assert.Equal("Af59wop4VJjXk2DAzoX9scAUCcAsghPHFX", colored2.Transfers[0].Asset.Id.GetWif(Network.Main).ToString());
+            Assert.Equal("Af59wop4VJjXk2DAzoX9scAUCcAsghPHFX", colored2.Transfers[0].Asset.Id.GetWif(Network.BitcoinMain).ToString());
 
             tester = CreateTester("CanColorizeTransferTransaction");
             var tx = tester.Repository.Transactions.Get(tester.TestedTxId);
@@ -307,7 +307,7 @@ namespace NBitcoin.Tests
             Assert.True(colored2.Inputs[0].Asset == colored1.Issuances[0].Asset);
             Assert.True(colored2.Issuances.Count == 0);
             Assert.True(colored2.Transfers.Count == 2);
-            Assert.Equal("Af59wop4VJjXk2DAzoX9scAUCcAsghPHFX", colored2.Transfers[0].Asset.Id.GetWif(Network.Main).ToString());
+            Assert.Equal("Af59wop4VJjXk2DAzoX9scAUCcAsghPHFX", colored2.Transfers[0].Asset.Id.GetWif(Network.BitcoinMain).ToString());
             var destroyed = colored2.GetDestroyedAssets();
             Assert.True(destroyed.Length == 0);
 
@@ -473,20 +473,20 @@ namespace NBitcoin.Tests
             //The issuer first generates a private key: 18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725.
             var key = new Key(TestUtils.ParseHex("18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725"));
             //He calculates the corresponding address: 16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM.
-            var address = key.PubKey.Decompress().GetAddress(Network.Main);
+            var address = key.PubKey.Decompress().GetAddress(Network.BitcoinMain);
             Assert.Equal("16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM", address.ToString());
 
             //Next, he builds the Pay-to-PubKey-Hash script associated to that address: OP_DUP OP_HASH160 010966776006953D5567439E5E39F86A0D273BEE OP_EQUALVERIFY OP_CHECKSIG
             Script script = address.ScriptPubKey;
             Assert.Equal("OP_DUP OP_HASH160 010966776006953D5567439E5E39F86A0D273BEE OP_EQUALVERIFY OP_CHECKSIG", script.ToString().ToUpper());
 
-            var oo = script.GetScriptAddress(Network.Main);
+            var oo = script.GetScriptAddress(Network.BitcoinMain);
             //The script is hashed: 36e0ea8e93eaa0285d641305f4c81e563aa570a2.
             Assert.Equal("36e0ea8e93eaa0285d641305f4c81e563aa570a2", script.Hash.ToString());
 
             Assert.Equal("36e0ea8e93eaa0285d641305f4c81e563aa570a2", key.PubKey.Decompress().Hash.ScriptPubKey.Hash.ToString());
             //Finally, the hash is converted to a base 58 string with checksum using version byte 23: ALn3aK1fSuG27N96UGYB1kUYUpGKRhBuBC. 
-            Assert.Equal("ALn3aK1fSuG27N96UGYB1kUYUpGKRhBuBC", script.Hash.ToAssetId().GetWif(Network.Main).ToString());
+            Assert.Equal("ALn3aK1fSuG27N96UGYB1kUYUpGKRhBuBC", script.Hash.ToAssetId().GetWif(Network.BitcoinMain).ToString());
         }
 
     }

@@ -71,7 +71,7 @@ namespace Stratis.Bitcoin.IntegrationTests.RPC
             {
                 Assert.Equal(RPCErrorCode.RPC_METHOD_NOT_FOUND, ex.RPCCode);
             }
-            Assert.Equal(hash, Network.RegTest.GetGenesis().GetHash());
+            Assert.Equal(hash, Network.BitcoinRegTest.GetGenesis().GetHash());
             var oldClient = this.rpcTestFixture.RpcClient;
             var client = new RPCClient("abc:def", this.rpcTestFixture.RpcClient.Address, this.rpcTestFixture.RpcClient.Network);
             try
@@ -105,7 +105,7 @@ namespace Stratis.Bitcoin.IntegrationTests.RPC
             RPCResponse response = this.rpcTestFixture.RpcClient.SendCommand(RPCOperations.getblockhash, 0);
 
             string actualGenesis = (string)response.Result;
-            Assert.Equal(Network.RegTest.GetGenesis().GetHash().ToString(), actualGenesis);
+            Assert.Equal(Network.BitcoinRegTest.GetGenesis().GetHash().ToString(), actualGenesis);
         }
 
         /// <summary>
@@ -140,7 +140,7 @@ namespace Stratis.Bitcoin.IntegrationTests.RPC
             Assert.Equal(expectedHeader.Nonce, actualHeader.Nonce);
 
             // Assert header hash matches genesis hash.
-            Assert.Equal(Network.RegTest.GenesisHash, actualHeader.GetHash(Network.RegTest.NetworkOptions));
+            Assert.Equal(Network.BitcoinRegTest.GenesisHash, actualHeader.GetHash(Network.BitcoinRegTest.NetworkOptions));
         }
 
         /// <summary>

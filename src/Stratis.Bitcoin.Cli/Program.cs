@@ -98,7 +98,7 @@ namespace Stratis.Bitcoin.Cli
                 else
                 {
                     defaultRestApiPort = 37220;
-                    network = Network.Main;
+                    network = Network.BitcoinMain;
                 }
 
 

@@ -254,12 +254,12 @@ namespace NBitcoin.BitcoinCore
 #if !NOFILEIO
         public static IEnumerable<StoredBlock> EnumerateFile(string file, uint fileIndex = 0, DiskBlockPosRange range = null, Network network = null)
         {
-            return new BlockStore(Path.GetDirectoryName(file), network ?? Network.Main).EnumerateFile(file, fileIndex, range);
+            return new BlockStore(Path.GetDirectoryName(file), network ?? Network.BitcoinMain).EnumerateFile(file, fileIndex, range);
         }
 
         public static IEnumerable<StoredBlock> EnumerateFolder(string folder, DiskBlockPosRange range = null, Network network = null)
         {
-            return new BlockStore(folder, network ?? Network.Main).EnumerateFolder(range);
+            return new BlockStore(folder, network ?? Network.BitcoinMain).EnumerateFolder(range);
         }
 #endif
     }

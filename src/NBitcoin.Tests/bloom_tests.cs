@@ -82,7 +82,7 @@ namespace NBitcoin.Tests
         public void bloom_create_insert_key()
         {
             string strSecret = "5Kg1gnAjaLfKiwhhPpGS3QfRg2m6awQvaj98JCZBZQ5SuS2F15C";
-            BitcoinSecret vchSecret = Network.Main.CreateBitcoinSecret(strSecret);
+            BitcoinSecret vchSecret = Network.BitcoinMain.CreateBitcoinSecret(strSecret);
             var pubkey = vchSecret.PrivateKey.PubKey;
 
             BloomFilter filter = new BloomFilter(2, 0.001, 0, BloomFlags.UPDATE_ALL);

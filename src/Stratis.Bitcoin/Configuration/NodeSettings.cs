@@ -96,7 +96,7 @@ namespace Stratis.Bitcoin.Configuration
                 if (testNet && regTest)
                     throw new ConfigurationException("Invalid combination of -regtest and -testnet.");
 
-                this.Network = testNet ? Network.TestNet : regTest ? Network.RegTest : Network.Main;
+                this.Network = testNet ? Network.BitcoinTest : regTest ? Network.BitcoinRegTest : Network.BitcoinMain;
             }
 
             // Load configuration from .ctor?

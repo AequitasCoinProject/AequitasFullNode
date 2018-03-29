@@ -230,7 +230,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Tests
             var lifetime = new NodeLifetime();
             var loggerFactory = new LoggerFactory();
             var asyncLoopFactory = new AsyncLoopFactory(loggerFactory);
-            var state = new TimeSyncBehaviorState(dateTimeProvider, lifetime, asyncLoopFactory, loggerFactory, Network.Main);
+            var state = new TimeSyncBehaviorState(dateTimeProvider, lifetime, asyncLoopFactory, loggerFactory, Network.BitcoinMain);
             return state;
         }
 

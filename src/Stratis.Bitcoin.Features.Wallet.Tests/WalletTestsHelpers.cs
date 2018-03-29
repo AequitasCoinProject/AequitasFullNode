@@ -70,7 +70,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Tests
             var key = new Key();
             var address = new HdAddress
             {
-                Address = key.PubKey.GetAddress(Network.Main).ToString(),
+                Address = key.PubKey.GetAddress(Network.BitcoinMain).ToString(),
                 HdPath = hdPath,
                 ScriptPubKey = key.ScriptPubKey
             };
@@ -145,11 +145,11 @@ namespace Stratis.Bitcoin.Features.Wallet.Tests
             Wallet walletFile = new Wallet
             {
                 Name = name,
-                EncryptedSeed = extendedKey.PrivateKey.GetEncryptedBitcoinSecret(password, Network.Main).ToWif(),
+                EncryptedSeed = extendedKey.PrivateKey.GetEncryptedBitcoinSecret(password, Network.BitcoinMain).ToWif(),
                 ChainCode = extendedKey.ChainCode,
                 CreationTime = DateTimeOffset.Now,
-                Network = Network.Main,
-                AccountsRoot = new List<AccountRoot> { new AccountRoot() { Accounts = new List<HdAccount>(), CoinType = (CoinType)Network.Main.Consensus.CoinType } },
+                Network = Network.BitcoinMain,
+                AccountsRoot = new List<AccountRoot> { new AccountRoot() { Accounts = new List<HdAccount>(), CoinType = (CoinType)Network.BitcoinMain.Consensus.CoinType } },
             };
 
             return (walletFile, extendedKey);

@@ -123,9 +123,9 @@ namespace NBitcoin.Payment
                 {
                     case 1:
                         var network = reader.ReadString();
-                        result.Network = network.Equals("main", StringComparison.OrdinalIgnoreCase) ? Network.Main :
-                                         network.Equals("test", StringComparison.OrdinalIgnoreCase) ? Network.TestNet :
-                                         network.Equals("regtest", StringComparison.OrdinalIgnoreCase) ? Network.RegTest : null;
+                        result.Network = network.Equals("main", StringComparison.OrdinalIgnoreCase) ? Network.BitcoinMain :
+                                         network.Equals("test", StringComparison.OrdinalIgnoreCase) ? Network.BitcoinTest :
+                                         network.Equals("regtest", StringComparison.OrdinalIgnoreCase) ? Network.BitcoinRegTest : null;
                         if(result.Network == null)
                             throw new NotSupportedException("Invalid network");
                         break;
@@ -159,9 +159,9 @@ namespace NBitcoin.Payment
             var writer = new ProtobufReaderWriter(stream);
             if(_Network != null)
             {
-                var str = _Network == Network.Main ? "main" :
-                    _Network == Network.TestNet ? "test" : 
-                    _Network == Network.RegTest ? "regtest" : null;
+                var str = _Network == Network.BitcoinMain ? "main" :
+                    _Network == Network.BitcoinTest ? "test" : 
+                    _Network == Network.BitcoinRegTest ? "regtest" : null;
                 if(str == null)
                     throw new InvalidOperationException("Impossible to serialize a payment request on network " + _Network);
                 writer.WriteKey(1, ProtobufReaderWriter.PROTOBUF_LENDELIM);
@@ -207,7 +207,7 @@ namespace NBitcoin.Payment
         {
             get
             {
-                return _Network ?? Network.Main;
+                return _Network ?? Network.BitcoinMain;
             }
             set
             {

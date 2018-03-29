@@ -22,7 +22,7 @@ namespace NBitcoin.JsonConverters
             public CoinJson(ICoin coin, Network network)
             {
                 if (network == null)
-                    network = Network.Main;
+                    network = Network.BitcoinMain;
                 TransactionId = coin.Outpoint.Hash;
                 Index = coin.Outpoint.N;
                 ScriptPubKey = coin.TxOut.ScriptPubKey;

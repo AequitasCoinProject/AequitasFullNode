@@ -36,7 +36,7 @@ namespace Stratis.Bitcoin.IntegrationTests
         {
             using (var dir = TestDirectory.Create())
             {
-                using (var blockRepo = new BlockRepository(Network.Main, dir.FolderName, DateTimeProvider.Default, this.loggerFactory))
+                using (var blockRepo = new BlockRepository(Network.BitcoinMain, dir.FolderName, DateTimeProvider.Default, this.loggerFactory))
                 {
                     var lst = new List<Block>();
                     for (int i = 0; i < 30; i++)
@@ -64,7 +64,7 @@ namespace Stratis.Bitcoin.IntegrationTests
                             block.AddTransaction(trx);
                         }
                         block.UpdateMerkleRoot();
-                        block.Header.HashPrevBlock = lst.Any() ? lst.Last().GetHash() : Network.Main.GenesisHash;
+                        block.Header.HashPrevBlock = lst.Any() ? lst.Last().GetHash() : Network.BitcoinMain.GenesisHash;
                         lst.Add(block);
                     }
 
@@ -83,7 +83,7 @@ namespace Stratis.Bitcoin.IntegrationTests
         {
             using (var dir = TestDirectory.Create())
             {
-                using (var blockRepo = new BlockRepository(Network.Main, dir.FolderName, DateTimeProvider.Default, this.loggerFactory))
+                using (var blockRepo = new BlockRepository(Network.BitcoinMain, dir.FolderName, DateTimeProvider.Default, this.loggerFactory))
                 {
                     blockRepo.SetTxIndexAsync(true).Wait();
 
@@ -99,7 +99,7 @@ namespace Stratis.Bitcoin.IntegrationTests
                         block.Transactions[1].AddInput(new TxIn(Script.Empty));
                         block.Transactions[1].AddOutput(Money.COIN + i * 2 + 1, Script.Empty);
                         block.UpdateMerkleRoot();
-                        block.Header.HashPrevBlock = lst.Any() ? lst.Last().GetHash() : Network.Main.GenesisHash;
+                        block.Header.HashPrevBlock = lst.Any() ? lst.Last().GetHash() : Network.BitcoinMain.GenesisHash;
                         lst.Add(block);
                     }
 
@@ -131,11 +131,11 @@ namespace Stratis.Bitcoin.IntegrationTests
         {
             using (var dir = TestDirectory.Create())
             {
-                using (var blockRepo = new BlockRepository(Network.Main, dir.FolderName, DateTimeProvider.Default, this.loggerFactory))
+                using (var blockRepo = new BlockRepository(Network.BitcoinMain, dir.FolderName, DateTimeProvider.Default, this.loggerFactory))
                 {
                     blockRepo.InitializeAsync().GetAwaiter().GetResult();
 
-                    Assert.Equal(Network.Main.GenesisHash, blockRepo.BlockHash);
+                    Assert.Equal(Network.BitcoinMain.GenesisHash, blockRepo.BlockHash);
                     var hash = new Block().GetHash();
                     blockRepo.SetBlockHashAsync(hash).GetAwaiter().GetResult();
                     Assert.Equal(hash, blockRepo.BlockHash);

@@ -16,10 +16,10 @@ namespace Stratis.Bitcoin.Features.Consensus.Tests.Rules
         [Fact]
         public async Task BlockReceived_IsNextBlock_ValidationSucessAsync()
         {
-            var testContext = TestRulesContextFactory.CreateAsync(Network.RegTest);
+            var testContext = TestRulesContextFactory.CreateAsync(Network.BitcoinRegTest);
             BlockHeaderRule blockHeaderRule = testContext.CreateRule<BlockHeaderRule>();
 
-            var context = new RuleContext(new BlockValidationContext(), Network.RegTest.Consensus, testContext.Chain.Tip);
+            var context = new RuleContext(new BlockValidationContext(), Network.BitcoinRegTest.Consensus, testContext.Chain.Tip);
             context.BlockValidationContext.Block = new Block(new BlockHeader { HashPrevBlock = testContext.Chain.Tip.HashBlock });
             await blockHeaderRule.RunAsync(context);
 
@@ -31,10 +31,10 @@ namespace Stratis.Bitcoin.Features.Consensus.Tests.Rules
         [Fact]
         public async Task BlockReceived_NotNextBlock_ValidationFailAsync()
         {
-            var testContext = TestRulesContextFactory.CreateAsync(Network.RegTest);
+            var testContext = TestRulesContextFactory.CreateAsync(Network.BitcoinRegTest);
             BlockHeaderRule blockHeaderRule = testContext.CreateRule<BlockHeaderRule>();
 
-            var context = new RuleContext(new BlockValidationContext(), Network.RegTest.Consensus, testContext.Chain.Tip);
+            var context = new RuleContext(new BlockValidationContext(), Network.BitcoinRegTest.Consensus, testContext.Chain.Tip);
             context.BlockValidationContext.Block = new Block(new BlockHeader { HashPrevBlock = uint256.Zero });
             var error = await Assert.ThrowsAsync<ConsensusErrorException>(async () => await blockHeaderRule.RunAsync(context));
 

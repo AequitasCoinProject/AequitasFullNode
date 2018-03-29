@@ -19,15 +19,15 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void CanCalculatePowCorrectly()
         {
-            ConcurrentChain chain = new ConcurrentChain(Network.Main);
+            ConcurrentChain chain = new ConcurrentChain(Network.BitcoinMain);
             EnsureDownloaded("MainChain.dat", "https://aois.blob.core.windows.net/public/MainChain.dat");
             chain.Load(File.ReadAllBytes("MainChain.dat"));
             foreach(var block in chain.EnumerateAfter(chain.Genesis))
             {
-                var thisWork = block.GetWorkRequired(Network.Main);
-                var thisWork2 = block.Previous.GetNextWorkRequired(Network.Main);
+                var thisWork = block.GetWorkRequired(Network.BitcoinMain);
+                var thisWork2 = block.Previous.GetNextWorkRequired(Network.BitcoinMain);
                 Assert.Equal(thisWork, thisWork2);
-                Assert.True(block.CheckProofOfWorkAndTarget(Network.Main));
+                Assert.True(block.CheckProofOfWorkAndTarget(Network.BitcoinMain));
             }
         }
 

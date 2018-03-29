@@ -12,7 +12,7 @@ namespace NBitcoin.RPC
 
         protected RawFormatter()
         {
-            this.Network = Network.Main;
+            this.Network = Network.BitcoinMain;
         }
 
         protected abstract void BuildTransaction(JObject json, Transaction tx);

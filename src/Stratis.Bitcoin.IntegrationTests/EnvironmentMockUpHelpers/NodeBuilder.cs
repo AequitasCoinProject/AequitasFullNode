@@ -225,7 +225,7 @@ namespace Stratis.Bitcoin.IntegrationTests.EnvironmentMockUpHelpers
         public CoreNode CreateNode(bool start = false)
         {
             string child = this.CreateNewEmptyFolder();
-            var node = new CoreNode(child, new BitcoinCoreRunner(this.BitcoinD), this, Network.RegTest);
+            var node = new CoreNode(child, new BitcoinCoreRunner(this.BitcoinD), this, Network.BitcoinRegTest);
             this.Nodes.Add(node);
             if (start)
                 node.Start();
@@ -235,7 +235,7 @@ namespace Stratis.Bitcoin.IntegrationTests.EnvironmentMockUpHelpers
         public CoreNode CreateStratisPowNode(bool start = false, Action<IFullNodeBuilder> callback = null)
         {
             string child = this.CreateNewEmptyFolder();
-            var node = new CoreNode(child, new StratisBitcoinPowRunner(callback), this, Network.RegTest);
+            var node = new CoreNode(child, new StratisBitcoinPowRunner(callback), this, Network.BitcoinRegTest);
             this.Nodes.Add(node);
             if (start)
                 node.Start();
@@ -245,7 +245,7 @@ namespace Stratis.Bitcoin.IntegrationTests.EnvironmentMockUpHelpers
         public CoreNode CreateStratisPosNode(bool start = false, Action<IFullNodeBuilder> callback = null)
         {
             string child = this.CreateNewEmptyFolder();
-            var node = new CoreNode(child, new StratisBitcoinPosRunner(callback), this, Network.RegTest, configfile: "stratis.conf");
+            var node = new CoreNode(child, new StratisBitcoinPosRunner(callback), this, Network.BitcoinRegTest, configfile: "stratis.conf");
             this.Nodes.Add(node);
             if (start)
                 node.Start();
@@ -254,7 +254,7 @@ namespace Stratis.Bitcoin.IntegrationTests.EnvironmentMockUpHelpers
 
         public CoreNode CloneStratisNode(CoreNode cloneNode)
         {
-            var node = new CoreNode(cloneNode.Folder, new StratisBitcoinPowRunner(), this, Network.RegTest, false);
+            var node = new CoreNode(cloneNode.Folder, new StratisBitcoinPowRunner(), this, Network.BitcoinRegTest, false);
             this.Nodes.Add(node);
             this.Nodes.Remove(cloneNode);
             return node;

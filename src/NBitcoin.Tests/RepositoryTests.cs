@@ -55,7 +55,7 @@ namespace NBitcoin.Tests
 
             foreach(var stored in StoredBlock.EnumerateFile(@"data\blocks\blk00000.dat"))
             {
-                Assert.True(stored.Item.Header.CheckProofOfWork(Network.Main.Consensus));
+                Assert.True(stored.Item.Header.CheckProofOfWork(Network.BitcoinMain.Consensus));
                 Assert.True(stored.Item.CheckMerkleRoot());
                 count++;
             }
@@ -73,7 +73,7 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void CanEnumerateBlockCountRange()
         {
-            var store = new BlockStore(@"data\blocks", Network.Main);
+            var store = new BlockStore(@"data\blocks", Network.BitcoinMain);
             var expectedBlock = store.Enumerate(false).Skip(4).First();
             var actualBlocks = store.Enumerate(false, 4, 2).ToArray();
             Assert.Equal(2, actualBlocks.Length);
@@ -85,7 +85,7 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void CanEnumerateBlockInAFileRange()
         {
-            var store = new BlockStore(@"data\blocks", Network.Main);
+            var store = new BlockStore(@"data\blocks", Network.BitcoinMain);
             var result = store.Enumerate(new DiskBlockPosRange(new DiskBlockPos(0, 0), new DiskBlockPos(1, 0))).ToList();
             Assert.Equal(300, result.Count);
         }
@@ -102,7 +102,7 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void CanBuildChainFromBlocks()
         {
-            var store = new BlockStore(@"data\blocks", Network.Main);
+            var store = new BlockStore(@"data\blocks", Network.BitcoinMain);
             var chain = store.GetChain();
             Assert.True(chain.Height == 599);
 
@@ -127,7 +127,7 @@ namespace NBitcoin.Tests
         public static IndexedBlockStore CreateIndexedStore([CallerMemberName]string folderName = null)
         {
             TestUtils.EnsureNew(folderName);
-            return new IndexedBlockStore(new InMemoryNoSqlRepository(), new BlockStore(folderName, Network.Main));
+            return new IndexedBlockStore(new InMemoryNoSqlRepository(), new BlockStore(folderName, Network.BitcoinMain));
         }
 
         [Fact]
@@ -171,7 +171,7 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void CanReIndex()
         {
-            var source = new BlockStore(@"data\blocks", Network.Main);
+            var source = new BlockStore(@"data\blocks", Network.BitcoinMain);
             var store = CreateBlockStore("CanReIndexFolder");
             store.AppendAll(source.Enumerate(false).Take(100).Select(b => b.Item));
 
@@ -203,7 +203,7 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public static void CanParseRev()
         {
-            BlockUndoStore src = new BlockUndoStore(@"data\blocks", Network.Main);
+            BlockUndoStore src = new BlockUndoStore(@"data\blocks", Network.BitcoinMain);
             BlockUndoStore dest = CreateBlockUndoStore();
             int count = 0;
             foreach(var un in src.EnumerateFolder())
@@ -282,7 +282,7 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public static void CanRequestTransactionOnQBit()
         {
-            var repo = new QBitNinjaTransactionRepository(Network.Main);
+            var repo = new QBitNinjaTransactionRepository(Network.BitcoinMain);
             var result = repo.Get("c3462373f1a722c66cbb1b93712df94aa7b3731f4142cd8413f10c9e872927de");
             Assert.NotNull(result);
             Assert.Equal("c3462373f1a722c66cbb1b93712df94aa7b3731f4142cd8413f10c9e872927de", result.GetHash().ToString());
@@ -290,7 +290,7 @@ namespace NBitcoin.Tests
             result = repo.Get("c3462373f1a722c66cbb1b93712df94aa7b3731f4142cd8413f10c9e872927df");
             Assert.Null(result);
 
-            repo = new QBitNinjaTransactionRepository(Network.TestNet);
+            repo = new QBitNinjaTransactionRepository(Network.BitcoinTest);
             result = repo.Get("7d4c5d69a85c70ff70daff789114b9b76fb6d2613ac18764bd96f0a2b9358782");
             Assert.NotNull(result);
         }
@@ -350,7 +350,7 @@ namespace NBitcoin.Tests
                     Assert.Equal(blk0[0].Item.GetHash(), stored.Item.GetHash());
                 if(count == 300)
                     Assert.Equal(blk1[0].Item.GetHash(), stored.Item.GetHash());
-                Assert.True(stored.Item.Header.CheckProofOfWork(Network.Main.Consensus));
+                Assert.True(stored.Item.Header.CheckProofOfWork(Network.BitcoinMain.Consensus));
                 Assert.True(stored.Item.CheckMerkleRoot());
                 count++;
             }
@@ -480,12 +480,12 @@ namespace NBitcoin.Tests
             Thread.Sleep(50);
             Directory.CreateDirectory(folderName);
             Thread.Sleep(50);
-            return new BlockStore(folderName, Network.Main);
+            return new BlockStore(folderName, Network.BitcoinMain);
         }
         private static BlockUndoStore CreateBlockUndoStore([CallerMemberName]string folderName = null)
         {
             TestUtils.EnsureNew(folderName);
-            return new BlockUndoStore(folderName, Network.Main);
+            return new BlockUndoStore(folderName, Network.BitcoinMain);
         }
 
         private BlockRepository CreateBlockRepository([CallerMemberName]string folderName = null)

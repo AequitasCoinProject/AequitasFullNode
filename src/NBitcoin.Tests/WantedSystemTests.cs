@@ -194,9 +194,9 @@ namespace NBitcoin.Tests
 
             dummyTransactions[1].Outputs.AddRange(Enumerable.Range(0, 2).Select(_ => new TxOut()));
             dummyTransactions[1].Outputs[0].Value = 21 * Money.CENT;
-            dummyTransactions[1].Outputs[0].ScriptPubKey = key[2].PubKey.GetAddress(Network.Main).ScriptPubKey;
+            dummyTransactions[1].Outputs[0].ScriptPubKey = key[2].PubKey.GetAddress(Network.BitcoinMain).ScriptPubKey;
             dummyTransactions[1].Outputs[1].Value = 22 * Money.CENT;
-            dummyTransactions[1].Outputs[1].ScriptPubKey = key[3].PubKey.GetAddress(Network.Main).ScriptPubKey;
+            dummyTransactions[1].Outputs[1].ScriptPubKey = key[3].PubKey.GetAddress(Network.BitcoinMain).ScriptPubKey;
             coinsRet.AddTransaction(dummyTransactions[1], 0);
 
 

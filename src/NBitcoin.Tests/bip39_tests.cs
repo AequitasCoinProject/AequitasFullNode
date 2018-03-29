@@ -92,11 +92,11 @@ namespace NBitcoin.Tests
                 Assert.True(mnemonic.IsValidChecksum);
                 Assert.Equal(seed, Encoders.Hex.EncodeData(mnemonic.DeriveSeed(passphrase)));
                 var bip32 = unitTest["bip32_xprv"].ToString();
-                var bip32Actual = mnemonic.DeriveExtKey(passphrase).ToString(Network.Main);
+                var bip32Actual = mnemonic.DeriveExtKey(passphrase).ToString(Network.BitcoinMain);
                 Assert.Equal(bip32, bip32Actual.ToString());
                 mnemonic = new Mnemonic(Wordlist.Japanese, entropy);
                 Assert.True(mnemonic.IsValidChecksum);
-                bip32Actual = mnemonic.DeriveExtKey(passphrase).ToString(Network.Main);
+                bip32Actual = mnemonic.DeriveExtKey(passphrase).ToString(Network.BitcoinMain);
                 Assert.Equal(bip32, bip32Actual.ToString());
             }
         }

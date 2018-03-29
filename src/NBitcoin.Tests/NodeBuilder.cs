@@ -300,7 +300,7 @@ namespace NBitcoin.Tests
         readonly NetworkCredential creds;
         public RPCClient CreateRPCClient()
         {
-            return new RPCClient(GetRPCAuth(), new Uri("http://127.0.0.1:" + ports[1].ToString() + "/"), Network.RegTest);
+            return new RPCClient(GetRPCAuth(), new Uri("http://127.0.0.1:" + ports[1].ToString() + "/"), Network.BitcoinRegTest);
         }
 
         public RestClient CreateRESTClient()

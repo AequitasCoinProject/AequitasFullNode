@@ -28,7 +28,7 @@ namespace Stratis.Bitcoin.Api.Tests
         public void GivenNoApiSettingsAreProvided_AndOnBitcoinNetwork_ThenDefaultSettingAreUsed()
         {
             // Arrange.
-            Network network = Network.Main;
+            Network network = Network.BitcoinMain;
             NodeSettings nodeSettings = new NodeSettings(network, loadConfiguration:false);
 
             // Act.
@@ -100,7 +100,7 @@ namespace Stratis.Bitcoin.Api.Tests
         {
             // Arrange.
             string customApiUri = "http://0.0.0.0";
-            Network network = Network.Main;
+            Network network = Network.BitcoinMain;
             NodeSettings nodeSettings = new NodeSettings(network, args:new[] { $"-apiuri={customApiUri}" }, loadConfiguration:false);
 
             // Act.
@@ -151,7 +151,7 @@ namespace Stratis.Bitcoin.Api.Tests
             // Arrange.
             string customApiUri = "http://0.0.0.0";
             int customPort = 55555;
-            Network network = Network.Main;
+            Network network = Network.BitcoinMain;
             NodeSettings nodeSettings = new NodeSettings(network, args:new[] { $"-apiuri={customApiUri}", $"-apiport={customPort}" }, loadConfiguration:false);
 
             // Act.
@@ -176,7 +176,7 @@ namespace Stratis.Bitcoin.Api.Tests
             // Arrange.
             int customPort = 5522;
             string customApiUri = $"http://0.0.0.0:{customPort}";
-            Network network = Network.Main;
+            Network network = Network.BitcoinMain;
             NodeSettings nodeSettings = new NodeSettings(network, args:new[] { $"-apiuri={customApiUri}" }, loadConfiguration:false);
 
             // Act.
@@ -199,7 +199,7 @@ namespace Stratis.Bitcoin.Api.Tests
         public void GivenBitcoinMain_ThenUseTheCorrectPort()
         {
             // Arrange.
-            NodeSettings nodeSettings = NodeSettings.Default(Network.Main);
+            NodeSettings nodeSettings = NodeSettings.Default(Network.BitcoinMain);
 
             // Act.
             ApiSettings settings = new FullNodeBuilder()
@@ -220,7 +220,7 @@ namespace Stratis.Bitcoin.Api.Tests
         public void GivenBitcoinTestnet_ThenUseTheCorrectPort()
         {
             // Arrange.
-            NodeSettings nodeSettings = NodeSettings.Default(Network.TestNet);
+            NodeSettings nodeSettings = NodeSettings.Default(Network.BitcoinTest);
 
             // Act.
             ApiSettings settings = new FullNodeBuilder()

@@ -264,18 +264,18 @@ namespace Stratis.Bitcoin.IntegrationTests
             {
                 using (var repo = new ChainRepository(dir.FolderName))
                 {
-                    var chain = new ConcurrentChain(Network.RegTest);
+                    var chain = new ConcurrentChain(Network.BitcoinRegTest);
                     repo.LoadAsync(chain).GetAwaiter().GetResult();
                     Assert.True(chain.Tip == chain.Genesis);
-                    chain = new ConcurrentChain(Network.RegTest);
+                    chain = new ConcurrentChain(Network.BitcoinRegTest);
                     var tip = this.AppendBlock(chain);
                     repo.SaveAsync(chain).GetAwaiter().GetResult();
-                    var newChain = new ConcurrentChain(Network.RegTest);
+                    var newChain = new ConcurrentChain(Network.BitcoinRegTest);
                     repo.LoadAsync(newChain).GetAwaiter().GetResult();
                     Assert.Equal(tip, newChain.Tip);
                     tip = this.AppendBlock(chain);
                     repo.SaveAsync(chain).GetAwaiter().GetResult();
-                    newChain = new ConcurrentChain(Network.RegTest);
+                    newChain = new ConcurrentChain(Network.BitcoinRegTest);
                     repo.LoadAsync(newChain).GetAwaiter().GetResult();
                     Assert.Equal(tip, newChain.Tip);
                 }
@@ -343,10 +343,10 @@ namespace Stratis.Bitcoin.IntegrationTests
                 Flags = consensusFlags,
             };
 
-            Network.Main.Consensus.Options = new PowConsensusOptions();
-            context.Consensus = Network.Main.Consensus;
+            Network.BitcoinMain.Consensus.Options = new PowConsensusOptions();
+            context.Consensus = Network.BitcoinMain.Consensus;
             ConsensusSettings consensusSettings = new ConsensusSettings().Load(NodeSettings.Default());
-            var validator = new PowConsensusValidator(Network.Main, new Checkpoints(Network.Main, consensusSettings), DateTimeProvider.Default, this.loggerFactory);
+            var validator = new PowConsensusValidator(Network.BitcoinMain, new Checkpoints(Network.BitcoinMain, consensusSettings), DateTimeProvider.Default, this.loggerFactory);
             new WitnessCommitmentsRule().RunAsync(context).GetAwaiter().GetResult();
             new CheckPowTransactionRule().RunAsync(context);
         }
