@@ -33,9 +33,9 @@ namespace NBitcoin.Tests
         {
             NetworkBuilder builder = new NetworkBuilder();
             builder.CopyFrom(Network.BitcoinMain);
-            builder.SetName(null);
+            builder.SetNetworkName(null);
             Assert.Throws<InvalidOperationException>(() => builder.BuildAndRegister());
-            builder.SetName("new");
+            builder.SetNetworkName("new");
             builder.AddAlias("newalias");
             var network = builder.BuildAndRegister();
             Assert.Throws<InvalidOperationException>(() => builder.BuildAndRegister());

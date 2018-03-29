@@ -261,9 +261,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Tests
             var context = new TransactionBuildContext(walletReference,
                 new[]
                 {
-                    new Recipient { Amount = new Money(50, MoneyUnit.BTC), ScriptPubKey = destinationKeys1.PubKey.ScriptPubKey },
-                    new Recipient { Amount = new Money(50, MoneyUnit.BTC), ScriptPubKey = destinationKeys2.PubKey.ScriptPubKey },
-                    new Recipient { Amount = new Money(49, MoneyUnit.BTC), ScriptPubKey = destinationKeys3.PubKey.ScriptPubKey }
+                    new Recipient { Amount = new Money(50, Network.MoneyUnit("BTC")), ScriptPubKey = destinationKeys1.PubKey.ScriptPubKey },
+                    new Recipient { Amount = new Money(50, Network.MoneyUnit("BTC")), ScriptPubKey = destinationKeys2.PubKey.ScriptPubKey },
+                    new Recipient { Amount = new Money(49, Network.MoneyUnit("BTC")), ScriptPubKey = destinationKeys3.PubKey.ScriptPubKey }
                 }
                 .ToList(), "password")
             {
@@ -297,7 +297,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Tests
 
             Assert.Equal(3, fundTransaction.Inputs.Count); // we expect 3 inputs
             Assert.Equal(4, fundTransaction.Outputs.Count); // we expect 4 outputs
-            Assert.Equal(new Money(150, MoneyUnit.BTC) - fundContext.TransactionFee, fundTransaction.TotalOut);
+            Assert.Equal(new Money(150, Network.MoneyUnit("BTC")) - fundContext.TransactionFee, fundTransaction.TotalOut);
 
             Assert.Contains(fundTransaction.Outputs, a => a.ScriptPubKey == destinationKeys1.PubKey.ScriptPubKey);
             Assert.Contains(fundTransaction.Outputs, a => a.ScriptPubKey == destinationKeys2.PubKey.ScriptPubKey);

@@ -146,7 +146,7 @@ namespace Stratis.Bitcoin.Features.RPC.Models
         public Vout(int N, TxOut txout, Network network)
         {
             this.N = N;
-            this.Value = txout.Value.ToDecimal(MoneyUnit.BTC);
+            this.Value = txout.Value.ToDecimal(Network.MoneyUnit("BTC"));
             this.ScriptPubKey = new ScriptPubKey(txout.ScriptPubKey, network);
         }
 

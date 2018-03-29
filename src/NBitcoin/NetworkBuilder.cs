@@ -7,7 +7,8 @@ namespace NBitcoin
 {
     public class NetworkBuilder
     {
-        internal string Name;
+        internal string CoinName;
+        internal string NetworkName;
         internal string RootFolderName;
         internal string DefaultConfigFilename;
         internal Dictionary<Base58Type, byte[]> Base58Prefixes;
@@ -35,9 +36,15 @@ namespace NBitcoin
             this.FixedSeeds = new List<NetworkAddress>();
         }
 
-        public NetworkBuilder SetName(string name)
+        public NetworkBuilder SetCoinName(string name)
         {
-            this.Name = name;
+            this.CoinName = name;
+            return this;
+        }
+
+        public NetworkBuilder SetNetworkName(string name)
+        {
+            this.NetworkName = name;
             return this;
         }
 

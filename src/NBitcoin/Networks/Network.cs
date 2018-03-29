@@ -66,7 +66,7 @@ namespace NBitcoin
         WITNESS_PUBKEY_ADDRESS,
         WITNESS_SCRIPT_ADDRESS
     }
-    
+
     public enum BuriedDeployments : int
     {
         /// <summary>
@@ -128,8 +128,8 @@ namespace NBitcoin
 
             public BIP9DeploymentsParameters this[BIP9Deployments index]
             {
-                get { return this.parameters[(int) index]; }
-                set { this.parameters[(int) index] = value; }
+                get { return this.parameters[(int)index]; }
+                set { this.parameters[(int)index] = value; }
             }
         }
 
@@ -145,7 +145,7 @@ namespace NBitcoin
 
         public int SubsidyHalvingInterval { get; set; }
 
-        public Func<NetworkOptions, BlockHeader, uint256> GetPoWHash { get; set; } = (n,h) => h.GetHash(n);
+        public Func<NetworkOptions, BlockHeader, uint256> GetPoWHash { get; set; } = (n, h) => h.GetHash(n);
 
         public int MajorityEnforceBlockUpgrade { get; set; }
 
@@ -171,7 +171,7 @@ namespace NBitcoin
 
         public long DifficultyAdjustmentInterval
         {
-            get { return ((long) this.PowTargetTimespan.TotalSeconds / (long) this.PowTargetSpacing.TotalSeconds); }
+            get { return ((long)this.PowTargetTimespan.TotalSeconds / (long)this.PowTargetSpacing.TotalSeconds); }
         }
 
         public int MinerConfirmationWindow { get; set; }
@@ -227,15 +227,74 @@ namespace NBitcoin
         }
     }
 
+    public class MoneyUnit
+    {
+        public string Name { get; private set; }
+        public int Multiplier { get; private set; }
+
+        public MoneyUnit(string name, int multiplier)
+        {
+            this.Name = name;
+            this.Multiplier = multiplier;
+        }
+
+        public MoneyUnit(int multiplier)
+        {
+            this.Name = "";
+            this.Multiplier = multiplier;
+        }
+
+        public static MoneyUnit BaseUnit
+        {
+            get
+            {
+                return new MoneyUnit("unit", 1);
+            }
+        }
+    }
+
+    public class MoneyUnits
+    {
+        public MoneyUnit[] Units
+        {
+            get;
+            private set;
+        }
+
+        public MoneyUnit DefaultUnit
+        {
+            get;
+            private set;
+        }
+
+        public MoneyUnits(string defaultUnit, MoneyUnit[] units)
+        {
+            this.Units = units;
+            this.DefaultUnit = this.Units.First(mu => mu.Name.ToLowerInvariant() == defaultUnit.ToLowerInvariant());
+        }
+
+        public MoneyUnit GetMoneyUnit(string moneyUnitName)
+        {
+            return this.Units.FirstOrDefault(mu => mu.Name.ToLowerInvariant() == moneyUnitName.ToLowerInvariant());
+        }
+
+        public string ToString(int units)
+        {
+            return ((decimal)units / this.DefaultUnit.Multiplier) + " " + this.DefaultUnit.Name;
+        }
+    }
+
+    public enum NetworkInitializationMode { Main, Test, RegTest }
+
     public partial class Network
     {
-        private uint magic;
-        private byte[] alertPubKeyArray;
+        protected uint magic;
+        protected byte[] alertPubKeyArray;
         private PubKey alertPubKey;
-        private readonly List<DNSSeedData> seeds = new List<DNSSeedData>();
-        private readonly List<NetworkAddress> fixedSeeds = new List<NetworkAddress>();
-        private Block genesis;
-        private Consensus consensus = new Consensus();
+        protected readonly List<DNSSeedData> seeds = new List<DNSSeedData>();
+        protected readonly List<NetworkAddress> fixedSeeds = new List<NetworkAddress>();
+        protected Block genesis;
+        protected Consensus consensus = new Consensus();
 
         public NetworkOptions NetworkOptions
         {
@@ -245,7 +304,7 @@ namespace NBitcoin
             }
         }
 
-        private Network()
+        protected Network()
         {
             this.genesis = new Block();
         }
@@ -263,30 +322,50 @@ namespace NBitcoin
         }
 
         /// <summary> Maximal value for the calculated time offset. If the value is over this limit, the time syncing feature will be switched off. </summary>
-        public int MaxTimeOffsetSeconds { get; private set; }
+        public int MaxTimeOffsetSeconds { get; protected set; }
 
         /// <summary>Maximum tip age in seconds to consider node in initial block download.</summary>
-        public int MaxTipAge { get; private set; }
+        public int MaxTipAge { get; protected set; }
 
-        public long MinTxFee { get; private set; }
+        public long MinTxFee { get; protected set; }
 
-        public long FallbackFee { get; private set; }
+        public long FallbackFee { get; protected set; }
 
-        public long MinRelayTxFee { get; private set; }
+        public long MinRelayTxFee { get; protected set; }
 
-        public int RPCPort { get; private set; }
+        public int RPCPort { get; protected set; }
 
-        public int DefaultPort { get; private set; }
+        public int DefaultPort { get; protected set; }
 
         public Consensus Consensus => this.consensus;
 
-        public string Name { get; private set; }
+
+        public string CoinName
+        {
+            get;
+            protected set;
+        }
+
+        public string NetworkName
+        {
+            get;
+            protected set;
+        }
+
+        public string Name
+        {
+            get
+            {
+                return this.CoinName + this.NetworkName;
+            }
+        }
+
 
         /// <summary> The name of the root folder containing blockchains operating with the same consensus rules (for now, this will be bitcoin or stratis). </summary>
-        public string RootFolderName { get; private set; }
+        public string RootFolderName { get; protected set; }
 
         /// <summary> The default name used for the network configuration file. </summary>
-        public string DefaultConfigFilename { get; private set; }
+        public string DefaultConfigFilename { get; protected set; }
 
         public IEnumerable<NetworkAddress> SeedNodes => this.fixedSeeds;
 
@@ -316,19 +395,20 @@ namespace NBitcoin
 
         public uint Magic => this.magic;
 
-        static readonly ConcurrentDictionary<string, Network> NetworksContainer =
+        protected static readonly ConcurrentDictionary<string, Network> NetworksContainer =
             new ConcurrentDictionary<string, Network>();
 
         internal static Network Register(NetworkBuilder builder)
         {
-            if (builder.Name == null)
+            if (builder.NetworkName == null)
                 throw new InvalidOperationException("A network name need to be provided");
 
-            if (GetNetwork(builder.Name) != null)
-                throw new InvalidOperationException("The network " + builder.Name + " is already registered");
+            if (GetNetwork(builder.NetworkName) != null)
+                throw new InvalidOperationException("The network " + builder.NetworkName + " is already registered");
 
             Network network = new Network();
-            network.Name = builder.Name;
+            network.CoinName = builder.CoinName;
+            network.NetworkName = builder.NetworkName;
             network.RootFolderName = builder.RootFolderName;
             network.DefaultConfigFilename = builder.DefaultConfigFilename;
             network.consensus = builder.Consensus;
@@ -378,7 +458,7 @@ namespace NBitcoin
             return network;
         }
 
-        private static void Assert(bool condition)
+        protected static void Assert(bool condition)
         {
             // TODO: use Guard when this moves to the FN.
             if (!condition)
@@ -685,9 +765,9 @@ namespace NBitcoin
 
         public static IEnumerable<Network> GetNetworks()
         {
-            yield return BitcoinMain;
-            yield return BitcoinTest;
-            yield return BitcoinRegTest;
+            //yield return BitcoinMain;
+            //yield return BitcoinTest;
+            //yield return BitcoinRegTest;
 
             if (NetworksContainer.Any())
             {
@@ -838,6 +918,25 @@ namespace NBitcoin
                 throw new ArgumentNullException("bytes");
             Bech32Encoder encoder = network.GetBech32Encoder(type, true);
             return encoder.Encode(witnessVersion, bytes);
+        }
+
+        protected MoneyUnits MoneyUnits;
+
+        public static MoneyUnit MoneyUnit(string moneyUnitName)
+        {
+            foreach (var network in Network.GetNetworks())
+            {
+                if (network.MoneyUnits == null) continue;
+
+                MoneyUnit moneyUnit = network.MoneyUnits.GetMoneyUnit(moneyUnitName);
+
+                if (moneyUnit != null)
+                {
+                    return moneyUnit;
+                }
+            }
+
+            throw new Exception($"The '{moneyUnitName}' money unit in unknown among the networks.");
         }
     }
 }

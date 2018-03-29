@@ -10,11 +10,21 @@ namespace NBitcoin
 {
     public partial class Network
     {
+        public static Network StratisMain => Network.GetNetwork("StratisMain") ?? new StratisNetwork().Init(NetworkInitializationMode.Main);
+
+        public static Network StratisTest => Network.GetNetwork("StratisTest") ?? new StratisNetwork().Init(NetworkInitializationMode.Test);
+
+        public static Network StratisRegTest => Network.GetNetwork("StratisRegTest") ?? new StratisNetwork().Init(NetworkInitializationMode.RegTest);
+    }
+
+
+    public class StratisNetwork : Network
+    {
         /// <summary> Stratis maximal value for the calculated time offset. If the value is over this limit, the time syncing feature will be switched off. </summary>
-        public const int StratisMaxTimeOffsetSeconds = 25 * 60;
+        public static int StratisMaxTimeOffsetSeconds = 25 * 60;
 
         /// <summary> Stratis default value for the maximum tip age in seconds to consider the node in initial block download (2 hours). </summary>
-        public const int StratisDefaultMaxTipAgeInSeconds = 2 * 60 * 60;
+        public static int StratisDefaultMaxTipAgeInSeconds = 2 * 60 * 60;
 
         /// <summary> The name of the root folder containing the different Stratis blockchains (StratisMain, StratisTest, StratisRegTest). </summary>
         public const string StratisRootFolderName = "stratis";
@@ -22,18 +32,47 @@ namespace NBitcoin
         /// <summary> The default name used for the Stratis configuration file. </summary>
         public const string StratisDefaultConfigFilename = "stratis.conf";
 
-        public static Network StratisMain => Network.GetNetwork("StratisMain") ?? InitStratisMain();
-
-        public static Network StratisTest => Network.GetNetwork("StratisTest") ?? InitStratisTest();
-
-        public static Network StratisRegTest => Network.GetNetwork("StratisRegTest") ?? InitStratisRegTest();
-
-        private static Network InitStratisMain()
+        public Network Init(NetworkInitializationMode mode)
         {
+            this.CoinName = "Stratis";
+            this.RootFolderName = StratisRootFolderName;
+            this.DefaultConfigFilename = StratisDefaultConfigFilename;
+
+            this.MaxTimeOffsetSeconds = StratisMaxTimeOffsetSeconds;
+            this.MaxTipAge = StratisDefaultMaxTipAgeInSeconds;
+
+            Network network = null;
+            switch (mode)
+            {
+                case NetworkInitializationMode.Main:
+                    network = InitMain();
+                    break;
+                case NetworkInitializationMode.Test:
+                    network = InitTest();
+                    break;
+                case NetworkInitializationMode.RegTest:
+                    network = InitRegTest();
+                    break;
+            }
+
+            if (network != null)
+            {
+                Network.NetworksContainer.TryAdd(this.Name.ToLowerInvariant(), network);
+                return network;
+            }
+            else
+            {
+                throw new Exception("The initialization parameter is unknown.");
+            }
+        }
+
+        private Network InitMain()
+        {
+            this.NetworkName = "Main";
+            this.MoneyUnits = GetMoneyUnitsMain();
+
             Block.BlockSignature = true;
             Transaction.TimeStamp = true;
-
-            var consensus = new Consensus();
 
             consensus.NetworkOptions = new NetworkOptions() { IsProofOfStake = true };
             consensus.GetPoWHash = (n, h) => Crypto.HashX13.Instance.Hash(h.ToBytes(options:n)); 
@@ -84,7 +123,8 @@ namespace NBitcoin
             Assert(genesis.Header.HashMerkleRoot == uint256.Parse("0x65a26bc20b0351aebf05829daefa8f7db2f800623439f3c114257c91447f1518"));
 
             var builder = new NetworkBuilder()
-                .SetName("StratisMain")
+                .SetCoinName("Stratis")
+                .SetNetworkName("Main")
                 .SetRootFolderName(StratisRootFolderName)
                 .SetDefaultConfigFilename(StratisDefaultConfigFilename)
                 .SetConsensus(consensus)
@@ -140,8 +180,11 @@ namespace NBitcoin
             return builder.BuildAndRegister();
         }
 
-        private static Network InitStratisTest()
+        private Network InitTest()
         {
+            this.NetworkName = "Test";
+            this.MoneyUnits = GetMoneyUnitsTest();
+
             Block.BlockSignature = true;
             Transaction.TimeStamp = true;
 
@@ -169,7 +212,8 @@ namespace NBitcoin
             consensus.DefaultAssumeValid = new uint256("0x12ae16993ce7f0836678f225b2f4b38154fa923bd1888f7490051ddaf4e9b7fa"); // 218810
 
             var builder = new NetworkBuilder()
-                .SetName("StratisTest")
+                .SetCoinName("Stratis")
+                .SetNetworkName("Test")
                 .SetRootFolderName(StratisRootFolderName)
                 .SetDefaultConfigFilename(StratisDefaultConfigFilename)
                 .SetConsensus(consensus)
@@ -207,12 +251,10 @@ namespace NBitcoin
             return builder.BuildAndRegister();
         }
 
-        private static Network InitStratisRegTest()
+        private Network InitRegTest()
         {
-            // TODO: move this to Networks
-            var net = Network.GetNetwork("StratisRegTest");
-            if (net != null)
-                return net;
+            this.NetworkName = "RegTest";
+            this.MoneyUnits = GetMoneyUnitsTest();
 
             Block.BlockSignature = true;
             Transaction.TimeStamp = true;
@@ -241,7 +283,8 @@ namespace NBitcoin
             consensus.DefaultAssumeValid = null; // turn off assumevalid for regtest.
 
             var builder = new NetworkBuilder()
-                .SetName("StratisRegTest")
+                .SetCoinName("Stratis")
+                .SetNetworkName("RegTest")
                 .SetRootFolderName(StratisRootFolderName)
                 .SetDefaultConfigFilename(StratisDefaultConfigFilename)
                 .SetConsensus(consensus)
@@ -262,13 +305,13 @@ namespace NBitcoin
             return builder.BuildAndRegister();
         }
 
-        private static Block CreateStratisGenesisBlock(uint nTime, uint nNonce, uint nBits, int nVersion, Money genesisReward)
+        private Block CreateStratisGenesisBlock(uint nTime, uint nNonce, uint nBits, int nVersion, Money genesisReward)
         {
             string pszTimestamp = "http://www.theonion.com/article/olympics-head-priestess-slits-throat-official-rio--53466";
             return CreateStratisGenesisBlock(pszTimestamp, nTime, nNonce, nBits, nVersion, genesisReward);
         }
 
-        private static Block CreateStratisGenesisBlock(string pszTimestamp, uint nTime, uint nNonce, uint nBits, int nVersion, Money genesisReward)
+        private Block CreateStratisGenesisBlock(string pszTimestamp, uint nTime, uint nNonce, uint nBits, int nVersion, Money genesisReward)
         {
             Transaction txNew = new Transaction();
             txNew.Version = 1;
@@ -295,5 +338,24 @@ namespace NBitcoin
             genesis.UpdateMerkleRoot();
             return genesis;
         }
+
+        private MoneyUnits GetMoneyUnitsMain()
+        {
+            return new MoneyUnits("STRAT",
+                new MoneyUnit[] {
+                    new MoneyUnit("STRAT", 100000000),
+                    new MoneyUnit("s", 1)
+                });
+        }
+
+        private MoneyUnits GetMoneyUnitsTest()
+        {
+            return new MoneyUnits("STRAT-TEST",
+                new MoneyUnit[] {
+                    new MoneyUnit("STRAT-TEST", 100000000),
+                    new MoneyUnit("s-test", 1)
+                });
+        }
+
     }
 }
