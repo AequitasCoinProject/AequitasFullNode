@@ -87,7 +87,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 var destination = BitcoinAddress.Create(request.DestinationAddress, this.network).ScriptPubKey;
                 var context = new TransactionBuildContext(
                     new WalletAccountReference(request.WalletName, request.AccountName),
-                    new[] { new Recipient { Amount = new Money(500, Network.MoneyUnit("Satoshi")), ScriptPubKey = destination } }.ToList())
+                    new[] { new Recipient { Amount = new Money(500, MoneyUnit.Satoshi), ScriptPubKey = destination } }.ToList())
                 {
                     FeeType = FeeType.Low,
                     MinConfirmations = 0,
@@ -126,7 +126,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 var destination = BitcoinAddress.Create(request.DestinationAddress, this.network).ScriptPubKey;
                 var context = new TransactionBuildContext(
                     new WalletAccountReference(request.WalletName, request.AccountName),
-                    new[] { new Recipient { Amount = new Money(500, Network.MoneyUnit("Satoshi")), ScriptPubKey = destination } }.ToList(),
+                    new[] { new Recipient { Amount = new Money(500, MoneyUnit.Satoshi), ScriptPubKey = destination } }.ToList(),
                     request.WalletPassword)
                 {
                     FeeType = FeeType.Low,

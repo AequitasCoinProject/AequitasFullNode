@@ -578,7 +578,7 @@ namespace Stratis.Bitcoin.Features.Miner.Tests
 
             var transaction = new Transaction();
             transaction.AddInput(TxIn.CreateCoinbase(newHeight));
-            transaction.AddOutput(new TxOut(new Money(1, Network.MoneyUnit("BTC")), ScriptPubKey));
+            transaction.AddOutput(new TxOut(new Money(1, MoneyUnit.BTC), ScriptPubKey));
             block.Transactions.Add(transaction);
 
             block.Header.Bits = block.Header.GetWorkRequired(this.network, prevBlock);

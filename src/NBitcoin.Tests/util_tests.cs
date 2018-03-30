@@ -250,10 +250,10 @@ namespace NBitcoin.Tests
         {
             var tests = new[]
             {
-                new object[]{ 1.23456789m, Network.MoneyUnit("BTC"), 123456789m, Network.MoneyUnit("Satoshi")  },
-                new object[]{ 1.23456789m, Network.MoneyUnit("BTC"), 1234.56789m, Network.MoneyUnit("milliBTC")  },
-                new object[]{ 1.23456789m, Network.MoneyUnit("BTC"), 1234567.89m, Network.MoneyUnit("bit")  },
-                new object[]{ 1.23456789m, Network.MoneyUnit("BTC"), 1.23456789m, Network.MoneyUnit("BTC")  },
+                new object[]{ 1.23456789m, MoneyUnit.BTC, 123456789m, MoneyUnit.Satoshi  },
+                new object[]{ 1.23456789m, MoneyUnit.BTC, 1234.56789m, MoneyUnit.MilliBTC  },
+                new object[]{ 1.23456789m, MoneyUnit.BTC, 1234567.89m, MoneyUnit.Bit  },
+                new object[]{ 1.23456789m, MoneyUnit.BTC, 1.23456789m, MoneyUnit.BTC  },
             };
 
             foreach(var test in tests)
@@ -423,18 +423,18 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void MoneyUnitSanityCheck()
         {
-            Money.FromUnit(10m, Network.MoneyUnit("BTC"));
-            Money.FromUnit(10m, Network.MoneyUnit("milliBTC"));
-            Money.FromUnit(10m, Network.MoneyUnit("bit"));
-            Money.FromUnit(10m, Network.MoneyUnit("Satoshi"));
+            Money.FromUnit(10m, MoneyUnit.BTC);
+            Money.FromUnit(10m, MoneyUnit.MilliBTC);
+            Money.FromUnit(10m, MoneyUnit.Bit);
+            Money.FromUnit(10m, MoneyUnit.Satoshi);
 
-            Money.FromUnit(10m, new MoneyUnit(100000000));
-            Money.FromUnit(10m, new MoneyUnit(100000));
-            Money.FromUnit(10m, new MoneyUnit(100));
-            Money.FromUnit(10m, new MoneyUnit(1));
+            Money.FromUnit(10m, (MoneyUnit)100000000);
+            Money.FromUnit(10m, (MoneyUnit)100000);
+            Money.FromUnit(10m, (MoneyUnit)100);
+            Money.FromUnit(10m, (MoneyUnit)1);
 
-            Assert.Throws<ArgumentException>(() => Money.FromUnit(10, new MoneyUnit(14)));
-            Assert.Throws<ArgumentException>(() => Money.FromUnit(10, new MoneyUnit(-41)));
+            Assert.Throws<ArgumentException>(() => Money.FromUnit(10, (MoneyUnit)(14)));
+            Assert.Throws<ArgumentException>(() => Money.FromUnit(10, (MoneyUnit)(-41)));
         }
 
         [Fact]

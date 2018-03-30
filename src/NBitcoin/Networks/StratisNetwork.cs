@@ -69,45 +69,44 @@ namespace NBitcoin
         private Network InitMain()
         {
             this.NetworkName = "Main";
-            this.MoneyUnits = GetMoneyUnitsMain();
 
             Block.BlockSignature = true;
             Transaction.TimeStamp = true;
 
-            consensus.NetworkOptions = new NetworkOptions() { IsProofOfStake = true };
-            consensus.GetPoWHash = (n, h) => Crypto.HashX13.Instance.Hash(h.ToBytes(options:n)); 
+            this.consensus.NetworkOptions = new NetworkOptions() { IsProofOfStake = true };
+            this.consensus.GetPoWHash = (n, h) => Crypto.HashX13.Instance.Hash(h.ToBytes(options:n)); 
 
-            consensus.SubsidyHalvingInterval = 210000;
-            consensus.MajorityEnforceBlockUpgrade = 750;
-            consensus.MajorityRejectBlockOutdated = 950;
-            consensus.MajorityWindow = 1000;
-            consensus.BuriedDeployments[BuriedDeployments.BIP34] = 227931;
-            consensus.BuriedDeployments[BuriedDeployments.BIP65] = 388381;
-            consensus.BuriedDeployments[BuriedDeployments.BIP66] = 363725;
-            consensus.BIP34Hash = new uint256("0x000000000000024b89b42a942fe0d9fea3bb44ab7bd1b19115dd6a759c0808b8");
-            consensus.PowLimit = new Target(new uint256("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
-            consensus.PowTargetTimespan = TimeSpan.FromSeconds(14 * 24 * 60 * 60); // two weeks
-            consensus.PowTargetSpacing = TimeSpan.FromSeconds(10 * 60);
-            consensus.PowAllowMinDifficultyBlocks = false;
-            consensus.PowNoRetargeting = false;
-            consensus.RuleChangeActivationThreshold = 1916; // 95% of 2016
-            consensus.MinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
+            this.consensus.SubsidyHalvingInterval = 210000;
+            this.consensus.MajorityEnforceBlockUpgrade = 750;
+            this.consensus.MajorityRejectBlockOutdated = 950;
+            this.consensus.MajorityWindow = 1000;
+            this.consensus.BuriedDeployments[BuriedDeployments.BIP34] = 227931;
+            this.consensus.BuriedDeployments[BuriedDeployments.BIP65] = 388381;
+            this.consensus.BuriedDeployments[BuriedDeployments.BIP66] = 363725;
+            this.consensus.BIP34Hash = new uint256("0x000000000000024b89b42a942fe0d9fea3bb44ab7bd1b19115dd6a759c0808b8");
+            this.consensus.PowLimit = new Target(new uint256("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"));
+            this.consensus.PowTargetTimespan = TimeSpan.FromSeconds(14 * 24 * 60 * 60); // two weeks
+            this.consensus.PowTargetSpacing = TimeSpan.FromSeconds(10 * 60);
+            this.consensus.PowAllowMinDifficultyBlocks = false;
+            this.consensus.PowNoRetargeting = false;
+            this.consensus.RuleChangeActivationThreshold = 1916; // 95% of 2016
+            this.consensus.MinerConfirmationWindow = 2016; // nPowTargetTimespan / nPowTargetSpacing
 
-            consensus.BIP9Deployments[BIP9Deployments.TestDummy] = new BIP9DeploymentsParameters(28, 1199145601, 1230767999);
-            consensus.BIP9Deployments[BIP9Deployments.CSV] = new BIP9DeploymentsParameters(0, 1462060800, 1493596800);
-            consensus.BIP9Deployments[BIP9Deployments.Segwit] = new BIP9DeploymentsParameters(1, 0, 0);
+            this.consensus.BIP9Deployments[BIP9Deployments.TestDummy] = new BIP9DeploymentsParameters(28, 1199145601, 1230767999);
+            this.consensus.BIP9Deployments[BIP9Deployments.CSV] = new BIP9DeploymentsParameters(0, 1462060800, 1493596800);
+            this.consensus.BIP9Deployments[BIP9Deployments.Segwit] = new BIP9DeploymentsParameters(1, 0, 0);
 
-            consensus.LastPOWBlock = 12500;
+            this.consensus.LastPOWBlock = 12500;
 
-            consensus.ProofOfStakeLimit =   new BigInteger(uint256.Parse("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").ToBytes(false));
-            consensus.ProofOfStakeLimitV2 = new BigInteger(uint256.Parse("000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffff").ToBytes(false));
+            this.consensus.ProofOfStakeLimit =   new BigInteger(uint256.Parse("00000fffffffffffffffffffffffffffffffffffffffffffffffffffffffffff").ToBytes(false));
+            this.consensus.ProofOfStakeLimitV2 = new BigInteger(uint256.Parse("000000000000ffffffffffffffffffffffffffffffffffffffffffffffffffff").ToBytes(false));
 
-            consensus.CoinType = 105;
+            this.consensus.CoinType = 105;
 
-            consensus.DefaultAssumeValid = new uint256("0x8c2cf95f9ca72e13c8c4cdf15c2d7cc49993946fb49be4be147e106d502f1869"); // 642930
+            this.consensus.DefaultAssumeValid = new uint256("0x8c2cf95f9ca72e13c8c4cdf15c2d7cc49993946fb49be4be147e106d502f1869"); // 642930
 
             Block genesis = CreateStratisGenesisBlock(1470467000, 1831645, 0x1e0fffff, 1, Money.Zero);
-            consensus.HashGenesisBlock = genesis.GetHash(consensus.NetworkOptions);
+            this.consensus.HashGenesisBlock = genesis.GetHash(this.consensus.NetworkOptions);
 
             // The message start string is designed to be unlikely to occur in normal data.
             // The characters are rarely used upper ASCII, not valid as UTF-8, and produce
@@ -183,7 +182,6 @@ namespace NBitcoin
         private Network InitTest()
         {
             this.NetworkName = "Test";
-            this.MoneyUnits = GetMoneyUnitsTest();
 
             Block.BlockSignature = true;
             Transaction.TimeStamp = true;
@@ -254,7 +252,6 @@ namespace NBitcoin
         private Network InitRegTest()
         {
             this.NetworkName = "RegTest";
-            this.MoneyUnits = GetMoneyUnitsTest();
 
             Block.BlockSignature = true;
             Transaction.TimeStamp = true;
@@ -338,24 +335,5 @@ namespace NBitcoin
             genesis.UpdateMerkleRoot();
             return genesis;
         }
-
-        private MoneyUnits GetMoneyUnitsMain()
-        {
-            return new MoneyUnits("STRAT",
-                new MoneyUnit[] {
-                    new MoneyUnit("STRAT", 100000000),
-                    new MoneyUnit("s", 1)
-                });
-        }
-
-        private MoneyUnits GetMoneyUnitsTest()
-        {
-            return new MoneyUnits("STRAT-TEST",
-                new MoneyUnit[] {
-                    new MoneyUnit("STRAT-TEST", 100000000),
-                    new MoneyUnit("s-test", 1)
-                });
-        }
-
     }
 }

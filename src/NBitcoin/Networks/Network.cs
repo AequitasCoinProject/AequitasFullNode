@@ -227,63 +227,6 @@ namespace NBitcoin
         }
     }
 
-    public class MoneyUnit
-    {
-        public string Name { get; private set; }
-        public int Multiplier { get; private set; }
-
-        public MoneyUnit(string name, int multiplier)
-        {
-            this.Name = name;
-            this.Multiplier = multiplier;
-        }
-
-        public MoneyUnit(int multiplier)
-        {
-            this.Name = "";
-            this.Multiplier = multiplier;
-        }
-
-        public static MoneyUnit BaseUnit
-        {
-            get
-            {
-                return new MoneyUnit("unit", 1);
-            }
-        }
-    }
-
-    public class MoneyUnits
-    {
-        public MoneyUnit[] Units
-        {
-            get;
-            private set;
-        }
-
-        public MoneyUnit DefaultUnit
-        {
-            get;
-            private set;
-        }
-
-        public MoneyUnits(string defaultUnit, MoneyUnit[] units)
-        {
-            this.Units = units;
-            this.DefaultUnit = this.Units.First(mu => mu.Name.ToLowerInvariant() == defaultUnit.ToLowerInvariant());
-        }
-
-        public MoneyUnit GetMoneyUnit(string moneyUnitName)
-        {
-            return this.Units.FirstOrDefault(mu => mu.Name.ToLowerInvariant() == moneyUnitName.ToLowerInvariant());
-        }
-
-        public string ToString(int units)
-        {
-            return ((decimal)units / this.DefaultUnit.Multiplier) + " " + this.DefaultUnit.Name;
-        }
-    }
-
     public enum NetworkInitializationMode { Main, Test, RegTest }
 
     public partial class Network
@@ -765,10 +708,6 @@ namespace NBitcoin
 
         public static IEnumerable<Network> GetNetworks()
         {
-            //yield return BitcoinMain;
-            //yield return BitcoinTest;
-            //yield return BitcoinRegTest;
-
             if (NetworksContainer.Any())
             {
                 List<Network> others = NetworksContainer.Values.Distinct().ToList();
@@ -918,25 +857,6 @@ namespace NBitcoin
                 throw new ArgumentNullException("bytes");
             Bech32Encoder encoder = network.GetBech32Encoder(type, true);
             return encoder.Encode(witnessVersion, bytes);
-        }
-
-        protected MoneyUnits MoneyUnits;
-
-        public static MoneyUnit MoneyUnit(string moneyUnitName)
-        {
-            foreach (var network in Network.GetNetworks())
-            {
-                if (network.MoneyUnits == null) continue;
-
-                MoneyUnit moneyUnit = network.MoneyUnits.GetMoneyUnit(moneyUnitName);
-
-                if (moneyUnit != null)
-                {
-                    return moneyUnit;
-                }
-            }
-
-            throw new Exception($"The '{moneyUnitName}' money unit in unknown among the networks.");
         }
     }
 }

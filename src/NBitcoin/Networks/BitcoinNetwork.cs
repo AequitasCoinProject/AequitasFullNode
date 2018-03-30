@@ -35,6 +35,12 @@ namespace NBitcoin
             this.MaxTipAge = BitcoinDefaultMaxTipAgeInSeconds;
 
             Network network = null;
+
+            bool saveTS = Transaction.TimeStamp;
+            bool saveSig = Block.BlockSignature;
+            Transaction.TimeStamp = false;
+            Block.BlockSignature = false;
+
             switch (mode)
             {
                 case NetworkInitializationMode.Main:
@@ -48,9 +54,11 @@ namespace NBitcoin
                     break;
             }
 
+            Transaction.TimeStamp = saveTS;
+            Block.BlockSignature = saveSig;
+
             if (network != null)
             {
-                Network.NetworksContainer.TryAdd(this.Name.ToLowerInvariant(), network);
                 return network;
             }
             else
@@ -62,7 +70,7 @@ namespace NBitcoin
         private Network InitMain()
         {
             this.NetworkName = "Main";
-
+            Network.NetworksContainer.TryAdd(this.Name.ToLowerInvariant(), this);
 
             this.consensus.SubsidyHalvingInterval = 210000;
             this.consensus.MajorityEnforceBlockUpgrade = 750;
@@ -145,14 +153,13 @@ namespace NBitcoin
             this.FallbackFee = 20000;
             this.MinRelayTxFee = 1000;
 
-            this.MoneyUnits = GetMoneyUnitsMainAndTest();
-
             return this;
         }
 
         private Network InitTest()
         {
             this.NetworkName = "Test";
+            Network.NetworksContainer.TryAdd(this.Name.ToLowerInvariant(), this);
 
             this.consensus.SubsidyHalvingInterval = 210000;
             this.consensus.MajorityEnforceBlockUpgrade = 51;
@@ -214,16 +221,15 @@ namespace NBitcoin
             this.MinTxFee = 1000;
             this.FallbackFee = 20000;
             this.MinRelayTxFee = 1000;
-
-            this.MoneyUnits = GetMoneyUnitsMainAndTest();
-
+            
             return this;
         }
 
         private Network InitReg()
         {
             this.NetworkName = "RegTest";
-            
+            Network.NetworksContainer.TryAdd(this.Name.ToLowerInvariant(), this);
+
             this.consensus.SubsidyHalvingInterval = 150;
             this.consensus.MajorityEnforceBlockUpgrade = 750;
             this.consensus.MajorityRejectBlockOutdated = 950;
@@ -273,8 +279,6 @@ namespace NBitcoin
             this.FallbackFee = 20000;
             this.MinRelayTxFee = 1000;
 
-            this.MoneyUnits = GetMoneyUnitsMainAndTest();
-
             return this;
         }
 
@@ -311,17 +315,6 @@ namespace NBitcoin
             genesis.Header.HashPrevBlock = uint256.Zero;
             genesis.UpdateMerkleRoot();
             return genesis;
-        }
-
-        private MoneyUnits GetMoneyUnitsMainAndTest()
-        {
-            return new MoneyUnits("BTC",
-                new MoneyUnit[] {
-                    new MoneyUnit("BTC", 100000000),
-                    new MoneyUnit("milliBTC", 100000),
-                    new MoneyUnit("bit", 100),
-                    new MoneyUnit("satoshi", 1)
-                });
         }
     }
 }

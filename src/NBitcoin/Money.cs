@@ -58,6 +58,14 @@ namespace NBitcoin
         }
     }
 
+    public enum MoneyUnit : int
+    {
+        BTC = 100000000,
+        MilliBTC = 100000,
+        Bit = 100,
+        Satoshi = 1
+    }
+
     public interface IMoney : IComparable, IComparable<IMoney>, IEquatable<IMoney>
     {
         IMoney Add(IMoney money);
@@ -284,7 +292,7 @@ namespace NBitcoin
 
             try
             {
-                nRet = new Money(value, Network.MoneyUnit("BTC"));
+                nRet = new Money(value, MoneyUnit.BTC);
                 return true;
             }
             catch(OverflowException)
@@ -366,7 +374,7 @@ namespace NBitcoin
             CheckMoneyUnit(unit, "unit");
             checked
             {
-                var satoshi = amount * (int)unit.Multiplier;
+                var satoshi = amount * (int)unit;
                 Satoshi = (long)satoshi;
             }
         }
@@ -412,7 +420,7 @@ namespace NBitcoin
             CheckMoneyUnit(unit, "unit");
             // overflow safe because (long / int) always fit in decimal 
             // decimal operations are checked by default
-            return (decimal)Satoshi / (int)unit.Multiplier;
+            return (decimal)Satoshi / (int)unit;
         }
         /// <summary>
         /// Convert Money to decimal (same as ToUnit)
@@ -428,26 +436,26 @@ namespace NBitcoin
         {
             // overflow safe.
             // decimal operations are checked by default
-            return new Money(coins * COIN, MoneyUnit.BaseUnit);
+            return new Money(coins * COIN, MoneyUnit.Satoshi);
         }
 
         public static Money Bits(decimal bits)
         {
             // overflow safe.
             // decimal operations are checked by default
-            return new Money(bits * CENT, MoneyUnit.BaseUnit);
+            return new Money(bits * CENT, MoneyUnit.Satoshi);
         }
 
         public static Money Cents(decimal cents)
         {
             // overflow safe.
             // decimal operations are checked by default
-            return new Money(cents * CENT, MoneyUnit.BaseUnit);
+            return new Money(cents * CENT, MoneyUnit.Satoshi);
         }
 
         public static Money Satoshis(decimal sats)
         {
-            return new Money(sats, MoneyUnit.BaseUnit);
+            return new Money(sats, MoneyUnit.Satoshi);
         }
 
         public static Money Satoshis(ulong sats)
@@ -739,7 +747,8 @@ namespace NBitcoin
 
         private static void CheckMoneyUnit(MoneyUnit value, string paramName)
         {
-            if (value.Name.ToLowerInvariant() != paramName.ToLowerInvariant())
+            var typeOfMoneyUnit = typeof(MoneyUnit);
+            if (!Enum.IsDefined(typeOfMoneyUnit, value))
             {
                 throw new ArgumentException("Invalid value for MoneyUnit", paramName);
             }
@@ -849,14 +858,14 @@ namespace NBitcoin
                 i++;
             }
             var unit = format[i];
-            var unitToUseInCalc = Network.MoneyUnit("BTC");
+            var unitToUseInCalc = MoneyUnit.BTC;
             switch(unit)
             {
                 case 'B':
-                    unitToUseInCalc = Network.MoneyUnit("BTC");
+                    unitToUseInCalc = MoneyUnit.BTC;
                     break;
             }
-            var val = Convert.ToDecimal(arg) / (int)unitToUseInCalc.Multiplier;
+            var val = Convert.ToDecimal(arg) / (int)unitToUseInCalc;
             var zeros = new string('0', decPos);
             var rest = new string('#', 10 - decPos);
             var fmt = plus && val > 0 ? "+" : string.Empty;
