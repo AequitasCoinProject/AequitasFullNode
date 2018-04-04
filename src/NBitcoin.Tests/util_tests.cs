@@ -250,10 +250,10 @@ namespace NBitcoin.Tests
         {
             var tests = new[]
             {
-                new object[]{ 1.23456789m, MoneyUnit.BTC, 123456789m, MoneyUnit.Satoshi  },
-                new object[]{ 1.23456789m, MoneyUnit.BTC, 1234.56789m, MoneyUnit.MilliBTC  },
-                new object[]{ 1.23456789m, MoneyUnit.BTC, 1234567.89m, MoneyUnit.Bit  },
-                new object[]{ 1.23456789m, MoneyUnit.BTC, 1.23456789m, MoneyUnit.BTC  },
+                new object[]{ 1.23456789m, Network.MoneyUnit("BTC"), 123456789m, Network.MoneyUnit("Satoshi")  },
+                new object[]{ 1.23456789m, Network.MoneyUnit("BTC"), 1234.56789m, Network.MoneyUnit("MilliBTC")  },
+                new object[]{ 1.23456789m, Network.MoneyUnit("BTC"), 1234567.89m, Network.MoneyUnit("Bit")  },
+                new object[]{ 1.23456789m, Network.MoneyUnit("BTC"), 1.23456789m, Network.MoneyUnit("BTC")  },
             };
 
             foreach(var test in tests)
@@ -283,49 +283,49 @@ namespace NBitcoin.Tests
             foreach(var prefix in new string[] { "", "+", "-" })
             {
                 int multiplier = prefix == "-" ? -1 : 1;
-                Assert.True(Money.TryParse(prefix + "0.0", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "0.0", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(0));
 
-                Assert.True(Money.TryParse(prefix + "12345.6789", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "12345.6789", out ret));
                 AssertEx.Equal(ret, multiplier * new Money((Money.COIN / 10000) * 123456789));
 
-                Assert.True(Money.TryParse(prefix + "100000000.00", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "100000000.00", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN * 100000000));
-                Assert.True(Money.TryParse(prefix + "10000000.00", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "10000000.00", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN * 10000000));
-                Assert.True(Money.TryParse(prefix + "1000000.00", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "1000000.00", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN * 1000000));
-                Assert.True(Money.TryParse(prefix + "100000.00", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "100000.00", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN * 100000));
-                Assert.True(Money.TryParse(prefix + "10000.00", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "10000.00", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN * 10000));
-                Assert.True(Money.TryParse(prefix + "1000.00", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "1000.00", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN * 1000));
-                Assert.True(Money.TryParse(prefix + "100.00", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "100.00", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN * 100));
-                Assert.True(Money.TryParse(prefix + "10.00", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "10.00", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN * 10));
-                Assert.True(Money.TryParse(prefix + "1.00", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "1.00", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN));
-                Assert.True(Money.TryParse(prefix + "0.1", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "0.1", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN / 10));
-                Assert.True(Money.TryParse(prefix + "0.01", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "0.01", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN / 100));
-                Assert.True(Money.TryParse(prefix + "0.001", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "0.001", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN / 1000));
-                Assert.True(Money.TryParse(prefix + "0.0001", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "0.0001", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN / 10000));
-                Assert.True(Money.TryParse(prefix + "0.00001", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "0.00001", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN / 100000));
-                Assert.True(Money.TryParse(prefix + "0.000001", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "0.000001", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN / 1000000));
-                Assert.True(Money.TryParse(prefix + "0.0000001", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "0.0000001", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN / 10000000));
-                Assert.True(Money.TryParse(prefix + "0.00000001", out ret));
+                Assert.True(Money.TryParseBTC(prefix + "0.00000001", out ret));
                 AssertEx.Equal(ret, multiplier * new Money(Money.COIN / 100000000));
 
                 // Attempted 63 bit overflow should fail
-                Assert.False(Money.TryParse(prefix + "92233720368.54775808", out ret));
+                Assert.False(Money.TryParseBTC(prefix + "92233720368.54775808", out ret));
             }
         }
 
@@ -423,18 +423,18 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void MoneyUnitSanityCheck()
         {
-            Money.FromUnit(10m, MoneyUnit.BTC);
-            Money.FromUnit(10m, MoneyUnit.MilliBTC);
-            Money.FromUnit(10m, MoneyUnit.Bit);
-            Money.FromUnit(10m, MoneyUnit.Satoshi);
+            Money.FromUnit(10m, Network.MoneyUnit("BTC"));
+            Money.FromUnit(10m, Network.MoneyUnit("MilliBTC"));
+            Money.FromUnit(10m, Network.MoneyUnit("Bit"));
+            Money.FromUnit(10m, Network.MoneyUnit("Satoshi"));
 
-            Money.FromUnit(10m, (MoneyUnit)100000000);
-            Money.FromUnit(10m, (MoneyUnit)100000);
-            Money.FromUnit(10m, (MoneyUnit)100);
-            Money.FromUnit(10m, (MoneyUnit)1);
+            Money.FromUnit(10m, new MoneyUnit(100000000));
+            Money.FromUnit(10m, new MoneyUnit(100000));
+            Money.FromUnit(10m, new MoneyUnit(100));
+            Money.FromUnit(10m, new MoneyUnit(1));
 
-            Assert.Throws<ArgumentException>(() => Money.FromUnit(10, (MoneyUnit)(14)));
-            Assert.Throws<ArgumentException>(() => Money.FromUnit(10, (MoneyUnit)(-41)));
+            Assert.Throws<ArgumentException>(() => Money.FromUnit(10, new MoneyUnit((14))));
+            Assert.Throws<ArgumentException>(() => Money.FromUnit(10, new MoneyUnit((-41))));
         }
 
         [Fact]

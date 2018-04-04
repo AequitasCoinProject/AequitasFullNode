@@ -69,6 +69,7 @@ namespace NBitcoin
         private Network InitMain()
         {
             this.NetworkName = "Main";
+            this.MoneyUnits = GetMoneyUnitsMain();
 
             Block.BlockSignature = true;
             Transaction.TimeStamp = true;
@@ -182,6 +183,7 @@ namespace NBitcoin
         private Network InitTest()
         {
             this.NetworkName = "Test";
+            this.MoneyUnits = GetMoneyUnitsTest();
 
             Block.BlockSignature = true;
             Transaction.TimeStamp = true;
@@ -252,6 +254,7 @@ namespace NBitcoin
         private Network InitRegTest()
         {
             this.NetworkName = "RegTest";
+            this.MoneyUnits = GetMoneyUnitsTest();
 
             Block.BlockSignature = true;
             Transaction.TimeStamp = true;
@@ -334,6 +337,24 @@ namespace NBitcoin
             genesis.Header.HashPrevBlock = uint256.Zero;
             genesis.UpdateMerkleRoot();
             return genesis;
+        }
+
+        private MoneyUnits GetMoneyUnitsMain()
+        {
+            return new MoneyUnits("STRAT",
+                new MoneyUnit[] {
+                    new MoneyUnit("STRAT", 100000000),
+                    new MoneyUnit("s", 1)
+                });
+        }
+
+        private MoneyUnits GetMoneyUnitsTest()
+        {
+            return new MoneyUnits("STRAT-TEST",
+                new MoneyUnit[] {
+                    new MoneyUnit("STRAT-TEST", 100000000),
+                    new MoneyUnit("s-test", 1)
+                });
         }
     }
 }

@@ -43,7 +43,7 @@ namespace Stratis.Bitcoin.Features.LightWallet
             this.nodeLifetime = nodeLifetime;
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
             this.nodeSettings = settings;
-            this.maxTxFee = new Money(0.1M, MoneyUnit.BTC);
+            this.maxTxFee = new Money(0.1M, Network.MoneyUnit("BTC"));
             this.initializedOnce = false;
         }
 
@@ -92,9 +92,9 @@ namespace Stratis.Bitcoin.Features.LightWallet
                 if (token.IsCancellationRequested) return;
 
                 var json = JObject.Parse(await response.Content.ReadAsStringAsync().ConfigureAwait(false));
-                this.lowTxFeePerKb = new FeeRate(new Money((int)(json.Value<decimal>("low_fee_per_kb")), MoneyUnit.Satoshi));
-                this.mediumTxFeePerKb = new FeeRate(new Money((int)(json.Value<decimal>("medium_fee_per_kb")), MoneyUnit.Satoshi));
-                this.highTxFeePerKb = new FeeRate(new Money((int)(json.Value<decimal>("high_fee_per_kb")), MoneyUnit.Satoshi));
+                this.lowTxFeePerKb = new FeeRate(new Money((int)(json.Value<decimal>("low_fee_per_kb")), MoneyUnit.AtomicUnit));
+                this.mediumTxFeePerKb = new FeeRate(new Money((int)(json.Value<decimal>("medium_fee_per_kb")), MoneyUnit.AtomicUnit));
+                this.highTxFeePerKb = new FeeRate(new Money((int)(json.Value<decimal>("high_fee_per_kb")), MoneyUnit.AtomicUnit));
 
                 this.initializedOnce = true;
 

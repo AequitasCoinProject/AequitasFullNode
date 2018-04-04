@@ -858,5 +858,25 @@ namespace NBitcoin
             Bech32Encoder encoder = network.GetBech32Encoder(type, true);
             return encoder.Encode(witnessVersion, bytes);
         }
+
+
+        public MoneyUnits MoneyUnits;
+
+        public static MoneyUnit MoneyUnit(string moneyUnitName)
+        {
+            foreach (Network network in Network.GetNetworks())
+            {
+                if (network.MoneyUnits == null) continue;
+
+                MoneyUnit moneyUnit = network.MoneyUnits.GetMoneyUnit(moneyUnitName);
+
+                if (moneyUnit != null)
+                {
+                    return moneyUnit;
+                }
+            }
+
+            throw new Exception($"The '{moneyUnitName}' money unit in unknown among the networks.");
+        }
     }
 }

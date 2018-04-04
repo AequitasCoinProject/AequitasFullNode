@@ -71,6 +71,7 @@ namespace NBitcoin
         {
             this.NetworkName = "Main";
             Network.NetworksContainer.TryAdd(this.Name.ToLowerInvariant(), this);
+            this.MoneyUnits = GetMoneyUnitsMainAndTest();
 
             this.consensus.SubsidyHalvingInterval = 210000;
             this.consensus.MajorityEnforceBlockUpgrade = 750;
@@ -105,7 +106,7 @@ namespace NBitcoin
             this.DefaultPort = 8333;
             this.RPCPort = 8332;
 
-            this.genesis = CreateGenesisBlock(1231006505, 2083236893, 0x1d00ffff, 1, Money.Coins(50m));
+            this.genesis = CreateGenesisBlock(1231006505, 2083236893, 0x1d00ffff, 1, new Money(50m, this.MoneyUnits.DefaultUnit));
             this.consensus.HashGenesisBlock = this.genesis.GetHash();
             Network.Assert(this.consensus.HashGenesisBlock == uint256.Parse("0x000000000019d6689c085ae165831e934ff763ae46a2a6c172b3f1b60a8ce26f"));
             Network.Assert(this.genesis.Header.HashMerkleRoot == uint256.Parse("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
@@ -160,6 +161,7 @@ namespace NBitcoin
         {
             this.NetworkName = "Test";
             Network.NetworksContainer.TryAdd(this.Name.ToLowerInvariant(), this);
+            this.MoneyUnits = GetMoneyUnitsMainAndTest();
 
             this.consensus.SubsidyHalvingInterval = 210000;
             this.consensus.MajorityEnforceBlockUpgrade = 51;
@@ -193,7 +195,7 @@ namespace NBitcoin
             this.RPCPort = 18332;
 
             // Modify the testnet genesis block so the timestamp is valid for a later start.
-            this.genesis = CreateGenesisBlock(1296688602, 414098458, 0x1d00ffff, 1, Money.Coins(50m));
+            this.genesis = CreateGenesisBlock(1296688602, 414098458, 0x1d00ffff, 1, new Money(50m, this.MoneyUnits.DefaultUnit));
             this.consensus.HashGenesisBlock = this.genesis.GetHash();
 
             Assert(this.consensus.HashGenesisBlock == uint256.Parse("0x000000000933ea01ad0ee984209779baaec3ced90fa3f408719526f8d77f4943"));
@@ -229,6 +231,7 @@ namespace NBitcoin
         {
             this.NetworkName = "RegTest";
             Network.NetworksContainer.TryAdd(this.Name.ToLowerInvariant(), this);
+            this.MoneyUnits = GetMoneyUnitsMainAndTest();
 
             this.consensus.SubsidyHalvingInterval = 150;
             this.consensus.MajorityEnforceBlockUpgrade = 750;
@@ -253,7 +256,7 @@ namespace NBitcoin
             this.consensus.BIP9Deployments[BIP9Deployments.CSV] = new BIP9DeploymentsParameters(0, 0, 999999999);
             this.consensus.BIP9Deployments[BIP9Deployments.Segwit] = new BIP9DeploymentsParameters(1, BIP9DeploymentsParameters.AlwaysActive, 999999999);
 
-            this.genesis = CreateGenesisBlock(1296688602, 2, 0x207fffff, 1, Money.Coins(50m));
+            this.genesis = CreateGenesisBlock(1296688602, 2, 0x207fffff, 1, new Money(50m, this.MoneyUnits.DefaultUnit));
             this.consensus.HashGenesisBlock = this.genesis.GetHash();
             this.DefaultPort = 18444;
             this.RPCPort = 18332;
@@ -315,6 +318,17 @@ namespace NBitcoin
             genesis.Header.HashPrevBlock = uint256.Zero;
             genesis.UpdateMerkleRoot();
             return genesis;
+        }
+
+        private MoneyUnits GetMoneyUnitsMainAndTest()
+        {
+            return new MoneyUnits("BTC",
+                new MoneyUnit[] {
+                    new MoneyUnit("BTC", 100000000),
+                    new MoneyUnit("milliBTC", 100000),
+                    new MoneyUnit("bit", 100),
+                    new MoneyUnit("satoshi", 1)
+                });
         }
     }
 }

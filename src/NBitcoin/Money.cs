@@ -58,14 +58,6 @@ namespace NBitcoin
         }
     }
 
-    public enum MoneyUnit : int
-    {
-        BTC = 100000000,
-        MilliBTC = 100000,
-        Bit = 100,
-        Satoshi = 1
-    }
-
     public interface IMoney : IComparable, IComparable<IMoney>, IEquatable<IMoney>
     {
         IMoney Add(IMoney money);
@@ -280,7 +272,7 @@ namespace NBitcoin
         /// <param name="bitcoin"></param>
         /// <param name="nRet"></param>
         /// <returns></returns>
-        public static bool TryParse(string bitcoin, out Money nRet)
+        public static bool TryParseBTC(string bitcoin, out Money nRet)
         {
             nRet = null;
 
@@ -292,7 +284,7 @@ namespace NBitcoin
 
             try
             {
-                nRet = new Money(value, MoneyUnit.BTC);
+                nRet = new Money(value, Network.MoneyUnit("BTC"));
                 return true;
             }
             catch(OverflowException)
@@ -309,7 +301,7 @@ namespace NBitcoin
         public static Money Parse(string bitcoin)
         {
             Money result;
-            if(TryParse(bitcoin, out result))
+            if(TryParseBTC(bitcoin, out result))
             {
                 return result;
             }
@@ -371,10 +363,10 @@ namespace NBitcoin
         public Money(decimal amount, MoneyUnit unit)
         {
             // sanity check. Only valid units are allowed
-            CheckMoneyUnit(unit, "unit");
+            //CheckMoneyUnit(unit, "unit");
             checked
             {
-                var satoshi = amount * (int)unit;
+                var satoshi = amount * (int)unit.Multiplier;
                 Satoshi = (long)satoshi;
             }
         }
@@ -420,7 +412,7 @@ namespace NBitcoin
             CheckMoneyUnit(unit, "unit");
             // overflow safe because (long / int) always fit in decimal 
             // decimal operations are checked by default
-            return (decimal)Satoshi / (int)unit;
+            return (decimal)Satoshi / (int)unit.Multiplier;
         }
         /// <summary>
         /// Convert Money to decimal (same as ToUnit)
@@ -436,26 +428,26 @@ namespace NBitcoin
         {
             // overflow safe.
             // decimal operations are checked by default
-            return new Money(coins * COIN, MoneyUnit.Satoshi);
+            return new Money(coins * COIN, MoneyUnit.AtomicUnit);
         }
 
         public static Money Bits(decimal bits)
         {
             // overflow safe.
             // decimal operations are checked by default
-            return new Money(bits * CENT, MoneyUnit.Satoshi);
+            return new Money(bits * CENT, MoneyUnit.AtomicUnit);
         }
 
         public static Money Cents(decimal cents)
         {
             // overflow safe.
             // decimal operations are checked by default
-            return new Money(cents * CENT, MoneyUnit.Satoshi);
+            return new Money(cents * CENT, MoneyUnit.AtomicUnit);
         }
 
         public static Money Satoshis(decimal sats)
         {
-            return new Money(sats, MoneyUnit.Satoshi);
+            return new Money(sats, MoneyUnit.AtomicUnit);
         }
 
         public static Money Satoshis(ulong sats)
@@ -745,6 +737,7 @@ namespace NBitcoin
                 throw new OverflowException("satoshis amount should be greater than long.MinValue");
         }
 
+        [Obsolete]
         private static void CheckMoneyUnit(MoneyUnit value, string paramName)
         {
             var typeOfMoneyUnit = typeof(MoneyUnit);
@@ -858,14 +851,14 @@ namespace NBitcoin
                 i++;
             }
             var unit = format[i];
-            var unitToUseInCalc = MoneyUnit.BTC;
+            MoneyUnit unitToUseInCalc = Network.BitcoinMain.MoneyUnits.DefaultUnit;
             switch(unit)
             {
                 case 'B':
-                    unitToUseInCalc = MoneyUnit.BTC;
+                    unitToUseInCalc = Network.BitcoinMain.MoneyUnits.DefaultUnit;
                     break;
             }
-            var val = Convert.ToDecimal(arg) / (int)unitToUseInCalc;
+            var val = Convert.ToDecimal(arg) / (int)unitToUseInCalc.Multiplier;
             var zeros = new string('0', decPos);
             var rest = new string('#', 10 - decPos);
             var fmt = plus && val > 0 ? "+" : string.Empty;
