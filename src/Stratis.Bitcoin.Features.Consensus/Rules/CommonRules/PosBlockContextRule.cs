@@ -1,11 +1,12 @@
 ﻿using System.Threading.Tasks;
+using Stratis.Bitcoin.Consensus.Rules;
 
 namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
 {
     /// <summary>
     /// Context checks on a POS block.
     /// </summary>
-    public class PosBlockContextRule : PosConsensusRule
+    public class PosBlockContextRule : StakeStoreConsensusRule
     {
         /// <inheritdoc />
         public override Task RunAsync(RuleContext context)

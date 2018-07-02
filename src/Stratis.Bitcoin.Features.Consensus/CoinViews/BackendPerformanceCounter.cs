@@ -2,6 +2,7 @@
 using System.Text;
 using System.Threading;
 using Stratis.Bitcoin.Configuration.Logging;
+using Stratis.Bitcoin.Consensus;
 using Stratis.Bitcoin.Utilities;
 
 namespace Stratis.Bitcoin.Features.Consensus.CoinViews
@@ -81,6 +82,8 @@ namespace Stratis.Bitcoin.Features.Consensus.CoinViews
         /// <param name="dateTimeProvider"></param>
         public BackendPerformanceCounter(IDateTimeProvider dateTimeProvider)
         {
+            Guard.NotNull(dateTimeProvider, nameof(dateTimeProvider));
+
             this.dateTimeProvider = dateTimeProvider;
             this.start = this.dateTimeProvider.GetUtcNow();
         }
@@ -249,7 +252,7 @@ namespace Stratis.Bitcoin.Features.Consensus.CoinViews
         /// <inheritdoc />
         public override string ToString()
         {
-            StringBuilder builder = new StringBuilder();
+            var builder = new StringBuilder();
             if (this.TotalInsertedEntities > 0)
                 builder.AppendLine("Insert speed:".PadRight(LoggingConfiguration.ColumnLength) + (this.TotalInsertTime.TotalMilliseconds / this.TotalInsertedEntities).ToString("0.0000") + " ms/utxo");
 

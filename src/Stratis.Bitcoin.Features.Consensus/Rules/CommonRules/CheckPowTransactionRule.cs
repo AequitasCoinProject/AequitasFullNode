@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
+using Stratis.Bitcoin.Consensus.Rules;
 
 namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
 {
@@ -22,17 +23,17 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
         /// <exception cref="ConsensusErrors.BadTransactionNullPrevout">Thrown if transaction contains a null prevout.</exception>
         public override Task RunAsync(RuleContext context)
         {
-            Block block = context.BlockValidationContext.Block;
+            Block block = context.ValidationContext.Block;
             var options = context.Consensus.Option<PowConsensusOptions>();
 
             // Check transactions
             foreach (Transaction tx in block.Transactions)
-                this.CheckTransaction(options, tx);
+                this.CheckTransaction(this.Parent.Network, options, tx);
 
             return Task.CompletedTask;
         }
 
-        public virtual void CheckTransaction(PowConsensusOptions options, Transaction tx)
+        public virtual void CheckTransaction(Network network, PowConsensusOptions options, Transaction tx)
         {
             // Basic checks that don't depend on any context.
             if (tx.Inputs.Count == 0)
@@ -48,7 +49,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
             }
 
             // Size limits (this doesn't take the witness into account, as that hasn't been checked for malleability).
-            if (BlockSizeRule.GetSize(tx, NetworkOptions.TemporaryOptions & ~NetworkOptions.Witness) > options.MaxBlockBaseSize)
+            if (BlockSizeRule.GetSize(network, tx, TransactionOptions.None) > options.MaxBlockBaseSize)
             {
                 this.Logger.LogTrace("(-)[TX_OVERSIZE]");
                 ConsensusErrors.BadTransactionOversize.Throw();
@@ -64,14 +65,14 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
                     ConsensusErrors.BadTransactionNegativeOutput.Throw();
                 }
 
-                if (txout.Value.Satoshi > options.MaxMoney)
+                if (txout.Value.Satoshi > network.Consensus.MaxMoney)
                 {
                     this.Logger.LogTrace("(-)[TX_OUTPUT_TOO_LARGE]");
                     ConsensusErrors.BadTransactionTooLargeOutput.Throw();
                 }
 
                 valueOut += txout.Value;
-                if (!this.MoneyRange(options, valueOut))
+                if (!this.MoneyRange(network.Consensus, valueOut))
                 {
                     this.Logger.LogTrace("(-)[TX_TOTAL_OUTPUT_TOO_LARGE]");
                     ConsensusErrors.BadTransactionTooLargeTotalOutput.Throw();
@@ -79,7 +80,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
             }
 
             // Check for duplicate inputs.
-            HashSet<OutPoint> inOutPoints = new HashSet<OutPoint>();
+            var inOutPoints = new HashSet<OutPoint>();
             foreach (TxIn txin in tx.Inputs)
             {
                 if (inOutPoints.Contains(txin.PrevOut))
@@ -112,9 +113,9 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
             }
         }
 
-        private bool MoneyRange(PowConsensusOptions options, long nValue)
+        private bool MoneyRange(NBitcoin.Consensus consensus, long nValue)
         {
-            return ((nValue >= 0) && (nValue <= options.MaxMoney));
+            return ((nValue >= 0) && (nValue <= consensus.MaxMoney));
         }
     }
 }

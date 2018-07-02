@@ -1,10 +1,11 @@
-﻿using Stratis.Bitcoin.Builder;
+﻿using NBitcoin;
+using Stratis.Bitcoin.Builder;
 using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Features.BlockStore;
 using Stratis.Bitcoin.Features.Consensus;
 using Stratis.Bitcoin.Features.MemoryPool;
 using Stratis.Bitcoin.Features.RPC;
-using Stratis.Bitcoin.Tests;
+using Stratis.Bitcoin.Tests.Common;
 
 namespace Stratis.Bitcoin.IntegrationTests.RPC
 {
@@ -13,6 +14,10 @@ namespace Stratis.Bitcoin.IntegrationTests.RPC
     /// </summary>
     public abstract class BaseRPCControllerTest : TestBase
     {
+        protected BaseRPCControllerTest() : base(Network.Main)
+        {
+        }
+
         /// <summary>
         /// Builds a node with basic services and RPC enabled.
         /// </summary>
@@ -20,11 +25,11 @@ namespace Stratis.Bitcoin.IntegrationTests.RPC
         /// <returns>Interface to the newly built node.</returns>
         public IFullNode BuildServicedNode(string dir)
         {
-            NodeSettings nodeSettings = new NodeSettings(args:new string[] { $"-datadir={dir}" });
+            var nodeSettings = new NodeSettings(args:new string[] { $"-datadir={dir}" });
             var fullNodeBuilder = new FullNodeBuilder(nodeSettings);
             IFullNode fullNode = fullNodeBuilder
-                .UsePowConsensus()
                 .UseBlockStore()
+                .UsePowConsensus()
                 .UseMempool()
                 .AddRPC()
                 .Build();

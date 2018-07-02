@@ -25,6 +25,19 @@ namespace NBitcoin.RPC
     public class RestClient : INBitcoinBlockRepository
     {
         private readonly Uri address;
+        private readonly Network network;
+
+
+        /// <summary>
+        /// Gets the <see cref="Network"/> instance for the client.
+        /// </summary>
+        public Network Network
+        {
+            get
+            {
+                return this.network;
+            }
+        }
 
         /// <summary>
         /// Initializes a new instance of the <see cref="RestClient"/> class.
@@ -33,8 +46,25 @@ namespace NBitcoin.RPC
         /// <exception cref="System.ArgumentNullException">Null rest API endpoint</exception>
         /// <exception cref="System.ArgumentException">Invalid value for RestResponseFormat</exception>
         public RestClient(Uri address)
+            : this(address, Network.Main)
         {
-            this.address = address ?? throw new ArgumentNullException("address");
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the <see cref="RestClient"/> class.
+        /// </summary>
+        /// <param name="address">The rest API endpoint</param>
+        /// <param name="network">The network to operate with</param>
+        /// <exception cref="System.ArgumentNullException">Null rest API endpoint</exception>
+        /// <exception cref="System.ArgumentException">Invalid value for RestResponseFormat</exception>
+        public RestClient(Uri address, Network network)
+        {
+            if (address == null)
+                throw new ArgumentNullException("address");
+            if (network == null)
+                throw new ArgumentNullException("network");
+            this.address = address;
+            this.network = network;
         }
 
         /// <summary>
@@ -111,7 +141,7 @@ namespace NBitcoin.RPC
 
             return Enumerable
                 .Range(0, result.Length / hexSize)
-                .Select(i => new BlockHeader(result.SafeSubarray(i * hexSize, hexSize)));
+                .Select(i => BlockHeader.Load(result.SafeSubarray(i * hexSize, hexSize), this.network));
         }
 
         /// <summary>
@@ -134,7 +164,7 @@ namespace NBitcoin.RPC
         public async Task<ChainInfo> GetChainInfoAsync()
         {
             byte[] result = await SendRequestAsync("chaininfo", RestResponseFormat.Json).ConfigureAwait(false);
-            var o = JObject.Parse(Encoding.UTF8.GetString(result, 0, result.Length));
+            JObject o = JObject.Parse(Encoding.UTF8.GetString(result, 0, result.Length));
 
             return new ChainInfo
             {
@@ -186,11 +216,11 @@ namespace NBitcoin.RPC
             byte[] result = await SendRequestAsync($"gettxout/{txid.ToString()}/{vout.ToString() + (includeMemPool ? "/includemempool" : "")}",
                             RestResponseFormat.Json).ConfigureAwait(false);
 
-            var responseString = Encoding.UTF8.GetString(result, 0, result.Length);
+            string responseString = Encoding.UTF8.GetString(result, 0, result.Length);
             if (string.IsNullOrEmpty(responseString))
                 return null;
 
-            var objectResult = JObject.Parse(responseString);
+            JObject objectResult = JObject.Parse(responseString);
 
             return new UnspentTransaction(objectResult);
         }
@@ -202,7 +232,7 @@ namespace NBitcoin.RPC
             using (WebResponse response = await GetWebResponseAsync(request).ConfigureAwait(false))
             {
                 Stream stream = response.GetResponseStream();
-                var bytesToRead = (int)response.ContentLength;
+                int bytesToRead = (int)response.ContentLength;
                 byte[] buffer = await stream.ReadBytesAsync(bytesToRead).ConfigureAwait(false);
 
                 return buffer;
@@ -212,7 +242,7 @@ namespace NBitcoin.RPC
 #region Private methods
         private WebRequest BuildHttpRequest(string resource, RestResponseFormat format, params string[] parms)
         {
-            var hasParams = parms != null && parms.Length > 0;
+            bool hasParams = parms != null && parms.Length > 0;
             var uriBuilder = new UriBuilder(this.address);
             uriBuilder.Path = "rest/" + resource + (hasParams ? "/" : "") + string.Join("/", parms) + "." + format.ToString().ToLowerInvariant();
 
@@ -249,7 +279,7 @@ namespace NBitcoin.RPC
             if (exception != null)
             {
                 Stream stream = response.GetResponseStream();
-                var bytesToRead = (int)response.ContentLength;
+                int bytesToRead = (int)response.ContentLength;
                 byte[] buffer = await stream.ReadBytesAsync(bytesToRead).ConfigureAwait(false);
                 response.Dispose();
                 throw new RestApiException(Encoding.UTF8.GetString(buffer, 0, buffer.Length - 2), exception);

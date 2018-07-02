@@ -1,24 +1,33 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 using NBitcoin.Crypto;
+using Stratis.Bitcoin.Consensus.Rules;
 
 namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
 {
     /// <summary>
     /// A rule that will validate the signature of a PoS block.
     /// </summary>
-    public class PosBlockSignatureRule : PosConsensusRule
+    public class PosBlockSignatureRule : StakeStoreConsensusRule
     {
         /// <inheritdoc />
+        /// <exception cref="ConsensusErrors.BadBlockSignature">The block signature is invalid.</exception>
         public override Task RunAsync(RuleContext context)
         {
-            Block block = context.BlockValidationContext.Block;
+            Block block = context.ValidationContext.Block;
+
+            if (!(block is PosBlock posBlock))
+            {
+                this.Logger.LogTrace("(-)[INVALID_CAST]");
+                throw new InvalidCastException();
+            }
 
             // Check proof-of-stake block signature.
-            if (!this.CheckBlockSignature(block))
+            if (!this.CheckBlockSignature(posBlock))
             {
                 this.Logger.LogTrace("(-)[BAD_SIGNATURE]");
                 ConsensusErrors.BadBlockSignature.Throw();
@@ -32,18 +41,18 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
         /// </summary>
         /// <param name="block">The block.</param>
         /// <returns><c>true</c> if the signature is valid, <c>false</c> otherwise.</returns>
-        private bool CheckBlockSignature(Block block)
+        private bool CheckBlockSignature(PosBlock block)
         {
             this.Logger.LogTrace("()");
 
             if (BlockStake.IsProofOfWork(block))
             {
-                bool res = block.BlockSignatur.IsEmpty();
+                bool res = block.BlockSignature.IsEmpty();
                 this.Logger.LogTrace("(-)[POW]:{0}", res);
                 return res;
             }
 
-            if (block.BlockSignatur.IsEmpty())
+            if (block.BlockSignature.IsEmpty())
             {
                 this.Logger.LogTrace("(-)[EMPTY]:false");
                 return false;
@@ -51,10 +60,10 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
 
             TxOut txout = block.Transactions[1].Outputs[1];
 
-            if (PayToPubkeyTemplate.Instance.CheckScriptPubKey(txout.ScriptPubKey))
+            if (PayToPubkeyTemplate.Instance.CheckScriptPubKey(this.Parent.Network, txout.ScriptPubKey))
             {
                 PubKey pubKey = PayToPubkeyTemplate.Instance.ExtractScriptPubKeyParameters(txout.ScriptPubKey);
-                bool res = pubKey.Verify(block.GetHash(), new ECDSASignature(block.BlockSignatur.Signature));
+                bool res = pubKey.Verify(block.GetHash(), new ECDSASignature(block.BlockSignature.Signature));
                 this.Logger.LogTrace("(-)[P2PK]:{0}", res);
                 return res;
             }
@@ -88,7 +97,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
                 return false;
             }
 
-            bool verifyRes = new PubKey(data).Verify(block.GetHash(this.Parent.ConsensusParams.NetworkOptions), new ECDSASignature(block.BlockSignatur.Signature));
+            bool verifyRes = new PubKey(data).Verify(block.GetHash(), new ECDSASignature(block.BlockSignature.Signature));
             this.Logger.LogTrace("(-):{0}", verifyRes);
             return verifyRes;
         }

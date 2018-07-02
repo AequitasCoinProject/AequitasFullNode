@@ -1,5 +1,4 @@
-﻿using System;
-using System.Text;
+﻿using System.Text;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 using Stratis.Bitcoin.Configuration;
@@ -12,6 +11,9 @@ namespace Stratis.Bitcoin.Features.Miner
     /// </summary>
     public class MinerSettings
     {
+        /// <summary>Instance logger.</summary>
+        private readonly ILogger logger;
+
         /// <summary>
         /// Enable the node to stake.
         /// </summary>
@@ -38,50 +40,46 @@ namespace Stratis.Bitcoin.Features.Miner
         public string WalletName { get; set; }
 
         /// <summary>
-        /// A callback allow changing the default settings.
+        /// Initializes an instance of the object from the default configuration.
         /// </summary>
-        private readonly Action<MinerSettings> callback;
-
-        /// <summary>
-        /// Initializes an instance of the object.
-        /// </summary>
-        /// <param name="callback">Callback routine to be called once the miner settings are loaded.</param>
-        public MinerSettings(Action<MinerSettings> callback = null)
-        {        
-            this.callback = callback;
+        public MinerSettings() : this(NodeSettings.Default())
+        {
         }
 
         /// <summary>
-        /// Loads the RPC settings from the application configuration.
+        /// Initializes an instance of the object from the node configuration.
         /// </summary>
-        /// <param name="nodeSettings">Application configuration.</param>
-        public void Load(NodeSettings nodeSettings)
+        /// <param name="nodeSettings">The node configuration.</param>
+        public MinerSettings(NodeSettings nodeSettings)
         {
             Guard.NotNull(nodeSettings, nameof(nodeSettings));
 
+            this.logger = nodeSettings.LoggerFactory.CreateLogger(typeof(MinerSettings).FullName);
+            this.logger.LogTrace("({0}:'{1}')", nameof(nodeSettings), nodeSettings.Network.Name);
+
             TextFileConfiguration config = nodeSettings.ConfigReader;
 
-            this.Mine = config.GetOrDefault<bool>("mine", false);
+            this.Mine = config.GetOrDefault<bool>("mine", false, this.logger);
             if (this.Mine)
-                this.MineAddress = config.GetOrDefault<string>("mineaddress", null);
+                this.MineAddress = config.GetOrDefault<string>("mineaddress", null, this.logger);
 
-            this.Stake = config.GetOrDefault<bool>("stake", false);
+            this.Stake = config.GetOrDefault<bool>("stake", false, this.logger);
             if (this.Stake)
             {
-                this.WalletName = config.GetOrDefault<string>("walletname", null);
-                this.WalletPassword = config.GetOrDefault<string>("walletpassword", null);
+                this.WalletName = config.GetOrDefault<string>("walletname", null, this.logger);
+                this.WalletPassword = config.GetOrDefault<string>("walletpassword", null); // No logging!
             }
 
-            this.callback?.Invoke(this);
+            this.logger.LogTrace("(-)");
         }
-
+        
         /// <summary>
         /// Displays mining help information on the console.
         /// </summary>
         /// <param name="mainNet">Not used.</param>
         public static void PrintHelp(Network mainNet)
         {
-            var defaults = NodeSettings.Default();
+            NodeSettings defaults = NodeSettings.Default();
             var builder = new StringBuilder();
 
             builder.AppendLine("-mine=<0 or 1>            Enable POW mining.");
@@ -91,6 +89,26 @@ namespace Stratis.Bitcoin.Features.Miner
             builder.AppendLine("-walletpassword=<string>  Password to unlock the wallet.");
 
             defaults.Logger.LogInformation(builder.ToString());
+        }
+
+        /// <summary>
+        /// Get the default configuration.
+        /// </summary>
+        /// <param name="builder">The string builder to add the settings to.</param>
+        /// <param name="network">The network to base the defaults off.</param>
+        public static void BuildDefaultConfigurationFile(StringBuilder builder, Network network)
+        {
+            builder.AppendLine("####Miner Settings####");
+            builder.AppendLine("#Enable POW mining.");
+            builder.AppendLine("#mine=0");
+            builder.AppendLine("#Enable POS.");
+            builder.AppendLine("#stake=0");
+            builder.AppendLine("#The address to use for mining (empty string to select an address from the wallet).");
+            builder.AppendLine("#mineaddress=<string>");
+            builder.AppendLine("#The wallet name to use when staking.");
+            builder.AppendLine("#walletname=<string>");
+            builder.AppendLine("#Password to unlock the wallet.");
+            builder.AppendLine("#walletpassword=<string>");
         }
     }
 }

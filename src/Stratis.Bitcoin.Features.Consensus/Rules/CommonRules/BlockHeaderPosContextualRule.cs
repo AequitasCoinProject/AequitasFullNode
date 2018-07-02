@@ -1,57 +1,62 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
+using Stratis.Bitcoin.Consensus.Rules;
 
 namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
 {
     /// <summary>
     /// Checks if <see cref="Block"/> has a valid PoS header.
     /// </summary>
-    public class BlockHeaderPosContextualRule : PosConsensusRule
+    public class BlockHeaderPosContextualRule : StakeStoreConsensusRule
     {
-        /// <summary>
-        /// Context-dependent validity checks.
-        /// </summary>
-        /// <param name="context">Context that contains variety of information regarding blocks validation and execution.</param>
-        /// <exception cref="ConsensusErrors.BadDiffBits">Thrown if proof of work is incorrect.</exception>
-        /// <exception cref="ConsensusErrors.TimeTooOld">Thrown if block's timestamp is too early.</exception>
+        /// <summary>PoS block's timestamp mask.</summary>
+        /// <remarks>Used to decrease granularity of timestamp. Supposed to be 2^n-1.</remarks>
+        public const uint StakeTimestampMask = 0x0000000F;
+
+        /// <inheritdoc />
         /// <exception cref="ConsensusErrors.TimeTooNew">Thrown if block' timestamp too far in the future.</exception>
         /// <exception cref="ConsensusErrors.BadVersion">Thrown if block's version is outdated.</exception>
-        /// <exception cref="ConsensusErrors.HighHash"> Thrown if block doesn't have a valid PoW header.</exception>
+        /// <exception cref="ConsensusErrors.BlockTimestampTooEarly"> Thrown if the block timestamp is before the previous block timestamp.</exception>
+        /// <exception cref="ConsensusErrors.StakeTimeViolation">Thrown if the coinstake timestamp is invalid.</exception>
+        /// <exception cref="ConsensusErrors.ProofOfWorkTooHigh">The block's height is higher than the last allowed PoW block.</exception>
         public override Task RunAsync(RuleContext context)
         {
-            ChainedBlock chainedBlock = context.BlockValidationContext.ChainedBlock;
-            this.Logger.LogTrace("Height of block is {0}, block timestamp is {1}, previous block timestamp is {2}, block version is 0x{3:x}.", chainedBlock.Height, chainedBlock.Header.Time, chainedBlock.Previous.Header.Time, chainedBlock.Header.Version);
+            ChainedHeader chainedHeader = context.ValidationContext.ChainedHeader;
+            this.Logger.LogTrace("Height of block is {0}, block timestamp is {1}, previous block timestamp is {2}, block version is 0x{3:x}.", chainedHeader.Height, chainedHeader.Header.Time, chainedHeader.Previous.Header.Time, chainedHeader.Header.Version);
 
-            if (chainedBlock.Header.Version < 7)
+            var posRuleContext = context as PosRuleContext;
+
+            if (chainedHeader.Header.Version < 7)
             {
                 this.Logger.LogTrace("(-)[BAD_VERSION]");
                 ConsensusErrors.BadVersion.Throw();
             }
 
-            if (context.Stake.BlockStake.IsProofOfWork() && (chainedBlock.Height > this.Parent.ConsensusParams.LastPOWBlock))
+            if (posRuleContext.BlockStake.IsProofOfWork() && (chainedHeader.Height > this.Parent.ConsensusParams.LastPOWBlock))
             {
                 this.Logger.LogTrace("(-)[POW_TOO_HIGH]");
-                ConsensusErrors.ProofOfWorkTooHeigh.Throw();
+                ConsensusErrors.ProofOfWorkTooHigh.Throw();
             }
 
             // Check coinbase timestamp.
-            if (chainedBlock.Header.Time > this.FutureDrift(context.BlockValidationContext.Block.Transactions[0].Time))
+            uint coinbaseTime = context.ValidationContext.Block.Transactions[0].Time;
+            if (chainedHeader.Header.Time > coinbaseTime + PosFutureDriftRule.GetFutureDrift(coinbaseTime))
             {
                 this.Logger.LogTrace("(-)[TIME_TOO_NEW]");
                 ConsensusErrors.TimeTooNew.Throw();
             }
 
             // Check coinstake timestamp.
-            if (context.Stake.BlockStake.IsProofOfStake()
-                && !this.CheckCoinStakeTimestamp(chainedBlock.Header.Time, context.BlockValidationContext.Block.Transactions[1].Time))
+            if (posRuleContext.BlockStake.IsProofOfStake()
+                && !this.CheckCoinStakeTimestamp(chainedHeader.Header.Time, context.ValidationContext.Block.Transactions[1].Time))
             {
                 this.Logger.LogTrace("(-)[BAD_TIME]");
                 ConsensusErrors.StakeTimeViolation.Throw();
             }
 
             // Check timestamp against prev.
-            if (chainedBlock.Header.Time <= chainedBlock.Previous.Header.Time)
+            if (chainedHeader.Header.Time <= chainedHeader.Previous.Header.Time)
             {
                 this.Logger.LogTrace("(-)[TIME_TOO_EARLY]");
                 ConsensusErrors.BlockTimestampTooEarly.Throw();
@@ -68,31 +73,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
         /// <returns><c>true</c> if block timestamp is equal to transaction timestamp, <c>false</c> otherwise.</returns>
         private bool CheckCoinStakeTimestamp(long blockTime, long transactionTime)
         {
-            return (blockTime == transactionTime) && ((transactionTime & PosConsensusValidator.StakeTimestampMask) == 0);
-        }
-
-        /// <summary>
-        /// Applies future drift to provided timestamp.
-        /// </summary>
-        /// <remarks>
-        /// Future drift is maximal allowed block's timestamp difference over adjusted time.
-        /// If this difference is greater block won't be accepted.
-        /// </remarks>
-        /// <param name="time">UNIX timestamp.</param>
-        /// <returns>Timestamp with maximum future drift applied.</returns>
-        private long FutureDrift(long time)
-        {
-            return this.IsDriftReduced(time) ? time + 15 : time + 128 * 60 * 60;
-        }
-
-        /// <summary>
-        /// Checks whether the future drift should be reduced after provided timestamp.
-        /// </summary>
-        /// <param name="time">UNIX timestamp.</param>
-        /// <returns><c>true</c> if for this timestamp future drift should be reduced, <c>false</c> otherwise.</returns>
-        private bool IsDriftReduced(long time)
-        {
-            return time > PosConsensusValidator.DriftingBugFixTimestamp;
+            return (blockTime == transactionTime) && ((transactionTime & StakeTimestampMask) == 0);
         }
     }
 }

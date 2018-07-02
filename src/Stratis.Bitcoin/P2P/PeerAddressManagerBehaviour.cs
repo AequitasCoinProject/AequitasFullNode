@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 using NBitcoin.Protocol;
 using Stratis.Bitcoin.P2P.Peer;
@@ -37,6 +38,11 @@ namespace Stratis.Bitcoin.P2P
         /// </summary>
         public int PeersToDiscover { get; set; }
 
+        /// <summary>
+        /// Flag to make sure <see cref="GetAddrPayload"/> is only sent once.
+        /// </summary>
+        private bool sentAddress;
+
         public PeerAddressManagerBehaviour(IDateTimeProvider dateTimeProvider, IPeerAddressManager peerAddressManager)
         {
             Guard.NotNull(dateTimeProvider, nameof(dateTimeProvider));
@@ -66,11 +72,12 @@ namespace Stratis.Bitcoin.P2P
             {
                 if ((this.Mode & PeerAddressManagerBehaviourMode.Advertise) != 0)
                 {
-                    if (message.Message.Payload is GetAddrPayload)
+                    if ((message.Message.Payload is GetAddrPayload) && (!this.sentAddress))
                     {
-                        var endPoints = this.peerAddressManager.PeerSelector.SelectPeersForGetAddrPayload(1000).Select(p => p.Endpoint).ToArray();
+                        IPEndPoint[] endPoints = this.peerAddressManager.PeerSelector.SelectPeersForGetAddrPayload(1000).Select(p => p.Endpoint).ToArray();
                         var addressPayload = new AddrPayload(endPoints.Select(p => new NetworkAddress(p)).ToArray());
                         await peer.SendMessageAsync(addressPayload).ConfigureAwait(false);
+                        this.sentAddress = true;
                     }
 
                     if (message.Message.Payload is PingPayload ping || message.Message.Payload is PongPayload pong)

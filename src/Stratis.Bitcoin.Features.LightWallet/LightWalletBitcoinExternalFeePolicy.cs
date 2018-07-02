@@ -54,7 +54,7 @@ namespace Stratis.Bitcoin.Features.LightWallet
             {
                 // This will run evry 3 to 10 minutes randomly
                 // So the API provider is not able to identify our transaction with a timing attack
-                var waitMinutes = new Random().Next(3, 10);
+                int waitMinutes = new Random().Next(3, 10);
 
                 HttpResponseMessage response = null;
                 try

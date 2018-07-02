@@ -1,19 +1,19 @@
-﻿using System;
-using System.IO;
-using System.Net;
+﻿using System.Net;
 using Moq;
 using NBitcoin;
+using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Configuration.Logging;
 using Stratis.Bitcoin.P2P;
 using Stratis.Bitcoin.P2P.Peer;
 using Stratis.Bitcoin.P2P.Protocol;
 using Stratis.Bitcoin.P2P.Protocol.Payloads;
+using Stratis.Bitcoin.Tests.Common.Logging;
 using Stratis.Bitcoin.Utilities;
 using Xunit;
 
 namespace Stratis.Bitcoin.Tests.P2P
 {
-    public sealed class PeerAddressManagerBehaviourTests : TestBase
+    public sealed class PeerAddressManagerBehaviourTests : LogsTestBase
     {
         private readonly ExtendedLoggerFactory extendedLoggerFactory;
         private readonly Network network;
@@ -31,11 +31,11 @@ namespace Stratis.Bitcoin.Tests.P2P
         [Fact]
         public void PeerAddressManagerBehaviour_ReceivedPing_UpdateLastSeen()
         {
-            var ipAddress = IPAddress.Parse("::ffff:192.168.0.1");
+            IPAddress ipAddress = IPAddress.Parse("::ffff:192.168.0.1");
             var endpoint = new IPEndPoint(ipAddress, 80);
 
-            var peerFolder = AssureEmptyDirAsDataFolder(Path.Combine(AppContext.BaseDirectory, "PeerAddressManagerBehaviourTests"));
-            var addressManager = new PeerAddressManager(DateTimeProvider.Default, peerFolder, this.loggerFactory, new SelfEndpointTracker());
+            DataFolder peerFolder = CreateDataFolder(this);
+            var addressManager = new PeerAddressManager(DateTimeProvider.Default, peerFolder, this.LoggerFactory.Object, new SelfEndpointTracker());
             addressManager.AddPeer(endpoint, IPAddress.Loopback);
 
             var networkPeer = new Mock<INetworkPeer>();
@@ -61,18 +61,18 @@ namespace Stratis.Bitcoin.Tests.P2P
             //Trigger the event handler
             networkPeer.Object.MessageReceived.ExecuteCallbacksAsync(networkPeer.Object, incomingMessage).GetAwaiter().GetResult();
 
-            var peer = addressManager.FindPeer(endpoint);
+            PeerAddress peer = addressManager.FindPeer(endpoint);
             Assert.Equal(DateTimeProvider.Default.GetUtcNow().Date, peer.LastSeen.Value.Date);
         }
 
         [Fact]
         public void PeerAddressManagerBehaviour_ReceivedPong_UpdateLastSeen()
         {
-            var ipAddress = IPAddress.Parse("::ffff:192.168.0.1");
+            IPAddress ipAddress = IPAddress.Parse("::ffff:192.168.0.1");
             var endpoint = new IPEndPoint(ipAddress, 80);
 
-            var peerFolder = AssureEmptyDirAsDataFolder(Path.Combine(AppContext.BaseDirectory, "PeerAddressManagerBehaviourTests"));
-            var addressManager = new PeerAddressManager(DateTimeProvider.Default, peerFolder, this.loggerFactory, new SelfEndpointTracker());
+            DataFolder peerFolder = CreateDataFolder(this);
+            var addressManager = new PeerAddressManager(DateTimeProvider.Default, peerFolder, this.LoggerFactory.Object, new SelfEndpointTracker());
             addressManager.AddPeer(endpoint, IPAddress.Loopback);
 
             var networkPeer = new Mock<INetworkPeer>();
@@ -98,7 +98,7 @@ namespace Stratis.Bitcoin.Tests.P2P
             //Trigger the event handler
             networkPeer.Object.MessageReceived.ExecuteCallbacksAsync(networkPeer.Object, incomingMessage).GetAwaiter().GetResult();
 
-            var peer = addressManager.FindPeer(endpoint);
+            PeerAddress peer = addressManager.FindPeer(endpoint);
             Assert.Equal(DateTimeProvider.Default.GetUtcNow().Date, peer.LastSeen.Value.Date);
         }
     }

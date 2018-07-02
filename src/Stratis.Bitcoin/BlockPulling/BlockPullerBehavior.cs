@@ -27,7 +27,7 @@ namespace Stratis.Bitcoin.BlockPulling
         double QualityScore { get; }
     }
 
-    /// <inheritdoc />
+    /// <inheritdoc cref="IBlockPullerBehavior"/>
     public class BlockPullerBehavior : NetworkPeerBehavior, IBlockPullerBehavior
     {
         /// <summary>Logger factory to create loggers.</summary>
@@ -121,16 +121,16 @@ namespace Stratis.Bitcoin.BlockPulling
                 // even if the origin of the message was from the other puller behavior.
                 // Therefore we first make a quick check whether this puller behavior was the one
                 // who should deal with this block.
-                uint256 blockHash = block.Obj.Header.GetHash(peer.Network.NetworkOptions);
+                uint256 blockHash = block.Obj.Header.GetHash();
                 if (this.puller.CheckBlockTaskAssignment(this, blockHash))
                 {
                     this.logger.LogTrace("Received block '{0}', length {1} bytes.", blockHash, message.Length);
 
-                    block.Obj.Header.CacheHashes();
+                    block.Obj.Header.PrecomputeHash();
                     foreach (Transaction tx in block.Obj.Transactions)
                         tx.CacheHashes();
 
-                    DownloadedBlock downloadedBlock = new DownloadedBlock
+                    var downloadedBlock = new DownloadedBlock
                     {
                         Block = block.Obj,
                         Length = (int)message.Length,
@@ -202,6 +202,10 @@ namespace Stratis.Bitcoin.BlockPulling
             try
             {
                 await attachedNode.SendMessageAsync(getDataPayload).ConfigureAwait(false);
+
+                // In case job is assigned to a peer with low quality score- 
+                // give it enough score so the job is not reassigned right away.
+                this.UpdateQualityScore(BlockPulling.QualityScore.MaxScore / 10);
             }
             catch (OperationCanceledException)
             {

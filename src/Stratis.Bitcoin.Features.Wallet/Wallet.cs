@@ -95,7 +95,7 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// </summary>
         /// <param name="coinType">The type of the coin this account is for.</param>
         /// <param name="block">The block whose details are used to update the wallet.</param>
-        public void SetLastBlockDetailsByCoinType(CoinType coinType, ChainedBlock block)
+        public void SetLastBlockDetailsByCoinType(CoinType coinType, ChainedHeader block)
         {
             AccountRoot accountRoot = this.AccountsRoot.SingleOrDefault(a => a.CoinType == coinType);
 
@@ -112,7 +112,7 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// <returns></returns>
         public IEnumerable<TransactionData> GetAllTransactionsByCoinType(CoinType coinType)
         {
-            var accounts = this.GetAccountsByCoinType(coinType).ToList();
+            List<HdAccount> accounts = this.GetAccountsByCoinType(coinType).ToList();
 
             foreach (TransactionData txData in accounts.SelectMany(x => x.ExternalAddresses).SelectMany(x => x.Transactions))
             {
@@ -132,7 +132,7 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// <returns></returns>
         public IEnumerable<Script> GetAllPubKeysByCoinType(CoinType coinType)
         {
-            var accounts = this.GetAccountsByCoinType(coinType).ToList();
+            List<HdAccount> accounts = this.GetAccountsByCoinType(coinType).ToList();
 
             foreach (Script script in accounts.SelectMany(x => x.ExternalAddresses).Select(x => x.ScriptPubKey))
             {
@@ -152,9 +152,9 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// <returns>A list of all the addresses contained in this wallet.</returns>
         public IEnumerable<HdAddress> GetAllAddressesByCoinType(CoinType coinType)
         {
-            var accounts = this.GetAccountsByCoinType(coinType).ToList();
+            List<HdAccount> accounts = this.GetAccountsByCoinType(coinType).ToList();
 
-            List<HdAddress> allAddresses = new List<HdAddress>();
+            var allAddresses = new List<HdAddress>();
             foreach (HdAccount account in accounts)
             {
                 allAddresses.AddRange(account.GetCombinedAddresses());
@@ -178,7 +178,7 @@ namespace Stratis.Bitcoin.Features.Wallet
         {
             Guard.NotEmpty(password, nameof(password));
 
-            var accountRoot = this.AccountsRoot.Single(a => a.CoinType == coinType);
+            AccountRoot accountRoot = this.AccountsRoot.Single(a => a.CoinType == coinType);
             return accountRoot.AddNewAccount(password, this.EncryptedSeed, this.ChainCode, this.Network, accountCreationTime);
         }
 
@@ -189,12 +189,12 @@ namespace Stratis.Bitcoin.Features.Wallet
         public HdAccount GetFirstUnusedAccount(CoinType coinType)
         {
             // Get the accounts root for this type of coin.
-            var accountsRoot = this.AccountsRoot.Single(a => a.CoinType == coinType);
+            AccountRoot accountsRoot = this.AccountsRoot.Single(a => a.CoinType == coinType);
 
             if (accountsRoot.Accounts.Any())
             {
                 // Get an unused account.
-                var firstUnusedAccount = accountsRoot.GetFirstUnusedAccount();
+                HdAccount firstUnusedAccount = accountsRoot.GetFirstUnusedAccount();
                 if (firstUnusedAccount != null)
                 {
                     return firstUnusedAccount;
@@ -306,12 +306,12 @@ namespace Stratis.Bitcoin.Features.Wallet
             if (this.Accounts == null)
                 return null;
 
-            var unusedAccounts = this.Accounts.Where(acc => !acc.ExternalAddresses.Any() && !acc.InternalAddresses.Any()).ToList();
+            List<HdAccount> unusedAccounts = this.Accounts.Where(acc => !acc.ExternalAddresses.Any() && !acc.InternalAddresses.Any()).ToList();
             if (!unusedAccounts.Any())
                 return null;
 
             // gets the unused account with the lowest index
-            var index = unusedAccounts.Min(a => a.Index);
+            int index = unusedAccounts.Min(a => a.Index);
             return unusedAccounts.Single(a => a.Index == index);
         }
 
@@ -353,7 +353,7 @@ namespace Stratis.Bitcoin.Features.Wallet
             Guard.NotNull(chainCode, nameof(chainCode));
 
             // Get the current collection of accounts.
-            var accounts = this.Accounts.ToList();
+            List<HdAccount> accounts = this.Accounts.ToList();
 
             int newAccountIndex = 0;
             if (accounts.Any())
@@ -479,14 +479,14 @@ namespace Stratis.Bitcoin.Features.Wallet
             if (addresses == null)
                 return null;
 
-            var unusedAddresses = addresses.Where(acc => !acc.Transactions.Any()).ToList();
+            List<HdAddress> unusedAddresses = addresses.Where(acc => !acc.Transactions.Any()).ToList();
             if (!unusedAddresses.Any())
             {
                 return null;
             }
 
             // gets the unused address with the lowest index
-            var index = unusedAddresses.Min(a => a.Index);
+            int index = unusedAddresses.Min(a => a.Index);
             return unusedAddresses.Single(a => a.Index == index);
         }
 
@@ -501,14 +501,14 @@ namespace Stratis.Bitcoin.Features.Wallet
             if (addresses == null)
                 return null;
 
-            var usedAddresses = addresses.Where(acc => acc.Transactions.Any()).ToList();
+            List<HdAddress> usedAddresses = addresses.Where(acc => acc.Transactions.Any()).ToList();
             if (!usedAddresses.Any())
             {
                 return null;
             }
 
             // gets the used address with the highest index
-            var index = usedAddresses.Max(a => a.Index);
+            int index = usedAddresses.Max(a => a.Index);
             return usedAddresses.Single(a => a.Index == index);
         }
 
@@ -521,7 +521,7 @@ namespace Stratis.Bitcoin.Features.Wallet
         {
             Guard.NotNull(id, nameof(id));
 
-            var addresses = this.GetCombinedAddresses();
+            IEnumerable<HdAddress> addresses = this.GetCombinedAddresses();
             return addresses.Where(r => r.Transactions != null).SelectMany(a => a.Transactions.Where(t => t.Id == id));
         }
 
@@ -531,7 +531,7 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// <returns></returns>
         public IEnumerable<TransactionData> GetSpendableTransactions()
         {
-            var addresses = this.GetCombinedAddresses();
+            IEnumerable<HdAddress> addresses = this.GetCombinedAddresses();
             return addresses.Where(r => r.Transactions != null).SelectMany(a => a.Transactions.Where(t => t.IsSpendable()));
         }
 
@@ -540,11 +540,11 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// </summary>
         public (Money ConfirmedAmount, Money UnConfirmedAmount) GetSpendableAmount()
         {
-            var allTransactions = this.ExternalAddresses.SelectMany(a => a.Transactions)
+            List<TransactionData> allTransactions = this.ExternalAddresses.SelectMany(a => a.Transactions)
                 .Concat(this.InternalAddresses.SelectMany(i => i.Transactions)).ToList();
 
-            var confirmed = allTransactions.Sum(t => t.SpendableAmount(true));
-            var total = allTransactions.Sum(t => t.SpendableAmount(false));
+            long confirmed = allTransactions.Sum(t => t.SpendableAmount(true));
+            long total = allTransactions.Sum(t => t.SpendableAmount(false));
 
             return (confirmed, total - confirmed);
         }
@@ -561,7 +561,7 @@ namespace Stratis.Bitcoin.Features.Wallet
         {
             Guard.NotNull(predicate, nameof(predicate));
 
-            var addresses = this.GetCombinedAddresses();
+            IEnumerable<HdAddress> addresses = this.GetCombinedAddresses();
             return addresses.Where(t => t.Transactions != null).Where(a => a.Transactions.Any(predicate));
         }
 
@@ -598,16 +598,16 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// <returns>The created addresses.</returns>
         public IEnumerable<HdAddress> CreateAddresses(Network network, int addressesQuantity, bool isChange = false)
         {
-            var addresses = isChange ? this.InternalAddresses : this.ExternalAddresses;
+            ICollection<HdAddress> addresses = isChange ? this.InternalAddresses : this.ExternalAddresses;
 
-            // Get the index of the last address that contains transactions.
+            // Get the index of the last address.
             int firstNewAddressIndex = 0;
             if (addresses.Any())
             {
                 firstNewAddressIndex = addresses.Max(add => add.Index) + 1;
             }
 
-            List<HdAddress> addressesCreated = new List<HdAddress>();
+            var addressesCreated = new List<HdAddress>();
             for (int i = firstNewAddressIndex; i < firstNewAddressIndex + addressesQuantity; i++)
             {
                 // Generate a new address.
@@ -618,7 +618,7 @@ namespace Stratis.Bitcoin.Features.Wallet
                 HdAddress newAddress = new HdAddress()
                 {
                     Index = i,
-                    HdPath = HdOperations.CreateHdPath((int)this.GetCoinType(), this.Index, i, isChange),
+                    HdPath = HdOperations.CreateHdPath((int) this.GetCoinType(), this.Index, isChange, i),
                     ScriptPubKey = address.ScriptPubKey,
                     Pubkey = pubkey.ScriptPubKey,
                     Address = address.ToString(),
@@ -652,7 +652,7 @@ namespace Stratis.Bitcoin.Features.Wallet
         {
             // This will take all the spendable coins that belong to the account and keep the reference to the HDAddress and HDAccount.
             // This is useful so later the private key can be calculated just from a given UTXO.
-            foreach (var address in this.GetCombinedAddresses())
+            foreach (HdAddress address in this.GetCombinedAddresses())
             {
                 // A block that is at the tip has 1 confirmation.
                 // When calculating the confirmations the tip must be advanced by one.
@@ -775,6 +775,19 @@ namespace Stratis.Bitcoin.Features.Wallet
             }
 
             return this.Transactions.Where(t => t.IsSpendable());
+        }
+
+        /// <summary>
+        /// Get the address total spendable value for both confirmed and unconfirmed UTXO.
+        /// </summary>
+        public (Money confirmedAmount, Money unConfirmedAmount) GetSpendableAmount()
+        {
+            List<TransactionData> allTransactions = this.Transactions.ToList();
+
+            long confirmed = allTransactions.Sum(t => t.SpendableAmount(true));
+            long total = allTransactions.Sum(t => t.SpendableAmount(false));
+
+            return (confirmed, total - confirmed);
         }
     }
 

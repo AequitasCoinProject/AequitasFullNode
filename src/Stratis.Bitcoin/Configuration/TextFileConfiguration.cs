@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using Microsoft.Extensions.Logging;
 using NBitcoin;
 
 namespace Stratis.Bitcoin.Configuration
@@ -43,10 +44,14 @@ namespace Stratis.Bitcoin.Configuration
                 // Split on the FIRST "=".
                 // This will allow mime-encoded - data strings end in one or more "=" to be parsed.
                 string[] splitted = arg.Split('=');
+                string key = splitted[0];
+                if (!key.StartsWith("-"))
+                    key = "-" + key;
+
                 if (splitted.Length > 1)
-                    this.Add(splitted[0], string.Join("=", splitted.Skip(1)));
+                    this.Add(key, string.Join("=", splitted.Skip(1)));
                 else
-                    this.Add(splitted[0], "1");
+                    this.Add(key, "1");
             }
         }
 
@@ -59,7 +64,7 @@ namespace Stratis.Bitcoin.Configuration
             this.args = new Dictionary<string, List<string>>();
             int lineNumber = 0;
             // Process all lines, even if empty.
-            foreach (var l in data.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None))
+            foreach (string l in data.Split(new[] { "\r\n", "\n" }, StringSplitOptions.None))
             {
                 // Track line numbers, also for empty lines.
                 lineNumber++;
@@ -76,7 +81,11 @@ namespace Stratis.Bitcoin.Configuration
                     throw new FormatException("Line " + lineNumber + $": \"{l}\" : No value is set");
 
                 // Add to dictionary. Trim spaces around keys and values.
-                this.Add(split[0].Trim(), string.Join("=", split.Skip(1)).Trim());
+                string key = split[0].Trim();
+                if (!key.StartsWith("-"))
+                    key = "-" + key;
+
+                this.Add(key, string.Join("=", split.Skip(1)).Trim());
             }
         }
 
@@ -88,7 +97,7 @@ namespace Stratis.Bitcoin.Configuration
         /// <param name="value">Argument value.</param>
         private void Add(string key, string value)
         {
-            if (!this.args.TryGetValue(key, out var list))
+            if (!this.args.TryGetValue(key, out List<string> list))
             {
                 list = new List<string>();
                 this.args.Add(key, list);
@@ -102,50 +111,52 @@ namespace Stratis.Bitcoin.Configuration
         /// <param name="destination">Target instance to merge current instance into.</param>
         public void MergeInto(TextFileConfiguration destination)
         {
-            foreach (var kv in this.args)
+            foreach (KeyValuePair<string, List<string>> kv in this.args)
             {
-                foreach (var v in kv.Value)
+                foreach (string v in kv.Value)
                     destination.Add(kv.Key, v);
             }
         }
 
         /// <summary>
-        /// Retrieves all values of a specific argument name. This looks up for the argument name with and without a dash prefix.
+        /// Retrieves all values of a specific argument name (where the name excludes the dash prefix).
         /// </summary>
-        /// <param name="key">Name of the argument.</param>
+        /// <param name="key">Name of the argument (excluding the dash prefix).</param>
+        /// <param name="logger">The settings logger used to log the value. Logs on Debug level.</param>
         /// <returns>Values for the specified argument.</returns>
-        public string[] GetAll(string key)
+        public string[] GetAll(string key, ILogger logger = null)
         {
-            // Get the values without the - prefix.
-            if (!this.args.TryGetValue(key, out var values))
+            // Get the values with the - prefix.
+            if (!this.args.TryGetValue($"-{key}", out List<string> values))
                 values = new List<string>();
 
-            // Get the values with the - prefix.
-            if (!this.args.TryGetValue($"-{key}", out var dashValues))
-                dashValues = new List<string>();
+            logger?.LogDebug("{0} entries were returned for the key '{1}': {2}", 
+                values.Count, key, string.Join(",", values.Select(str => $"'{str}'")));
 
-            return values.Concat(dashValues).ToArray();
+            return values.ToArray();
         }
 
         /// <summary>
         /// Gets typed value for a specific argument or a default value.
         /// </summary>
         /// <typeparam name="T">Type of the argument value.</typeparam>
-        /// <param name="key">Name of the argument</param>
+        /// <param name="key">Name of the argument.</param>
         /// <param name="defaultValue">Default value to return if no argument value is defined.</param>
+        /// <param name="logger">The settings logger to use to log the value. Logs on Debug level.</param>
         /// <returns>Value of the argument or a default value if no value was set.</returns>
-        public T GetOrDefault<T>(string key, T defaultValue)
+        public T GetOrDefault<T>(string key, T defaultValue, ILogger logger = null)
         {
-            if (!this.args.TryGetValue(key, out var values))
-                if (!this.args.TryGetValue($"-{key}", out values))
-                    return defaultValue;
-
-            if (values.Count != 1)
-                throw new ConfigurationException($"Duplicate value for key {key}.");
+            if (!this.args.TryGetValue($"-{key}", out List<string> values))
+            {
+                logger?.LogDebug("Default value '{0}' was selected for the key '{1}'.", defaultValue, key);
+                return defaultValue;
+            }
 
             try
             {
-                return this.ConvertValue<T>(values[0]);
+                var value = this.ConvertValue<T>(values[0]);
+                logger?.LogDebug("Value '{0}' was loaded for the key '{1}'.", value, key);
+                return value;
             }
             catch (FormatException)
             {
@@ -194,8 +205,8 @@ namespace Stratis.Bitcoin.Configuration
 
             if (typeof(T) == typeof(uint256))
             {
-                uint256 value;
-                if (!uint256.TryParse(str, out value))
+                uint256 value = null;
+                if (str != "0" && !uint256.TryParse(str, out value))
                     throw new FormatException($"Cannot parse uint256 from {str}.");
                 return (T)(object)value;
             }

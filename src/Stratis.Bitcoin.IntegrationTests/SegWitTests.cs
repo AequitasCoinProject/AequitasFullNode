@@ -2,14 +2,9 @@
 using NBitcoin;
 using NBitcoin.RPC;
 using Stratis.Bitcoin.Base.Deployments;
-using Stratis.Bitcoin.Features.BlockStore;
-using Stratis.Bitcoin.Features.Consensus;
 using Stratis.Bitcoin.Features.Consensus.Interfaces;
-using Stratis.Bitcoin.Features.MemoryPool;
-using Stratis.Bitcoin.Features.Miner;
-using Stratis.Bitcoin.Features.RPC;
-using Stratis.Bitcoin.Features.Wallet;
-using Stratis.Bitcoin.IntegrationTests.EnvironmentMockUpHelpers;
+using Stratis.Bitcoin.IntegrationTests.Common;
+using Stratis.Bitcoin.IntegrationTests.Common.EnvironmentMockUpHelpers;
 using Stratis.Bitcoin.Utilities.Extensions;
 using Xunit;
 
@@ -20,24 +15,15 @@ namespace Stratis.Bitcoin.IntegrationTests
         [Fact]
         public void TestSegwit_MinedOnCore_ActivatedOn_StratisNode()
         {
-            using (NodeBuilder builder = NodeBuilder.Create(version: "0.15.1"))
+            using (NodeBuilder builder = NodeBuilder.Create(this))
             {
-                CoreNode coreNode = builder.CreateNode(false);
+                CoreNode coreNode = builder.CreateBitcoinCoreNode(version: "0.15.1");
 
                 coreNode.ConfigParameters.AddOrReplace("debug", "1");
                 coreNode.ConfigParameters.AddOrReplace("printtoconsole", "0");
                 coreNode.Start();
 
-                CoreNode stratisNode = builder.CreateStratisPowNode(true, fullNodeBuilder =>
-                {
-                    fullNodeBuilder
-                        .UsePowConsensus()
-                        .UseBlockStore()
-                        .UseWallet()
-                        .UseMempool()
-                        .AddMining()
-                        .AddRPC();
-                });
+                CoreNode stratisNode = builder.CreateStratisPowNode(start: true);
 
                 RPCClient stratisNodeRpc = stratisNode.CreateRPCClient();
                 RPCClient coreRpc = coreNode.CreateRPCClient();
@@ -66,7 +52,7 @@ namespace Stratis.Bitcoin.IntegrationTests
                     // - LockedIn 287 (as segwit should already be signaled in blocks).
                     // - Active at block 431.
 
-                    IConsensusLoop consensusLoop = stratisNode.FullNode.NodeService<IConsensusLoop>();
+                    var consensusLoop = stratisNode.FullNode.NodeService<IConsensusLoop>();
                     ThresholdState[] segwitDefinedState = consensusLoop.NodeDeployments.BIP9.GetStates(stratisNode.FullNode.Chain.GetBlock(142));
                     ThresholdState[] segwitStartedState = consensusLoop.NodeDeployments.BIP9.GetStates(stratisNode.FullNode.Chain.GetBlock(143));
                     ThresholdState[] segwitLockedInState = consensusLoop.NodeDeployments.BIP9.GetStates(stratisNode.FullNode.Chain.GetBlock(287));

@@ -108,7 +108,7 @@ namespace NBitcoin.Tests
             _Server1.Dispose();
             _Server2.Dispose();
             */
-            foreach(var dispo in _Disposables)
+            foreach(IDisposable dispo in this._Disposables)
                 dispo.Dispose();
         }
 
@@ -116,21 +116,14 @@ namespace NBitcoin.Tests
 
         public static string NATRuleName = "NBitcoin Tests";
 
-        List<IDisposable> _Disposables = new List<IDisposable>();
+        private List<IDisposable> _Disposables = new List<IDisposable>();
         internal void AddDisposable(IDisposable disposable)
         {
-            _Disposables.Add(disposable);
+            this._Disposables.Add(disposable);
         }
     }
     public class ProtocolTests
     {
-        public ProtocolTests()
-        {
-            // These flags may get set due to static network initializers
-            // which include the initializers for Stratis.
-            Transaction.TimeStamp = false;
-            Block.BlockSignature = false;
-        }
         /*
          * TODO: Consider porting to FN.
 

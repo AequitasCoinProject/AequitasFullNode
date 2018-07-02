@@ -27,11 +27,11 @@ namespace Stratis.Bitcoin.P2P.Protocol.Payloads
             public void ReadWrite(BitcoinStream stream)
             {
                 stream.ReadWrite(ref this.Header);
-                VarInt txCount = new VarInt(0);
+                var txCount = new VarInt(0);
                 stream.ReadWrite(ref txCount);
 
                 // Stratis adds an additional byte to the end of a header need to investigate why.
-                if (Transaction.TimeStamp)
+                if (stream.ConsensusFactory.Consensus.IsProofOfStake)
                     stream.ReadWrite(ref txCount);
             }
         }
@@ -58,7 +58,7 @@ namespace Stratis.Bitcoin.P2P.Protocol.Payloads
             else
             {
                 this.headers.Clear();
-                List<BlockHeaderWithTxCount> headersOff = new List<BlockHeaderWithTxCount>();
+                var headersOff = new List<BlockHeaderWithTxCount>();
                 stream.ReadWrite(ref headersOff);
                 this.headers.AddRange(headersOff.Select(h => h.Header));
             }

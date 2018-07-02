@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using DBreeze;
@@ -68,6 +69,9 @@ namespace Stratis.Bitcoin.Features.Consensus.CoinViews
             Guard.NotNull(network, nameof(network));
             Guard.NotEmpty(folder, nameof(folder));
 
+            // Create the coinview folder if it does not exist.
+            Directory.CreateDirectory(folder);
+
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
             this.dbreeze = new DBreezeEngine(folder);
             this.network = network;
@@ -125,7 +129,7 @@ namespace Stratis.Bitcoin.Features.Consensus.CoinViews
                     using (new StopwatchDisposable(o => this.PerformanceCounter.AddQueryTime(o)))
                     {
                         uint256 blockHash = this.GetCurrentHash(transaction);
-                        UnspentOutputs[] result = new UnspentOutputs[txIds.Length];
+                        var result = new UnspentOutputs[txIds.Length];
                         this.PerformanceCounter.AddQueriedEntities(txIds.Length);
 
                         int i = 0;
@@ -188,7 +192,7 @@ namespace Stratis.Bitcoin.Features.Consensus.CoinViews
             int insertedEntities = 0;
 
             List<UnspentOutputs> all = unspentOutputs.ToList();
-            Dictionary<uint256, TxOut[]> unspentToOriginal = new Dictionary<uint256, TxOut[]>(all.Count);
+            var unspentToOriginal = new Dictionary<uint256, TxOut[]>(all.Count);
             using (new StopwatchDisposable(o => this.PerformanceCounter.AddInsertTime(o)))
             {
                 if (originalOutputs != null)

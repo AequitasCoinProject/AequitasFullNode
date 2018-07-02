@@ -2,6 +2,8 @@
 using NBitcoin;
 using Stratis.Bitcoin.Base.Deployments;
 using Stratis.Bitcoin.BlockPulling;
+using Stratis.Bitcoin.Consensus;
+using Stratis.Bitcoin.Consensus.Rules;
 using Stratis.Bitcoin.Features.Consensus.CoinViews;
 
 namespace Stratis.Bitcoin.Features.Consensus.Interfaces
@@ -25,21 +27,21 @@ namespace Stratis.Bitcoin.Features.Consensus.Interfaces
         IStakeChain StakeChain { get; }
 
         /// <summary>The current tip of the chain that has been validated.</summary>
-        ChainedBlock Tip { get; }
+        ChainedHeader Tip { get; }
 
         /// <summary>The consensus db, containing all unspent UTXO in the chain.</summary>
         CoinView UTXOSet { get; }
 
-        /// <summary>The validation logic for the consensus rules.</summary>
-        IPowConsensusValidator Validator { get; }
+        /// <summary>The rules engine for validation logic for the consensus rules.</summary>
+        IConsensusRules ConsensusRules { get; }
 
         /// <summary>
         /// A method that will accept a new block to the node.
         /// The block will be validated and the <see cref="CoinView"/> db will be updated.
         /// If it's a new block that was mined or staked it will extend the chain and the new block will set <see cref="ConcurrentChain.Tip"/>.
         /// </summary>
-        /// <param name="blockValidationContext">Information about the block to validate.</param>
-        Task AcceptBlockAsync(BlockValidationContext blockValidationContext);
+        /// <param name="validationContext">Information about the block to validate.</param>
+        Task AcceptBlockAsync(ValidationContext validationContext);
 
         /// <summary>
         /// Flushes changes in the cached coinview to the disk.
@@ -48,26 +50,18 @@ namespace Stratis.Bitcoin.Features.Consensus.Interfaces
         Task FlushAsync(bool force);
 
         /// <summary>
-        /// Get transaction identifiers to try to pre-fetch them from cache.
-        /// </summary>
-        /// <param name="block">The block containing transactions to fetch.</param>
-        /// <param name="enforceBIP30"><c>true</c> to enforce BIP30.</param>
-        /// <returns>List of transaction ids.</returns>
-        uint256[] GetIdsToFetch(Block block, bool enforceBIP30);
-
-        /// <summary>
-        /// Initialize components in <see cref="Consensus.ConsensusLoop"/>.
+        /// Initialize components in <see cref="ConsensusLoop"/>.
         /// </summary>
         Task StartAsync();
 
         /// <summary>
-        /// Dispose components in <see cref="Consensus.ConsensusLoop"/>.
+        /// Dispose components in <see cref="ConsensusLoop"/>.
         /// </summary>
         void Stop();
 
         /// <summary>
         /// Validates a block using the consensus rules.
         /// </summary>
-        void ValidateBlock(RuleContext context, bool skipRules = false);
+        void ValidateBlock(RuleContext context);
     }
 }

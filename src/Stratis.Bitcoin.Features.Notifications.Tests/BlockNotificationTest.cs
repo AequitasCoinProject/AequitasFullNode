@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -10,7 +11,7 @@ using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Connection;
 using Stratis.Bitcoin.P2P.Peer;
 using Stratis.Bitcoin.Signals;
-using Stratis.Bitcoin.Tests.Logging;
+using Stratis.Bitcoin.Tests.Common.Logging;
 using Stratis.Bitcoin.Utilities;
 using Xunit;
 
@@ -47,7 +48,7 @@ namespace Stratis.Bitcoin.Features.Notifications.Tests
 
             var startBlockId = new uint256(156);
             var chain = new Mock<ConcurrentChain>();
-            chain.Setup(c => c.GetBlock(startBlockId)).Returns((ChainedBlock)null);
+            chain.Setup(c => c.GetBlock(startBlockId)).Returns((ChainedHeader)null);
 
             var notification = new BlockNotification(this.LoggerFactory.Object, chain.Object, new Mock<ILookaheadBlockPuller>().Object, signals.Object, new AsyncLoopFactory(new LoggerFactory()), lifetime);
             notification.SyncFrom(startBlockId);
@@ -63,15 +64,15 @@ namespace Stratis.Bitcoin.Features.Notifications.Tests
         [Fact]
         public void Notify_WithSync_SetPullerLocationToPreviousBlockMatchingStartHash()
         {
-            var blocks = this.CreateBlocks(3);
+            List<Block> blocks = this.CreateBlocks(3);
 
             var chain = new ConcurrentChain(blocks[0].Header);
             this.AppendBlocksToChain(chain, blocks.Skip(1).Take(2));
 
-            var dataFolder = CreateDataFolder(this);
+            DataFolder dataFolder = CreateDataFolder(this);
             var connectionManager = new Mock<IConnectionManager>();
             connectionManager.Setup(c => c.ConnectedPeers).Returns(new NetworkPeerCollection());
-            connectionManager.Setup(c => c.NodeSettings).Returns(new NodeSettings(args:new string[] { $"-datadir={dataFolder.WalletPath}" }));
+            connectionManager.Setup(c => c.NodeSettings).Returns(new NodeSettings(args:new string[] { $"-datadir={dataFolder.RootPath}" }));
             connectionManager.Setup(c => c.Parameters).Returns(new NetworkPeerConnectionParameters());
 
             var lookAheadBlockPuller = new LookaheadBlockPuller(chain, connectionManager.Object, new Mock<ILoggerFactory>().Object);
@@ -96,7 +97,7 @@ namespace Stratis.Bitcoin.Features.Notifications.Tests
         {
             var lifetime = new NodeLifetime();
 
-            var blocks = this.CreateBlocks(2);
+            List<Block> blocks = this.CreateBlocks(2);
 
             var chain = new ConcurrentChain(blocks[0].Header);
             this.AppendBlocksToChain(chain, blocks.Skip(1).Take(1));
@@ -129,7 +130,7 @@ namespace Stratis.Bitcoin.Features.Notifications.Tests
             var puller = new Mock<ILookaheadBlockPuller>();
             var signals = new Mock<ISignals>();
 
-            var blocks = this.CreateBlocks(3);
+            List<Block> blocks = this.CreateBlocks(3);
 
             var chain = new ConcurrentChain(blocks[0].Header);
             this.AppendBlocksToChain(chain, blocks.Skip(1));
@@ -139,8 +140,8 @@ namespace Stratis.Bitcoin.Features.Notifications.Tests
                 .Returns(new LookaheadResult() { Block = blocks[0] });
 
             
-            CancellationTokenSource source = new CancellationTokenSource();
-            var token = source.Token;
+            var source = new CancellationTokenSource();
+            CancellationToken token = source.Token;
             signals.Setup(s => s.SignalBlock(It.Is<Block>(b => b.GetHash() == blocks[0].GetHash())))
                 .Callback(() => {
                     source.Cancel();
@@ -157,7 +158,7 @@ namespace Stratis.Bitcoin.Features.Notifications.Tests
             {
             }
 
-            puller.Verify(p => p.SetLocation(It.Is<ChainedBlock>(b => b.HashBlock == chain.GetBlock(0).HashBlock)));
+            puller.Verify(p => p.SetLocation(It.Is<ChainedHeader>(b => b.HashBlock == chain.GetBlock(0).HashBlock)));
             signals.Verify();
         }
 
@@ -210,7 +211,7 @@ namespace Stratis.Bitcoin.Features.Notifications.Tests
             var puller = new Mock<ILookaheadBlockPuller>();
             var signals = new Mock<ISignals>();
 
-            var blocks = this.CreateBlocks(3);
+            List<Block> blocks = this.CreateBlocks(3);
 
             var chain = new ConcurrentChain(blocks[0].Header);
             this.AppendBlocksToChain(chain, blocks.Skip(1));
@@ -221,7 +222,7 @@ namespace Stratis.Bitcoin.Features.Notifications.Tests
             notification.SyncFrom(blocks[2].GetHash());
 
             Assert.Equal(notification.StartHash, blocks[2].GetHash());
-            puller.Verify(p => p.SetLocation(It.Is<ChainedBlock>(b => b.GetHashCode() == chain.GetBlock(1).GetHashCode())));
+            puller.Verify(p => p.SetLocation(It.Is<ChainedHeader>(b => b.GetHashCode() == chain.GetBlock(1).GetHashCode())));
         }
 
         [Fact]

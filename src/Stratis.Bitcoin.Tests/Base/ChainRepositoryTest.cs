@@ -1,34 +1,79 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using DBreeze;
+using DBreeze.DataTypes;
+using Microsoft.Extensions.Logging;
 using NBitcoin;
 using Stratis.Bitcoin.Base;
+using Stratis.Bitcoin.Tests.Common;
 using Xunit;
 
 namespace Stratis.Bitcoin.Tests.Base
 {
     public class ChainRepositoryTest : TestBase
     {
+        public ChainRepositoryTest() : base(Network.StratisRegTest)
+        {
+        }
+
+        [Fact]
+        public async Task FinalizedHeightSavedOnDiskAsync()
+        {
+            string dir = CreateTestDir(this);
+
+            using (var repo = new ChainRepository(dir, new LoggerFactory()))
+            {
+                await repo.SaveFinalizedBlockHeightAsync(777);
+            }
+
+            using (var repo = new ChainRepository(dir, new LoggerFactory()))
+            {
+                await repo.LoadFinalizedBlockHeightAsync();
+                Assert.Equal(777, repo.GetFinalizedBlockHeight());
+            }
+        }
+
+        [Fact]
+        public async Task FinalizedHeightCantBeDecreasedAsync()
+        {
+            string dir = CreateTestDir(this);
+
+            using (var repo = new ChainRepository(dir, new LoggerFactory()))
+            {
+                await repo.SaveFinalizedBlockHeightAsync(777);
+                await repo.SaveFinalizedBlockHeightAsync(555);
+                
+                Assert.Equal(777, repo.GetFinalizedBlockHeight());
+            }
+
+            using (var repo = new ChainRepository(dir, new LoggerFactory()))
+            {
+                await repo.LoadFinalizedBlockHeightAsync();
+                Assert.Equal(777, repo.GetFinalizedBlockHeight());
+            }
+        }
+
         [Fact]
         public void SaveWritesChainToDisk()
         {
             string dir = CreateTestDir(this);
-            var chain = new ConcurrentChain(Network.BitcoinRegTest);
+            var chain = new ConcurrentChain(Network.StratisRegTest);
             this.AppendBlock(chain);
 
-            using (var repo = new ChainRepository(dir))
+            using (var repo = new ChainRepository(dir, new LoggerFactory()))
             {
                 repo.SaveAsync(chain).GetAwaiter().GetResult();
             }
 
             using (var engine = new DBreezeEngine(dir))
             {
-                ChainedBlock tip = null;
-                foreach (var row in engine.GetTransaction().SelectForward<int, BlockHeader>("Chain"))
+                ChainedHeader tip = null;
+                foreach (Row<int, BlockHeader> row in engine.GetTransaction().SelectForward<int, BlockHeader>("Chain"))
                 {
                     if (tip != null && row.Value.HashPrevBlock != tip.HashBlock)
                         break;
-                    tip = new ChainedBlock(row.Value, row.Value.GetHash(Network.BitcoinRegTest.NetworkOptions), tip);
+                    tip = new ChainedHeader(row.Value, row.Value.GetHash(), tip);
                 }
                 Assert.Equal(tip, chain.Tip);
             }
@@ -38,22 +83,22 @@ namespace Stratis.Bitcoin.Tests.Base
         public void GetChainReturnsConcurrentChainFromDisk()
         {
             string dir = CreateTestDir(this);
-            var chain = new ConcurrentChain(Network.BitcoinRegTest);
-            var tip = this.AppendBlock(chain);
+            var chain = new ConcurrentChain(Network.StratisRegTest);
+            ChainedHeader tip = this.AppendBlock(chain);
 
             using (var engine = new DBreezeEngine(dir))
             {
                 using (DBreeze.Transactions.Transaction transaction = engine.GetTransaction())
                 {
-                    ChainedBlock toSave = tip;
-                    List<ChainedBlock> blocks = new List<ChainedBlock>();
+                    ChainedHeader toSave = tip;
+                    var blocks = new List<ChainedHeader>();
                     while (toSave != null)
                     {
                         blocks.Insert(0, toSave);
                         toSave = toSave.Previous;
                     }
 
-                    foreach (var block in blocks)
+                    foreach (ChainedHeader block in blocks)
                     {
                         transaction.Insert<int, BlockHeader>("Chain", block.Height, block.Header);
                     }
@@ -61,22 +106,22 @@ namespace Stratis.Bitcoin.Tests.Base
                     transaction.Commit();
                 }
             }
-            using (var repo = new ChainRepository(dir))
+            using (var repo = new ChainRepository(dir, new LoggerFactory()))
             {
-                var testChain = new ConcurrentChain(Network.BitcoinRegTest);
+                var testChain = new ConcurrentChain(Network.StratisRegTest);
                 repo.LoadAsync(testChain).GetAwaiter().GetResult();
                 Assert.Equal(tip, testChain.Tip);
             }
         }
 
-        public ChainedBlock AppendBlock(ChainedBlock previous, params ConcurrentChain[] chains)
+        public ChainedHeader AppendBlock(ChainedHeader previous, params ConcurrentChain[] chains)
         {
-            ChainedBlock last = null;
-            var nonce = RandomUtils.GetUInt32();
-            foreach (var chain in chains)
+            ChainedHeader last = null;
+            uint nonce = RandomUtils.GetUInt32();
+            foreach (ConcurrentChain chain in chains)
             {
-                var block = new Block();
-                block.AddTransaction(new Transaction());
+                Block block = this.Network.Consensus.ConsensusFactory.CreateBlock();
+                block.AddTransaction(this.Network.Consensus.ConsensusFactory.CreateTransaction());
                 block.UpdateMerkleRoot();
                 block.Header.HashPrevBlock = previous == null ? chain.Tip.HashBlock : previous.HashBlock;
                 block.Header.Nonce = nonce;
@@ -86,9 +131,9 @@ namespace Stratis.Bitcoin.Tests.Base
             return last;
         }
 
-        private ChainedBlock AppendBlock(params ConcurrentChain[] chains)
+        private ChainedHeader AppendBlock(params ConcurrentChain[] chains)
         {
-            ChainedBlock index = null;
+            ChainedHeader index = null;
             return this.AppendBlock(index, chains);
         }
     }

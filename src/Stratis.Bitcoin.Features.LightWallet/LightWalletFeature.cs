@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,11 +7,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 using Stratis.Bitcoin.Base.Deployments;
-using Stratis.Bitcoin.Broadcasting;
 using Stratis.Bitcoin.Builder;
 using Stratis.Bitcoin.Builder.Feature;
+using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Configuration.Logging;
 using Stratis.Bitcoin.Connection;
+using Stratis.Bitcoin.Features.LightWallet.Broadcasting;
 using Stratis.Bitcoin.Features.Notifications;
 using Stratis.Bitcoin.Features.Wallet;
 using Stratis.Bitcoin.Features.Wallet.Broadcasting;
@@ -57,6 +59,10 @@ namespace Stratis.Bitcoin.Features.LightWallet
 
         private readonly BroadcasterBehavior broadcasterBehavior;
 
+        private readonly NodeSettings nodeSettings;
+
+        private readonly WalletSettings walletSettings;
+
         /// <summary>
         /// Initializes a new instance of the <see cref="LightWalletFeature"/> class.
         /// </summary>
@@ -68,8 +74,10 @@ namespace Stratis.Bitcoin.Features.LightWallet
         /// <param name="asyncLoopFactory">The asynchronous loop factory.</param>
         /// <param name="nodeLifetime">The node lifetime.</param>
         /// <param name="walletFeePolicy">The wallet fee policy.</param>
-        /// <param name="broadcasterBehavior">The broadcaster behavior.</param>
+        /// <param name="broadcasterBehavior">The broadcaster behaviour.</param>
         /// <param name="loggerFactory">Factory to be used to create logger for the puller.</param>
+        /// <param name="nodeSettings">The settings for the node.</param>
+        /// <param name="walletSettings">The settings for the wallet.</param>
         public LightWalletFeature(
             IWalletSyncManager walletSyncManager,
             IWalletManager walletManager,
@@ -80,7 +88,9 @@ namespace Stratis.Bitcoin.Features.LightWallet
             INodeLifetime nodeLifetime,
             IWalletFeePolicy walletFeePolicy,
             BroadcasterBehavior broadcasterBehavior,
-            ILoggerFactory loggerFactory)
+            ILoggerFactory loggerFactory,
+            NodeSettings nodeSettings,
+            WalletSettings walletSettings)
         {
             this.walletSyncManager = walletSyncManager;
             this.walletManager = walletManager;
@@ -93,12 +103,24 @@ namespace Stratis.Bitcoin.Features.LightWallet
             this.broadcasterBehavior = broadcasterBehavior;
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
             this.loggerFactory = loggerFactory;
+            this.nodeSettings = nodeSettings;
+            this.walletSettings = walletSettings;
+        }
+
+        /// <summary>
+        /// Prints command-line help.
+        /// </summary>
+        /// <param name="network">The network to extract values from.</param>
+        public static void PrintHelp(Network network)
+        {
+            WalletSettings.PrintHelp(network);
         }
 
         /// <inheritdoc />
         public override void Initialize()
         {
             this.connectionManager.Parameters.TemplateBehaviors.Add(new DropNodesBehaviour(this.chain, this.connectionManager, this.loggerFactory));
+            this.walletSettings.IsLightWallet = true;
 
             this.walletManager.Start();
             this.walletSyncManager.Start();
@@ -112,7 +134,7 @@ namespace Stratis.Bitcoin.Features.LightWallet
 
         public IAsyncLoop StartDeploymentsChecksLoop()
         {
-            var loopToken = CancellationTokenSource.CreateLinkedTokenSource(this.nodeLifetime.ApplicationStopping);
+            CancellationTokenSource loopToken = CancellationTokenSource.CreateLinkedTokenSource(this.nodeLifetime.ApplicationStopping);
             return this.asyncLoopFactory.Run("LightWalletFeature.CheckDeployments", token =>
             {
                 if (!this.chain.IsDownloaded())
@@ -147,12 +169,12 @@ namespace Stratis.Bitcoin.Features.LightWallet
         /// <inheritdoc />
         public void AddNodeStats(StringBuilder benchLog)
         {
-            WalletManager manager = this.walletManager as WalletManager;
+            var manager = this.walletManager as WalletManager;
 
             if (manager != null)
             {
                 int height = manager.LastBlockHeight();
-                ChainedBlock block = this.chain.GetBlock(height);
+                ChainedHeader block = this.chain.GetBlock(height);
                 uint256 hashBlock = block == null ? 0 : block.HashBlock;
 
                 benchLog.AppendLine("LightWallet.Height: ".PadRight(LoggingConfiguration.ColumnLength + 1) +
@@ -164,16 +186,16 @@ namespace Stratis.Bitcoin.Features.LightWallet
         /// <inheritdoc />
         public void AddFeatureStats(StringBuilder benchLog)
         {
-            var walletNames = this.walletManager.GetWalletsNames();
+            IEnumerable<string> walletNames = this.walletManager.GetWalletsNames();
 
             if (walletNames.Any())
             {
                 benchLog.AppendLine();
                 benchLog.AppendLine("======Wallets======");
 
-                foreach (var walletName in walletNames)
+                foreach (string walletName in walletNames)
                 {
-                    var items = this.walletManager.GetSpendableTransactionsInWallet(walletName, 1);
+                    IEnumerable<UnspentOutputReference> items = this.walletManager.GetSpendableTransactionsInWallet(walletName, 1);
                     benchLog.AppendLine("Wallet: " + (walletName + ",").PadRight(LoggingConfiguration.ColumnLength) + " Confirmed balance: " + new Money(items.Sum(s => s.Transaction.Amount)).ToString());
                 }
             }
@@ -206,6 +228,7 @@ namespace Stratis.Bitcoin.Features.LightWallet
                         services.AddSingleton<IBroadcasterManager, LightWalletBroadcasterManager>();
                         services.AddSingleton<BroadcasterBehavior>();
                         services.AddSingleton<IInitialBlockDownloadState, LightWalletInitialBlockDownloadState>();
+                        services.AddSingleton<WalletSettings>();
                     });
             });
 

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -42,12 +43,6 @@ namespace Stratis.Bitcoin.Features.Api
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
         }
 
-        /// <inheritdoc />
-        public override void LoadConfiguration()
-        {
-            this.apiSettings.Load(this.fullNode.Settings);
-        }
-
         public override void Initialize()
         {
             this.logger.LogInformation("API starting on URL '{0}'.", this.apiSettings.ApiUri);
@@ -77,6 +72,16 @@ namespace Stratis.Bitcoin.Features.Api
         public static void PrintHelp(Network network)
         {
             ApiSettings.PrintHelp(network);
+        }
+
+        /// <summary>
+        /// Get the default configuration.
+        /// </summary>
+        /// <param name="builder">The string builder to add the settings to.</param>
+        /// <param name="network">The network to base the defaults off.</param>
+        public static void BuildDefaultConfigurationFile(StringBuilder builder, Network network)
+        {
+            ApiSettings.BuildDefaultConfigurationFile(builder, network);
         }
 
         /// <inheritdoc />
@@ -109,7 +114,7 @@ namespace Stratis.Bitcoin.Features.Api
     /// </summary>
     public static class ApiFeatureExtension
     {
-        public static IFullNodeBuilder UseApi(this IFullNodeBuilder fullNodeBuilder, Action<ApiSettings> setup = null, Action<ApiFeatureOptions> optionsAction = null)
+        public static IFullNodeBuilder UseApi(this IFullNodeBuilder fullNodeBuilder, Action<ApiFeatureOptions> optionsAction = null)
         {
             // TODO: move the options in to the feature builder
             var options = new ApiFeatureOptions();
@@ -123,7 +128,7 @@ namespace Stratis.Bitcoin.Features.Api
                     {
                         services.AddSingleton(fullNodeBuilder);
                         services.AddSingleton(options);
-                        services.AddSingleton<ApiSettings>(new ApiSettings(setup));
+                        services.AddSingleton<ApiSettings>();
                     });
             });
 

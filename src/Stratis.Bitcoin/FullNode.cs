@@ -59,6 +59,9 @@ namespace Stratis.Bitcoin
         /// <summary>Component responsible for connections to peers in P2P network.</summary>
         public IConnectionManager ConnectionManager { get; set; }
 
+        /// <summary>Selects the best available chain based on tips provided by the peers and switches to it.</summary>
+        private BestChainSelector bestChainSelector;
+
         /// <summary>Best chain of block headers from genesis.</summary>
         public ConcurrentChain Chain { get; set; }
 
@@ -106,7 +109,7 @@ namespace Stratis.Bitcoin
         {
             if (this.Services != null)
             {
-                var feature = this.Services.Features.OfType<T>().FirstOrDefault();
+                T feature = this.Services.Features.OfType<T>().FirstOrDefault();
                 if (feature != null)
                     return feature;
             }
@@ -170,6 +173,7 @@ namespace Stratis.Bitcoin
             this.InitialBlockDownloadState = this.Services.ServiceProvider.GetService<IInitialBlockDownloadState>();
 
             this.ConnectionManager = this.Services.ServiceProvider.GetService<IConnectionManager>();
+            this.bestChainSelector = this.Services.ServiceProvider.GetService<BestChainSelector>();
             this.loggerFactory = this.Services.ServiceProvider.GetService<NodeSettings>().LoggerFactory;
 
             this.AsyncLoopFactory = this.Services.ServiceProvider.GetService<IAsyncLoopFactory>();
@@ -228,31 +232,35 @@ namespace Stratis.Bitcoin
         {
             IAsyncLoop periodicLogLoop = this.AsyncLoopFactory.Run("PeriodicLog", (cancellation) =>
             {
-                StringBuilder benchLogs = new StringBuilder();
+                var benchLogs = new StringBuilder();
 
                 benchLogs.AppendLine("======Node stats====== " + this.DateTimeProvider.GetUtcNow().ToString(CultureInfo.InvariantCulture) + " agent " +
                                      this.ConnectionManager.Parameters.UserAgent);
 
                 // Display node stats grouped together.
-                foreach (var feature in this.Services.Features.OfType<INodeStats>())
+                foreach (INodeStats feature in this.Services.Features.OfType<INodeStats>())
                     feature.AddNodeStats(benchLogs);
 
                 // Now display the other stats.
-                foreach (var feature in this.Services.Features.OfType<IFeatureStats>())
+                foreach (IFeatureStats feature in this.Services.Features.OfType<IFeatureStats>())
                     feature.AddFeatureStats(benchLogs);
 
                 benchLogs.AppendLine();
                 benchLogs.AppendLine("======Connection======");
                 benchLogs.AppendLine(this.ConnectionManager.GetNodeStats());
-                this.logger.LogInformation(benchLogs.ToString());
+                this.LastLogOutput = benchLogs.ToString();
+
+                this.logger.LogInformation(this.LastLogOutput);
                 return Task.CompletedTask;
             },
-                this.nodeLifetime.ApplicationStopping,
-                repeatEvery: TimeSpans.FiveSeconds,
-                startAfter: TimeSpans.FiveSeconds);
+            this.nodeLifetime.ApplicationStopping,
+            repeatEvery: TimeSpans.FiveSeconds,
+            startAfter: TimeSpans.FiveSeconds);
 
             this.Resources.Add(periodicLogLoop);
         }
+
+        public string LastLogOutput { get; private set; }
 
         /// <inheritdoc />
         public void Dispose()
@@ -268,6 +276,7 @@ namespace Stratis.Bitcoin
             this.nodeLifetime.StopApplication();
 
             this.ConnectionManager.Dispose();
+            this.bestChainSelector.Dispose();
             this.loggerFactory.Dispose();
 
             foreach (IDisposable disposable in this.Resources)

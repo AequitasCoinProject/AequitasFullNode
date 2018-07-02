@@ -28,9 +28,9 @@ namespace Stratis.Bitcoin.Features.BlockStore.Tests
         [Fact]
         public void AnnounceBlocksWithoutBlocksReturns()
         {
-            List<ChainedBlock> blocks = new List<ChainedBlock>();
+            var blocks = new List<ChainedHeader>();
 
-            var task = this.behavior.AnnounceBlocksAsync(blocks);
+            Task task = this.behavior.AnnounceBlocksAsync(blocks);
 
             Assert.Equal(TaskStatus.RanToCompletion, task.Status);
             Assert.Null(this.behavior.AttachedPeer);

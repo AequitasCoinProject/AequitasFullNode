@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using NBitcoin;
 using NBitcoin.DataEncoders;
 using Newtonsoft.Json;
-using Stratis.Bitcoin.Features.RPC.Models;
+using Stratis.Bitcoin.Controllers.Models;
 using Stratis.Bitcoin.Features.Wallet;
 using Stratis.Bitcoin.Utilities.JsonConverters;
 

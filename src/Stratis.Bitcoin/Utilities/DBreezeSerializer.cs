@@ -11,14 +11,14 @@ namespace Stratis.Bitcoin.Utilities
     /// </summary>
     public class DBreezeSerializer
     {
-        public NetworkOptions NetworkOptions { get; private set; }
+        public Network Network { get; private set; }
 
         /// <summary>
         /// Initializes custom serializers for DBreeze engine.
         /// </summary>
-        public void Initialize(NetworkOptions networkOptions = null) // TODO: Make the NetworkOptions required
+        public void Initialize(Network network)
         {
-            this.NetworkOptions = networkOptions;
+            this.Network = network;
             CustomSerializator.ByteArraySerializator = this.Serializer;
             CustomSerializator.ByteArrayDeSerializator = this.Deserializer;
         }
@@ -30,26 +30,26 @@ namespace Stratis.Bitcoin.Utilities
         /// <returns>Binary data representing the serialized object.</returns>
         internal byte[] Serializer(object obj)
         {
-            IBitcoinSerializable serializable = obj as IBitcoinSerializable;
+            var serializable = obj as IBitcoinSerializable;
             if (serializable != null)
-                return serializable.ToBytes(options: this.NetworkOptions);
+                return serializable.ToBytes(network: this.Network);
 
-            uint256 u256 = obj as uint256;
+            var u256 = obj as uint256;
             if (u256 != null)
                 return u256.ToBytes();
 
-            uint160 u160 = obj as uint160;
+            var u160 = obj as uint160;
             if (u160 != null)
                 return u160.ToBytes();
 
-            uint? u32 = obj as uint?;
+            var u32 = obj as uint?;
             if (u32 != null)
                 return u32.ToBytes();
 
-            object[] arr = obj as object[];
+            var arr = obj as object[];
             if (arr != null)
             {
-                byte[][] serializedItems = new byte[arr.Length][];
+                var serializedItems = new byte[arr.Length][];
                 int itemIndex = 0;
                 foreach (object arrayObject in arr)
                 {
@@ -71,7 +71,7 @@ namespace Stratis.Bitcoin.Utilities
         /// <remarks>Based on https://stackoverflow.com/a/415396/3835864 .</remarks>
         private static byte[] ConcatArrays(byte[][] arrays)
         {
-            byte[] res = new byte[arrays.Sum(a => a.Length)];
+            var res = new byte[arrays.Sum(a => a.Length)];
             int offset = 0;
             foreach (byte[] array in arrays)
             {
@@ -91,22 +91,22 @@ namespace Stratis.Bitcoin.Utilities
         {
             if (type == typeof(Coins))
             {
-                Coins coin = new Coins();
-                coin.ReadWrite(bytes, options:this.NetworkOptions);
+                var coin = new Coins();
+                coin.ReadWrite(bytes, this.Network.Consensus.ConsensusFactory);
                 return coin;
             }
 
             if (type == typeof(BlockHeader))
             {
-                BlockHeader header = new BlockHeader();
-                header.ReadWrite(bytes, options: this.NetworkOptions);
+                BlockHeader header = this.Network.Consensus.ConsensusFactory.CreateBlockHeader();
+                header.ReadWrite(bytes, this.Network.Consensus.ConsensusFactory);
                 return header;
             }
 
             if (type == typeof(RewindData))
             {
-                RewindData rewind = new RewindData();
-                rewind.ReadWrite(bytes, options: this.NetworkOptions);
+                var rewind = new RewindData();
+                rewind.ReadWrite(bytes, this.Network.Consensus.ConsensusFactory);
                 return rewind;
             }
 
@@ -114,10 +114,10 @@ namespace Stratis.Bitcoin.Utilities
                 return new uint256(bytes);
 
             if (type == typeof(Block))
-                return new Block(bytes/*, options:this.NetworkOptions*/);
+                return Block.Load(bytes, this.Network);
 
             if (type == typeof(BlockStake))
-                return new BlockStake(bytes);
+                return BlockStake.Load(bytes, this.Network);
 
             throw new NotSupportedException();
         }
