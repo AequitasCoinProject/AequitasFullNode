@@ -70,12 +70,12 @@ namespace Stratis.Bitcoin.Tests.Consensus
 
         public class TestContext
         {
-            public Network Network = Network.RegTest;
+            public Network Network = Network.BitcoinRegTest;
             public Mock<IBlockValidator> ChainedHeaderValidatorMock = new Mock<IBlockValidator>();
             public Mock<ICheckpoints> CheckpointsMock = new Mock<ICheckpoints>();
             public Mock<IChainState> ChainStateMock = new Mock<IChainState>();
             public Mock<IFinalizedBlockHeight> FinalizedBlockMock = new Mock<IFinalizedBlockHeight>();
-            public ConsensusSettings ConsensusSettings = new ConsensusSettings(new NodeSettings(Network.RegTest));
+            public ConsensusSettings ConsensusSettings = new ConsensusSettings(new NodeSettings(Network.BitcoinRegTest));
 
             private static int nonceValue;
 

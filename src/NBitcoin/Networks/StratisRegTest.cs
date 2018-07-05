@@ -16,7 +16,8 @@ namespace NBitcoin.Networks
             messageStart[3] = 0xef;
             uint magic = BitConverter.ToUInt32(messageStart, 0); // 0xefc0f2cd
 
-            this.Name = "StratisRegTest";
+            this.CoinName = "Stratis";
+            this.NetworkName = "RegTest";
             this.Magic = magic;
             this.DefaultPort = 18444;
             this.RPCPort = 18442;

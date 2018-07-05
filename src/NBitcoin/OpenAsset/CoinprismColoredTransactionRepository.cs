@@ -70,13 +70,13 @@ namespace NBitcoin.OpenAsset
             {
                 var result = new ColoredTransaction();
 
-                String url = this._network == Network.Main ? String.Format("https://api.coinprism.com/v1/transactions/{0}", txId) : String.Format("https://testnet.api.coinprism.com/v1/transactions/{0}", txId);
+                String url = this._network == Network.BitcoinMain ? String.Format("https://api.coinprism.com/v1/transactions/{0}", txId) : String.Format("https://testnet.api.coinprism.com/v1/transactions/{0}", txId);
 
                 HttpWebRequest req = WebRequest.CreateHttp(url);
                 req.Method = "GET";
 
 //#if !NOCUSTOMSSLVALIDATION
-//                if(_network == Network.TestNet)
+//                if(_network == Network.BitcoinTest)
 //                    req.ServerCertificateValidationCallback += (a, b, c, d) => true;
 //#endif
                 using(WebResponse response = await req.GetResponseAsync().ConfigureAwait(false))
@@ -157,12 +157,12 @@ namespace NBitcoin.OpenAsset
             if(transaction == null)
                 throw new ArgumentNullException("transaction");
 
-            String url = this._network == Network.Main ? "https://api.coinprism.com/v1/transactions/v1/sendrawtransaction" : "https://testnet.api.coinprism.com/v1/sendrawtransaction";
+            String url = this._network == Network.BitcoinMain ? "https://api.coinprism.com/v1/transactions/v1/sendrawtransaction" : "https://testnet.api.coinprism.com/v1/sendrawtransaction";
             HttpWebRequest req = WebRequest.CreateHttp(url);
             req.Method = "POST";
             req.ContentType = "application/json";
 //#if !NOCUSTOMSSLVALIDATION
-//            if(_network == Network.TestNet)
+//            if(_network == Network.BitcoinTest)
 //                req.ServerCertificateValidationCallback += (a, b, c, d) => true;
 //#endif
             Stream stream = await req.GetRequestStreamAsync().ConfigureAwait(false);

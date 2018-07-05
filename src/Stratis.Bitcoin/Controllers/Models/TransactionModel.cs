@@ -45,7 +45,7 @@ namespace Stratis.Bitcoin.Controllers.Models
         {
         }
 
-        public TransactionBriefModel(Transaction trx, Network network, ChainedBlock block = null, ChainedBlock tip = null) : base(trx)
+        public TransactionBriefModel(Transaction trx, Network network, ChainedHeader block = null, ChainedHeader tip = null) : base(trx)
         {
         }
     }

@@ -11,7 +11,7 @@ namespace NBitcoin
 
         protected NoSqlRepository(Network network = null)
         {
-            this.network = network ?? Network.Main;
+            this.network = network ?? Network.BitcoinMain;
         }
 
         public Task PutAsync(string key, IBitcoinSerializable obj)

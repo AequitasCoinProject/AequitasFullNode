@@ -13,7 +13,7 @@ namespace Stratis.Bitcoin.Api.Tests
     /// </summary>
     public class ApiSettingsTest : TestBase
     {
-        public ApiSettingsTest() : base(Network.Main)
+        public ApiSettingsTest() : base(Network.BitcoinMain)
         {
         }
 

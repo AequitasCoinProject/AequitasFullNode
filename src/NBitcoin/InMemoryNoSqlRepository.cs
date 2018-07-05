@@ -9,7 +9,7 @@ namespace NBitcoin
         private Dictionary<string, byte[]> table = new Dictionary<string, byte[]>();
 
         public InMemoryNoSqlRepository(Network network = null)
-            :base(network ?? Network.Main)
+            :base(network ?? Network.BitcoinMain)
         {
         }
 

@@ -114,7 +114,7 @@ namespace NBitcoin.Tests
 
 
             //Test .ToNetwork()
-            BitcoinPubKeyAddress addr = pubkey.GetAddress(Network.Main);
+            BitcoinPubKeyAddress addr = pubkey.GetAddress(Network.BitcoinMain);
             Assert.Equal("16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM", addr.ToString());
             Assert.Equal("mfcSEPR8EkJrpX91YkTJ9iscdAzppJrG9j", addr.ToNetwork(Network.BitcoinTest).ToString());
 
@@ -178,7 +178,7 @@ namespace NBitcoin.Tests
             //Check http://blockchain.info/block-index/394713/0000000000000000729a4a7e084c90f932d038c407a6535a51dfecdfba1c8906
             Assert.True(uint256.Parse("0x0000000000000000729a4a7e084c90f932d038c407a6535a51dfecdfba1c8906 ") < new Target(419470732).ToUInt256());
 
-            Block genesis = Network.Main.GetGenesis();
+            Block genesis = Network.BitcoinMain.GetGenesis();
             Assert.True(genesis.GetHash() < genesis.Header.Bits.ToUInt256());
             Assert.True(Target.Difficulty1 == Target.Difficulty1);
         }
@@ -400,7 +400,7 @@ namespace NBitcoin.Tests
         {
             var privateKey = new Key();
             var otherKey = new Key();
-            BitcoinSecret bitcoinSecret = privateKey.GetWif(Network.Main);
+            BitcoinSecret bitcoinSecret = privateKey.GetWif(Network.BitcoinMain);
             Key samePrivateKey = bitcoinSecret.PrivateKey;
             Assert.Equal(samePrivateKey, privateKey);
             Assert.True(samePrivateKey == privateKey);
@@ -664,8 +664,8 @@ namespace NBitcoin.Tests
             result = Network.Parse(address.Base58, null);
             Assert.True(result.Network == Network.BitcoinTest);
 
-            string str = Serializer.ToString(new DummyClass() { ExtPubKey = new ExtKey().Neuter().GetWif(Network.RegTest) }, Network.RegTest);
-            Assert.NotNull(Serializer.ToObject<DummyClass>(str, Network.RegTest));
+            string str = Serializer.ToString(new DummyClass() { ExtPubKey = new ExtKey().Neuter().GetWif(Network.BitcoinRegTest) }, Network.BitcoinRegTest);
+            Assert.NotNull(Serializer.ToObject<DummyClass>(str, Network.BitcoinRegTest));
         }
 
         [Fact]
@@ -825,7 +825,7 @@ namespace NBitcoin.Tests
             JObject jobj = JObject.Parse(File.ReadAllText(TestDataLocations.GetFileFromDataBlockFolder("Block1.json")));
             var array = (JArray)jobj["mrkl_tree"];
             List<uint256> expected = array.OfType<JValue>().Select(v => uint256.Parse(v.ToString())).ToList();
-            Block block = Block.ParseJson(Network.Main, File.ReadAllText(TestDataLocations.GetFileFromDataBlockFolder("Block1.json")));
+            Block block = Block.ParseJson(Network.BitcoinMain, File.ReadAllText(TestDataLocations.GetFileFromDataBlockFolder("Block1.json")));
             Assert.Equal("000000000000000040cd080615718eb68f00a0138706e7afd4068f3e08d4ca20", block.GetHash().ToString());
             Assert.True(block.CheckMerkleRoot());
         }

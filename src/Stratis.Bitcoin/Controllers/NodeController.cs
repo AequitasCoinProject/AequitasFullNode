@@ -111,7 +111,7 @@ namespace Stratis.Bitcoin.Controllers
                 ConsensusHeight = this.chainState.ConsensusTip.Height,
                 DataDirectoryPath = this.nodeSettings.DataDir,
                 Testnet = this.network.IsTest(),
-                RelayFee = this.nodeSettings.MinRelayTxFeeRate?.FeePerK?.ToUnit(MoneyUnit.BTC) ?? 0,
+                RelayFee = this.nodeSettings.MinRelayTxFeeRate?.FeePerK?.ToUnit(MoneyUnit.AtomicUnit) ?? 0,
                 RunningTime = this.dateTimeProvider.GetUtcNow() - this.fullNode.StartTime,
                 CoinTicker = this.network.CoinTicker
             };
@@ -239,7 +239,7 @@ namespace Stratis.Bitcoin.Controllers
                 }
                 else
                 {
-                    return this.Json(new TransactionBriefModel(trx));
+                    return this.Json(new TransactionBriefModel(trx, this.network));
                 }
             }
             catch (Exception e)

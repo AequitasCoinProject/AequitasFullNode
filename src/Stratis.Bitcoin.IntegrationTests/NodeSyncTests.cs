@@ -135,7 +135,7 @@ namespace Stratis.Bitcoin.IntegrationTests
         public void Given_NodesAreSynced_When_ABigReorgHappens_Then_TheReorgIsIgnored()
         {
             // Temporary fix so the Network static initialize will not break.
-            Network m = Network.Main;
+            Network m = Network.BitcoinMain;
             using (NodeBuilder builder = NodeBuilder.Create(this))
             {
                 CoreNode stratisMiner = builder.CreateStratisPosNode();
@@ -221,7 +221,7 @@ namespace Stratis.Bitcoin.IntegrationTests
         public void PullerVsMinerRaceCondition()
         {
             // Temporary fix so the Network static initialize will not break.
-            Network m = Network.Main;
+            Network m = Network.BitcoinMain;
             using (NodeBuilder builder = NodeBuilder.Create(this))
             {
                 // This represents local node.

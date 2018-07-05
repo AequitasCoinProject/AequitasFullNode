@@ -16,8 +16,8 @@ namespace NBitcoin.Tests
             chain.Load(File.ReadAllBytes("MainChain.dat"));
             foreach(ChainedHeader block in chain.EnumerateAfter(chain.Genesis))
             {
-                Target thisWork = block.GetWorkRequired(Network.Main);
-                Target thisWork2 = block.Previous.GetNextWorkRequired(Network.Main);
+                Target thisWork = block.GetWorkRequired(Network.BitcoinMain);
+                Target thisWork2 = block.Previous.GetNextWorkRequired(Network.BitcoinMain);
                 Assert.Equal(thisWork, thisWork2);
                 Assert.True(block.CheckProofOfWorkAndTarget(Network.BitcoinMain));
             }

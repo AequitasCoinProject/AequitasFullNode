@@ -46,7 +46,7 @@ namespace NBitcoin.RPC
         /// <exception cref="System.ArgumentNullException">Null rest API endpoint</exception>
         /// <exception cref="System.ArgumentException">Invalid value for RestResponseFormat</exception>
         public RestClient(Uri address)
-            : this(address, Network.Main)
+            : this(address, Network.BitcoinMain)
         {
         }
 

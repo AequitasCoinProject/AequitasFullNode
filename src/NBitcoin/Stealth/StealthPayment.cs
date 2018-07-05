@@ -81,7 +81,7 @@ namespace NBitcoin.Stealth
             }
             else
             {
-                PayToMultiSigTemplateParameters para = PayToMultiSigTemplate.Instance.ExtractScriptPubKeyParameters(Network.Main, script);
+                PayToMultiSigTemplateParameters para = PayToMultiSigTemplate.Instance.ExtractScriptPubKeyParameters(Network.BitcoinMain, script);
                 if(para == null)
                     throw new ArgumentException("Invalid stealth spendable output script", "spendable");
                 return para.PubKeys.Select(k => k.Hash).ToArray();

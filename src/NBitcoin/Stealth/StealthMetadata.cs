@@ -52,7 +52,7 @@ namespace NBitcoin.Stealth
         private static TxNullDataTemplate _Template = new TxNullDataTemplate(1024 * 4);
         private static bool Fill(StealthMetadata output, Script metadata)
         {
-            byte[][] datas = _Template.ExtractScriptPubKeyParameters(Network.Main, metadata);
+            byte[][] datas = _Template.ExtractScriptPubKeyParameters(Network.BitcoinMain, metadata);
             if(datas == null)
                 return false;
             foreach(byte[] data in datas)

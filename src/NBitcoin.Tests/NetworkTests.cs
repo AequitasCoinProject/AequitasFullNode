@@ -16,9 +16,9 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void CanGetNetworkFromName()
         {
-            Network bitcoinMain = Network.Main;
-            Network bitcoinTestnet = Network.TestNet;
-            Network bitcoinRegtest = Network.RegTest;
+            Network bitcoinMain = Network.BitcoinMain;
+            Network bitcoinTestnet = Network.BitcoinTest;
+            Network bitcoinRegtest = Network.BitcoinRegTest;
             Network stratisMain = Network.StratisMain;
             Network stratisTestnet = Network.StratisTest;
             Network stratisRegtest = Network.StratisRegTest;
@@ -43,7 +43,7 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void RegisterNetworkTwiceFails()
         {
-            Network main = Network.Main;
+            Network main = Network.BitcoinMain;
             var error = Assert.Throws<InvalidOperationException>(() => NetworksContainer.Register(main));
             Assert.Contains("is already registered", error.Message);
         }
@@ -52,12 +52,12 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void ReadMagicByteWithFirstByteDuplicated()
         {
-            List<byte> bytes = Network.Main.MagicBytes.ToList();
+            List<byte> bytes = Network.BitcoinMain.MagicBytes.ToList();
             bytes.Insert(0, bytes.First());
 
             using (var memstrema = new MemoryStream(bytes.ToArray()))
             {
-                bool found = Network.Main.ReadMagic(memstrema, new CancellationToken());
+                bool found = Network.BitcoinMain.ReadMagic(memstrema, new CancellationToken());
                 Assert.True(found);
             }
         }
@@ -66,7 +66,7 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void BitcoinMainnetIsInitializedCorrectly()
         {
-            Network network = Network.Main;
+            Network network = Network.BitcoinMain;
 
             Assert.Equal(15, network.Checkpoints.Count);
             Assert.Equal(6, network.DNSSeeds.Count);
@@ -151,7 +151,7 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void BitcoinTestnetIsInitializedCorrectly()
         {
-            Network network = Network.TestNet;
+            Network network = Network.BitcoinTest;
 
             Assert.Equal(2, network.Checkpoints.Count);
             Assert.Equal(3, network.DNSSeeds.Count);
@@ -233,7 +233,7 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void BitcoinRegTestIsInitializedCorrectly()
         {
-            Network network = Network.RegTest;
+            Network network = Network.BitcoinRegTest;
 
             Assert.Empty(network.Checkpoints);
             Assert.Empty(network.DNSSeeds);

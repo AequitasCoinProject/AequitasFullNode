@@ -8,7 +8,9 @@ namespace NBitcoin.Networks
     {
         public BitcoinRegTest()
         {
-            this.Name = "RegTest";
+            this.CoinName = "Bitcoin";
+            this.NetworkName = "RegTest";
+            //this.Name = "RegTest";
             this.AdditionalNames = new List<string> {"reg"};
             this.Consensus.CoinType = 0;
             this.Magic = 0xDAB5BFFA;

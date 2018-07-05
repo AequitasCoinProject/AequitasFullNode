@@ -150,7 +150,7 @@ namespace Stratis.Bitcoin.Configuration
                 if (protocolVersion == ProtocolVersion.ALT_PROTOCOL_VERSION)
                     this.Network = testNet ? Network.StratisTest : regTest ? Network.StratisRegTest : Network.StratisMain;
                 else
-                    this.Network = testNet ? Network.TestNet : regTest ? Network.RegTest : Network.Main;
+                    this.Network = testNet ? Network.BitcoinTest : regTest ? Network.BitcoinRegTest : Network.BitcoinMain;
 
                 this.Logger.LogDebug("Network set to '{0}'.", this.Network.Name);
             }

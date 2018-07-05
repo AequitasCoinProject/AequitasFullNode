@@ -30,7 +30,7 @@ namespace NBitcoin.JsonConverters
             if (network.Equals("TestNet", StringComparison.OrdinalIgnoreCase) || network.Equals("test", StringComparison.OrdinalIgnoreCase))
                 return Network.BitcoinTest;
             if(network.Equals("RegTest", StringComparison.OrdinalIgnoreCase) || network.Equals("reg", StringComparison.OrdinalIgnoreCase))
-                return Network.RegTest;
+                return Network.BitcoinRegTest;
             Network net = NetworksContainer.GetNetwork(network);
             if(net != null)
                 return net;

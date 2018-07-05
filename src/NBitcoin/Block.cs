@@ -52,7 +52,7 @@ namespace NBitcoin
         }
 
         [Obsolete("Should use Block.Load outside of ConsensusFactories")]
-        internal Block(byte[] bytes) : this(bytes, Network.Main.Consensus.ConsensusFactory)
+        internal Block(byte[] bytes) : this(bytes, Network.BitcoinMain.Consensus.ConsensusFactory)
         {
         }
 

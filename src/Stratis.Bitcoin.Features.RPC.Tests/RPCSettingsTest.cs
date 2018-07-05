@@ -9,7 +9,7 @@ namespace Stratis.Bitcoin.Features.RPC.Tests
 {
     public class RPCSettingsTest : TestBase
     {
-        public RPCSettingsTest() : base(Network.TestNet)
+        public RPCSettingsTest() : base(Network.BitcoinTest)
         {
         }
 

@@ -13,7 +13,7 @@ namespace Stratis.Bitcoin.IntegrationTests.Common.Runners
             : base(dataDir)
         {
             this.bitcoinDPath = bitcoinDPath;
-            this.Network = Network.RegTest;
+            this.Network = Network.BitcoinRegTest;
         }
 
         public new bool IsDisposed

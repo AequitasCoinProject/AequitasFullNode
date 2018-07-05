@@ -597,7 +597,7 @@ namespace Stratis.Bitcoin.Features.RPC.Tests.Controller
         public void ValidateAddress_ValidAddressOfDifferentNetwork_ReturnsFalse()
         {
             // P2PKH
-            BitcoinPubKeyAddress address = new Key().PubKey.GetAddress(Network.Main);
+            BitcoinPubKeyAddress address = new Key().PubKey.GetAddress(Network.BitcoinMain);
 
             ValidatedAddress result = this.controller.ValidateAddress(address.ToString());
 

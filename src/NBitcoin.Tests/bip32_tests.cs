@@ -108,7 +108,7 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void CanRecoverExtKeyFromExtPubKeyAndOneChildExtKey()
         {
-            ExtKey key = ExtKey.Parse("xprv9s21ZrQH143K3Z9EwCXrA5VbypnvWGiE9z22S1cLLPi7r8DVUkTabBvMjeirS8KCyppw24KoD4sFmja8UDU4VL32SBdip78LY6sz3X2GPju", Network.Main)
+            ExtKey key = ExtKey.Parse("xprv9s21ZrQH143K3Z9EwCXrA5VbypnvWGiE9z22S1cLLPi7r8DVUkTabBvMjeirS8KCyppw24KoD4sFmja8UDU4VL32SBdip78LY6sz3X2GPju", Network.BitcoinMain)
                 .Derive(1);
             ExtPubKey pubkey = key.Neuter();
             ExtKey childKey = key.Derive(1);
@@ -142,10 +142,10 @@ namespace NBitcoin.Tests
         public void CanRecoverExtKeyFromExtPubKeyAndSecret()
         {
             ExtKey key = new ExtKey().Derive(1);
-            BitcoinSecret underlying = key.PrivateKey.GetBitcoinSecret(Network.Main);
-            BitcoinExtPubKey pubKey = key.Neuter().GetWif(Network.Main);
+            BitcoinSecret underlying = key.PrivateKey.GetBitcoinSecret(Network.BitcoinMain);
+            BitcoinExtPubKey pubKey = key.Neuter().GetWif(Network.BitcoinMain);
             var key2 = new ExtKey(pubKey, underlying);
-            Assert.Equal(key.ToString(Network.Main), key2.ToString(Network.Main));
+            Assert.Equal(key.ToString(Network.BitcoinMain), key2.ToString(Network.BitcoinMain));
         }
 
         [Fact]
@@ -210,8 +210,8 @@ namespace NBitcoin.Tests
         {
             var key = new ExtKey();
             ExtPubKey pubkey = key.Neuter();
-            Assert.True(ExtKey.Parse(key.ToString(Network.Main)).ToString(Network.Main) == key.ToString(Network.Main));
-            Assert.True(ExtPubKey.Parse(pubkey.ToString(Network.Main)).ToString(Network.Main) == pubkey.ToString(Network.Main));
+            Assert.True(ExtKey.Parse(key.ToString(Network.BitcoinMain)).ToString(Network.BitcoinMain) == key.ToString(Network.BitcoinMain));
+            Assert.True(ExtPubKey.Parse(pubkey.ToString(Network.BitcoinMain)).ToString(Network.BitcoinMain) == pubkey.ToString(Network.BitcoinMain));
         }
         [Fact]
         [Trait("UnitTest", "UnitTest")]

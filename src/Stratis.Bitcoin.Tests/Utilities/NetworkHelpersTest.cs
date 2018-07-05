@@ -10,7 +10,7 @@ namespace Stratis.Bitcoin.Tests.Utilities
         [Fact]
         public void GetMainNetworkReturnsNetworkMain()
         {
-            Network main = Network.Main;
+            Network main = Network.BitcoinMain;
             Network network = NetworkHelpers.GetNetwork("main");
             Assert.Equal(Network.BitcoinMain, network);
         }
@@ -18,7 +18,7 @@ namespace Stratis.Bitcoin.Tests.Utilities
         [Fact]
         public void GetMainNetNetworkReturnsNetworkMain()
         {
-            Network main = Network.Main;
+            Network main = Network.BitcoinMain;
             Network network = NetworkHelpers.GetNetwork("mainnet");
             Assert.Equal(Network.BitcoinMain, network);
         }
@@ -26,7 +26,7 @@ namespace Stratis.Bitcoin.Tests.Utilities
         [Fact]
         public void GetTestNetworkReturnsNetworkTest()
         {
-            Network test = Network.TestNet;
+            Network test = Network.BitcoinTest;
             Network network = NetworkHelpers.GetNetwork("test");
             Assert.Equal(Network.BitcoinTest, network);
         }
@@ -34,7 +34,7 @@ namespace Stratis.Bitcoin.Tests.Utilities
         [Fact]
         public void GetTestNetNetworkReturnsNetworkTest()
         {
-            Network test = Network.TestNet;
+            Network test = Network.BitcoinTest;
             Network network = NetworkHelpers.GetNetwork("testnet");
             Assert.Equal(Network.BitcoinTest, network);
         }
@@ -42,8 +42,8 @@ namespace Stratis.Bitcoin.Tests.Utilities
         [Fact]
         public void GetNetworkIsCaseInsensitive()
         {
-            Network test = Network.TestNet;
-            Network main = Network.Main;
+            Network test = Network.BitcoinTest;
+            Network main = Network.BitcoinMain;
 
             Network testNetwork = NetworkHelpers.GetNetwork("Test");
             Assert.Equal(Network.BitcoinTest, testNetwork);

@@ -526,7 +526,7 @@ namespace NBitcoin
         }
         internal TransactionBuilder()
         {
-            this.Network = Network.Main;
+            this.Network = Network.BitcoinMain;
 
             this._Rand = new Random();
             this.CoinSelector = new DefaultCoinSelector();
@@ -557,7 +557,7 @@ namespace NBitcoin
         internal Random _Rand;
         internal TransactionBuilder(int seed)
         {
-            this.Network = Network.Main;
+            this.Network = Network.BitcoinMain;
 
             this._Rand = new Random(seed);
             this.CoinSelector = new DefaultCoinSelector(seed);

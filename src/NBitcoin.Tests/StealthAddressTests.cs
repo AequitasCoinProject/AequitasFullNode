@@ -225,7 +225,7 @@ namespace NBitcoin.Tests
                 Key ephem = AssertKeys(test.EphemSecret, test.EphemPubKey);
                 Key stealth = AssertKeys(test.StealthSecret, test.StealthPubKey);
 
-                BitcoinStealthAddress address = spend.PubKey.CreateStealthAddress(scan.PubKey, Network.Main);
+                BitcoinStealthAddress address = spend.PubKey.CreateStealthAddress(scan.PubKey, Network.BitcoinMain);
                 Assert.Equal(test.StealthAddress, address.ToString());
                 //Try roundtrip
                 address = new BitcoinStealthAddress(address.ToBytes(), Network.BitcoinMain);

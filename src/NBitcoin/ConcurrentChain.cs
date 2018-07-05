@@ -27,7 +27,7 @@ namespace NBitcoin
         
         public ConcurrentChain(BlockHeader genesisHeader, Network network = null) // TODO: Remove the null default
         {
-            this.network = network ?? Network.Main;
+            this.network = network ?? Network.BitcoinMain;
             SetTip(new ChainedHeader(genesisHeader, genesisHeader.GetHash(), 0));
         }
 

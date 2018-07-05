@@ -67,7 +67,7 @@ namespace NBitcoin.Tests
             public AssetKey()
             {
                 this.Key = new Key();
-                this.ScriptPubKey = this.Key.PubKey.GetAddress(Network.Main).ScriptPubKey;
+                this.ScriptPubKey = this.Key.PubKey.GetAddress(Network.BitcoinMain).ScriptPubKey;
                 this.Id = this.ScriptPubKey.Hash.ToAssetId();
             }
             public Key Key
@@ -91,12 +91,12 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void CanParseColoredAddress()
         {
-            var address = new BitcoinPubKeyAddress("16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM", Network.Main);
+            var address = new BitcoinPubKeyAddress("16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM", Network.BitcoinMain);
             BitcoinColoredAddress colored = address.ToColoredAddress();
             Assert.Equal("akB4NBW9UuCmHuepksob6yfZs6naHtRCPNy", colored.ToWif());
             Assert.Equal(address.ScriptPubKey, colored.ScriptPubKey);
 
-            BitcoinPubKeyAddress testAddress = address.ToNetwork(Network.TestNet);
+            BitcoinPubKeyAddress testAddress = address.ToNetwork(Network.BitcoinTest);
             BitcoinColoredAddress testColored = testAddress.ToColoredAddress();
 
             Assert.Equal(Network.BitcoinTest, testAddress.Network);
@@ -123,8 +123,8 @@ namespace NBitcoin.Tests
             var a1 = new AssetKey();
             var a2 = new AssetKey();
             var h = new AssetKey();
-            BitcoinPubKeyAddress sender = new Key().PubKey.GetAddress(Network.Main);
-            BitcoinPubKeyAddress receiver = new Key().PubKey.GetAddress(Network.Main);
+            BitcoinPubKeyAddress sender = new Key().PubKey.GetAddress(Network.BitcoinMain);
+            BitcoinPubKeyAddress receiver = new Key().PubKey.GetAddress(Network.BitcoinMain);
 
             colored.Marker = new ColorMarker(new ulong[] { 0, 10, 6, 0, 7, 3 });
             colored.Inputs.Add(new ColoredEntry(0, new AssetMoney(a1.Id, 3UL)));
@@ -251,8 +251,8 @@ namespace NBitcoin.Tests
             CanFetchTransactionFromCoinprismCore("CanColorizeTransferTransaction");
             Assert.Null(new CoinprismColoredTransactionRepository().Get(uint256.Parse("b4399a545c4ddd640920d63af75e7367fe4d94b2d7f7a3423105e25ac5f165a5")));
 #if !NOCUSTOMSSLVALIDATION
-            Assert.Null(new CoinprismColoredTransactionRepository(Network.TestNet).Get(uint256.Parse("b4399a545c4ddd640920d63af75e7367fe4d94b2d7f7a3423105e25ac5f165a5")));
-            Assert.NotNull(new CoinprismColoredTransactionRepository(Network.TestNet).Get(uint256.Parse("100972a4a519c6a40f6aa30bf0f89c1378c2a90a2a45715ec955d09fbf4d2253")));
+            Assert.Null(new CoinprismColoredTransactionRepository(Network.BitcoinTest).Get(uint256.Parse("b4399a545c4ddd640920d63af75e7367fe4d94b2d7f7a3423105e25ac5f165a5")));
+            Assert.NotNull(new CoinprismColoredTransactionRepository(Network.BitcoinTest).Get(uint256.Parse("100972a4a519c6a40f6aa30bf0f89c1378c2a90a2a45715ec955d09fbf4d2253")));
 #endif
         }
         */
@@ -301,7 +301,7 @@ namespace NBitcoin.Tests
             Assert.True(colored2.Inputs[0].Asset == colored1.Issuances[0].Asset);
             Assert.True(colored2.Issuances.Count == 0);
             Assert.True(colored2.Transfers.Count == 2);
-            Assert.Equal("Af59wop4VJjXk2DAzoX9scAUCcAsghPHFX", colored2.Transfers[0].Asset.Id.GetWif(Network.Main).ToString());
+            Assert.Equal("Af59wop4VJjXk2DAzoX9scAUCcAsghPHFX", colored2.Transfers[0].Asset.Id.GetWif(Network.BitcoinMain).ToString());
             AssetMoney[] destroyed = colored2.GetDestroyedAssets();
             Assert.True(destroyed.Length == 0);
 
@@ -467,14 +467,14 @@ namespace NBitcoin.Tests
             //The issuer first generates a private key: 18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725.
             var key = new Key(TestUtils.ParseHex("18E14A7B6A307F426A94F8114701E7C8E774E7F9A47E2C2035DB29A206321725"));
             //He calculates the corresponding address: 16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM.
-            BitcoinPubKeyAddress address = key.PubKey.Decompress().GetAddress(Network.Main);
+            BitcoinPubKeyAddress address = key.PubKey.Decompress().GetAddress(Network.BitcoinMain);
             Assert.Equal("16UwLL9Risc3QfPqBUvKofHmBQ7wMtjvM", address.ToString());
 
             //Next, he builds the Pay-to-PubKey-Hash script associated to that address: OP_DUP OP_HASH160 010966776006953D5567439E5E39F86A0D273BEE OP_EQUALVERIFY OP_CHECKSIG
             Script script = address.ScriptPubKey;
             Assert.Equal("OP_DUP OP_HASH160 010966776006953D5567439E5E39F86A0D273BEE OP_EQUALVERIFY OP_CHECKSIG", script.ToString().ToUpper());
 
-            BitcoinScriptAddress oo = script.GetScriptAddress(Network.Main);
+            BitcoinScriptAddress oo = script.GetScriptAddress(Network.BitcoinMain);
             //The script is hashed: 36e0ea8e93eaa0285d641305f4c81e563aa570a2.
             Assert.Equal("36e0ea8e93eaa0285d641305f4c81e563aa570a2", script.Hash.ToString());
 

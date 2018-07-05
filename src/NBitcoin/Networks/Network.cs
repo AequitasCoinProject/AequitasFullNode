@@ -12,38 +12,6 @@ using NBitcoin.Stealth;
 
 namespace NBitcoin
 {
-    public class DNSSeedData
-    {
-        private IPAddress[] addresses;
-
-        public string Name { get; }
-
-        public string Host { get; }
-
-        public DNSSeedData(string name, string host)
-        {
-            this.Name = name;
-            this.Host = host;
-        }
-
-        public IPAddress[] GetAddressNodes()
-        {
-            if (this.addresses != null)
-            {
-                return this.addresses;
-            }
-
-            this.addresses = Dns.GetHostAddressesAsync(this.Host).GetAwaiter().GetResult();
-
-            return this.addresses;
-        }
-
-        public override string ToString()
-        {
-            return $"{this.Name}({this.Host})";
-        }
-    }
-
     public enum Base58Type
     {
         PUBKEY_ADDRESS,
@@ -65,123 +33,23 @@ namespace NBitcoin
     {
         WITNESS_PUBKEY_ADDRESS,
         WITNESS_SCRIPT_ADDRESS
-    }
+    }    
 
-    public enum BuriedDeployments : int
+    public enum NetworkInitializationMode { Main, Test, RegTest }
+
+    public partial class Network
     {
-        /// <summary>
-        /// Height in coinbase
-        /// </summary>
-        BIP34,
+        protected byte[] alertPubKeyArray;
+        private PubKey alertPubKey;
+        protected readonly List<DNSSeedData> seeds = new List<DNSSeedData>();
+        protected readonly List<NetworkAddress> fixedSeeds = new List<NetworkAddress>();
 
-        /// <summary>
-        /// Height in OP_CLTV
-        /// </summary>
-        BIP65,
+        protected Block Genesis;
 
-        /// <summary>
-        /// Strict DER signature
-        /// </summary>
-        BIP66
-    }
-
-    public class Consensus
-    {
-        /// <summary>
-        /// An extension to <see cref="Consensus"/> to enable additional options to the consensus data.
-        /// </summary>
-        public class ConsensusOptions
+        protected Network()
         {
+            this.Consensus = new Consensus();
         }
-
-        public ConsensusOptions Options { get; set; }
-        public NetworkOptions NetworkOptions { get; set; } = NetworkOptions.TemporaryOptions;
-
-        public class BuriedDeploymentsArray
-        {
-            readonly Consensus parent;
-            readonly int[] heights;
-
-            public BuriedDeploymentsArray(Consensus parent)
-            {
-                this.parent = parent;
-                this.heights = new int[Enum.GetValues(typeof(BuriedDeployments)).Length];
-            }
-
-            public int this[BuriedDeployments index]
-            {
-                get { return this.heights[(int)index]; }
-                set { this.heights[(int)index] = value; }
-            }
-        }
-
-        public class BIP9DeploymentsArray
-        {
-            readonly Consensus parent;
-            readonly BIP9DeploymentsParameters[] parameters;
-
-            public BIP9DeploymentsArray(Consensus parent)
-            {
-                this.parent = parent;
-                this.parameters = new BIP9DeploymentsParameters[Enum.GetValues(typeof(BIP9Deployments)).Length];
-            }
-
-            public BIP9DeploymentsParameters this[BIP9Deployments index]
-            {
-                get { return this.parameters[(int)index]; }
-                set { this.parameters[(int)index] = value; }
-            }
-        }
-
-        public Consensus()
-        {
-            this.BuriedDeployments = new BuriedDeploymentsArray(this);
-            this.BIP9Deployments = new BIP9DeploymentsArray(this);
-        }
-
-        public BuriedDeploymentsArray BuriedDeployments { get; }
-
-        public BIP9DeploymentsArray BIP9Deployments { get; }
-
-        public int SubsidyHalvingInterval { get; set; }
-
-        public Func<NetworkOptions, BlockHeader, uint256> GetPoWHash { get; set; } = (n, h) => h.GetHash(n);
-
-        public int MajorityEnforceBlockUpgrade { get; set; }
-
-        public int MajorityRejectBlockOutdated { get; set; }
-
-        public int MajorityWindow { get; set; }
-
-        public uint256 BIP34Hash { get; set; }
-
-        public Target PowLimit { get; set; }
-
-        public TimeSpan PowTargetTimespan { get; set; }
-
-        public TimeSpan PowTargetSpacing { get; set; }
-
-        public bool PowAllowMinDifficultyBlocks { get; set; }
-
-        public bool PowNoRetargeting { get; set; }
-
-        public uint256 HashGenesisBlock { get; set; }
-
-        public uint256 MinimumChainWork { get; set; }
-
-        public long DifficultyAdjustmentInterval
-        {
-            get { return ((long)this.PowTargetTimespan.TotalSeconds / (long)this.PowTargetSpacing.TotalSeconds); }
-        }
-
-        public int MinerConfirmationWindow { get; set; }
-
-        public int RuleChangeActivationThreshold { get; set; }
-
-        /// <summary>
-        /// Specify the BIP44 coin type for this network
-        /// </summary>
-        public int CoinType { get; set; }
 
         /// <summary>
         /// Maximal value for the calculated time offset.
@@ -190,104 +58,40 @@ namespace NBitcoin
         public int MaxTimeOffsetSeconds { get; protected set; }
 
         /// <summary>
-        /// Specify using litecoin calculation for difficulty
+        /// Maximum tip age in seconds to consider node in initial block download.
         /// </summary>
-        public bool LitecoinWorkCalculation { get; set; }
-
-        public BigInteger ProofOfStakeLimit { get; set; }
-
-        public BigInteger ProofOfStakeLimitV2 { get; set; }
-
-        public int LastPOWBlock { get; set; }
-
-        /// <summary>The default hash to use for assuming valid blocks.</summary>
-        public uint256 DefaultAssumeValid { get; set; }
-
-        public virtual Consensus Clone()
-        {
-            return new Consensus
-            {
-                BIP34Hash = this.BIP34Hash,
-                HashGenesisBlock = this.HashGenesisBlock,
-                MajorityEnforceBlockUpgrade = this.MajorityEnforceBlockUpgrade,
-                MajorityRejectBlockOutdated = this.MajorityRejectBlockOutdated,
-                MajorityWindow = this.MajorityWindow,
-                MinerConfirmationWindow = this.MinerConfirmationWindow,
-                PowAllowMinDifficultyBlocks = this.PowAllowMinDifficultyBlocks,
-                PowLimit = this.PowLimit,
-                PowNoRetargeting = this.PowNoRetargeting,
-                PowTargetSpacing = this.PowTargetSpacing,
-                PowTargetTimespan = this.PowTargetTimespan,
-                RuleChangeActivationThreshold = this.RuleChangeActivationThreshold,
-                SubsidyHalvingInterval = this.SubsidyHalvingInterval,
-                MinimumChainWork = this.MinimumChainWork,
-                GetPoWHash = this.GetPoWHash,
-                CoinType = this.CoinType,
-                LitecoinWorkCalculation = this.LitecoinWorkCalculation,
-                LastPOWBlock = this.LastPOWBlock,
-                ProofOfStakeLimit = this.ProofOfStakeLimit,
-                ProofOfStakeLimitV2 = this.ProofOfStakeLimitV2,
-                DefaultAssumeValid = this.DefaultAssumeValid,
-                NetworkOptions = this.NetworkOptions.Clone()
-            };
-        }
-    }
-
-    public enum NetworkInitializationMode { Main, Test, RegTest }
-
-    public partial class Network
-    {
-        protected uint magic;
-        protected byte[] alertPubKeyArray;
-        private PubKey alertPubKey;
-        protected readonly List<DNSSeedData> seeds = new List<DNSSeedData>();
-        protected readonly List<NetworkAddress> fixedSeeds = new List<NetworkAddress>();
-        protected Block genesis;
-        protected Consensus consensus = new Consensus();
-
-        public NetworkOptions NetworkOptions
-        {
-            get
-            {
-                return consensus.NetworkOptions;
-            }
-        }
-
-        protected Network()
-        {
-            this.genesis = new Block();
-        }
-
-        public PubKey AlertPubKey
-        {
-            get
-            {
-                if (this.alertPubKey == null)
-                {
-                    this.alertPubKey = new PubKey(this.alertPubKeyArray);
-                }
-                return this.alertPubKey;
-            }
-        }
-
-        /// <summary> Maximal value for the calculated time offset. If the value is over this limit, the time syncing feature will be switched off. </summary>
-        public int MaxTimeOffsetSeconds { get; protected set; }
-
-        /// <summary>Maximum tip age in seconds to consider node in initial block download.</summary>
         public int MaxTipAge { get; protected set; }
 
+        /// <summary>
+        /// Mininum fee rate for all transactions.
+        /// Fees smaller than this are considered zero fee for transaction creation.
+        /// </summary>
         public long MinTxFee { get; protected set; }
 
+        /// <summary>
+        /// A fee rate that will be used when fee estimation has insufficient data.
+        /// </summary>
         public long FallbackFee { get; protected set; }
 
+        /// <summary>
+        /// The minimum fee under which transactions may be rejected from being relayed.
+        /// </summary>
         public long MinRelayTxFee { get; protected set; }
 
+        /// <summary>
+        /// Port on which to listen for incoming RPC connections.
+        /// </summary>
         public int RPCPort { get; protected set; }
 
+        /// <summary>
+        /// The default port on which nodes of this network communicate with external clients. 
+        /// </summary>
         public int DefaultPort { get; protected set; }
 
-        public Consensus Consensus => this.consensus;
-
+        /// <summary>
+        /// The consensus for this network.
+        /// </summary>
+        public Consensus Consensus { get; protected set; }
 
         public string CoinName
         {
@@ -295,6 +99,9 @@ namespace NBitcoin
             protected set;
         }
 
+        /// <summary>
+        /// The name of the network.
+        /// </summary>
         public string NetworkName
         {
             get;
@@ -309,16 +116,36 @@ namespace NBitcoin
             }
         }
 
+        /// <summary>
+        /// A list of additional names the network can be referred as.
+        /// For example, Bitcoin Main can have "Mainnet" as an additional name.
+        /// </summary>
+        public List<string> AdditionalNames { get; protected set; }
 
-        /// <summary> The name of the root folder containing blockchains operating with the same consensus rules (for now, this will be bitcoin or stratis). </summary>
+        /// <summary>
+        /// An indicative coin ticker for use with external applications.
+        /// </summary>
+        public string CoinTicker { get; set; }
+
+        /// <summary>
+        /// The name of the root folder containing blockchains operating with the same consensus rules (for now, this will be bitcoin or stratis).
+        /// </summary>
         public string RootFolderName { get; protected set; }
 
-        /// <summary> The default name used for the network configuration file. </summary>
+        /// <summary>
+        /// The default name used for the network configuration file.
+        /// </summary>
         public string DefaultConfigFilename { get; protected set; }
 
-        public IEnumerable<NetworkAddress> SeedNodes => this.fixedSeeds;
+        /// <summary>
+        /// The list of nodes on the network that our current node tries to connect to.
+        /// </summary>
+        public List<NetworkAddress> SeedNodes { get; protected set; }
 
-        public IEnumerable<DNSSeedData> DNSSeeds => this.seeds;
+        /// <summary>
+        /// The list of DNS seeds from which to get IP addresses when bootstrapping a node.
+        /// </summary>
+        public List<DNSSeedData> DNSSeeds { get; protected set; }
 
         /// <summary>
         /// A list of well-known block hashes.
@@ -374,70 +201,8 @@ namespace NBitcoin
             }
         }
 
-        public uint Magic => this.magic;
-
-        protected static readonly ConcurrentDictionary<string, Network> NetworksContainer =
+        internal static readonly ConcurrentDictionary<string, Network> NetworksContainer =
             new ConcurrentDictionary<string, Network>();
-
-        internal static Network Register(NetworkBuilder builder)
-        {
-            if (builder.NetworkName == null)
-                throw new InvalidOperationException("A network name need to be provided");
-
-            if (GetNetwork(builder.NetworkName) != null)
-                throw new InvalidOperationException("The network " + builder.NetworkName + " is already registered");
-
-            Network network = new Network();
-            network.CoinName = builder.CoinName;
-            network.NetworkName = builder.NetworkName;
-            network.RootFolderName = builder.RootFolderName;
-            network.DefaultConfigFilename = builder.DefaultConfigFilename;
-            network.consensus = builder.Consensus;
-            network.magic = builder.Magic;
-            network.DefaultPort = builder.Port;
-            network.RPCPort = builder.RPCPort;
-            network.genesis = builder.Genesis;
-            network.consensus.HashGenesisBlock = network.genesis.GetHash();
-
-            foreach (DNSSeedData seed in builder.Seeds)
-            {
-                network.seeds.Add(seed);
-            }
-
-            foreach (NetworkAddress seed in builder.FixedSeeds)
-            {
-                network.fixedSeeds.Add(seed);
-            }
-
-            network.base58Prefixes = Network.BitcoinMain.base58Prefixes.ToArray();
-
-            foreach (KeyValuePair<Base58Type, byte[]> kv in builder.Base58Prefixes)
-            {
-                network.base58Prefixes[(int) kv.Key] = kv.Value;
-            }
-
-            network.bech32Encoders = Network.BitcoinMain.bech32Encoders.ToArray();
-
-            foreach (KeyValuePair<Bech32Type, Bech32Encoder> kv in builder.Bech32Prefixes)
-            {
-                network.bech32Encoders[(int) kv.Key] = kv.Value;
-            }
-
-            foreach (string alias in builder.Aliases)
-            {
-                NetworksContainer.TryAdd(alias.ToLowerInvariant(), network);
-            }
-
-            NetworksContainer.TryAdd(network.Name.ToLowerInvariant(), network);
-
-            network.MaxTimeOffsetSeconds = builder.MaxTimeOffsetSeconds;
-            network.MaxTipAge = builder.MaxTipAge;
-            network.MinTxFee = builder.MinTxFee;
-            network.FallbackFee = builder.FallbackFee;
-            network.MinRelayTxFee = builder.MinRelayTxFee;
-
-            return network;
-        }
 
         /// <summary>
         /// The UNIX time at inception of the genesis block for this network.
@@ -606,7 +371,7 @@ namespace NBitcoin
             return new BitcoinScriptAddress(base58, this);
         }
 
-        private Base58Type? GetBase58Type(string base58)
+        internal Base58Type? GetBase58Type(string base58)
         {
             var bytes = Encoders.Base58Check.DecodeData(base58);
             for (int i = 0; i < this.base58Prefixes.Length; i++)
@@ -862,18 +627,6 @@ namespace NBitcoin
             return new BitcoinExtKey(base58, this);
         }
 
-        public override string ToString()
-        {
-            return this.Name;
-        }
-
-        public Block GetGenesis()
-        {
-            return this.genesis.Clone(options:this.NetworkOptions);
-        }
-
-        public uint256 GenesisHash => this.consensus.HashGenesisBlock;
-
         public static IEnumerable<Network> GetNetworks()
         {
             if (NetworksContainer.Any())
@@ -941,6 +694,7 @@ namespace NBitcoin
             return new BitcoinPubKeyAddress(base58, this);
         }
 
+
         public override string ToString()
         {
             return this.Name;
@@ -974,7 +728,7 @@ namespace NBitcoin
         public Money GetReward(int nHeight)
         {
             long nSubsidy = new Money(50 * Money.COIN);
-            int halvings = nHeight / this.consensus.SubsidyHalvingInterval;
+            int halvings = nHeight / this.Consensus.SubsidyHalvingInterval;
 
             // Force block reward to zero when right shift is undefined.
             if (halvings >= 64)

@@ -12,7 +12,7 @@ namespace NBitcoin.Tests
         public void CanCalculateMerkleRoot()
         {
             var block = new Block();
-            block.ReadWrite(Encoders.Hex.DecodeData(File.ReadAllText(TestDataLocations.GetFileFromDataFolder("block169482.txt"))), Network.Main.Consensus.ConsensusFactory);
+            block.ReadWrite(Encoders.Hex.DecodeData(File.ReadAllText(TestDataLocations.GetFileFromDataFolder("block169482.txt"))), Network.BitcoinMain.Consensus.ConsensusFactory);
             Assert.Equal(block.Header.HashMerkleRoot, block.GetMerkleRoot().Hash);
         }
     }

@@ -365,7 +365,7 @@ namespace NBitcoin
             //CheckMoneyUnit(unit, "unit");
             checked
             {
-                decimal satoshi = amount * (int)unit;
+                decimal satoshi = amount * (int)unit.Multiplier;
                 this.Satoshi = (long)satoshi;
             }
         }

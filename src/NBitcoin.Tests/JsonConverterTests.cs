@@ -24,8 +24,8 @@ namespace NBitcoin.Tests
             CanSerializeInJsonCore(new uint160(RandomUtils.GetBytes(20)));
             CanSerializeInJsonCore(new AssetId(k.PubKey));
             CanSerializeInJsonCore(k.PubKey.ScriptPubKey);
-            CanSerializeInJsonCore(new Key().PubKey.WitHash.GetAddress(Network.Main));
-            CanSerializeInJsonCore(new Key().PubKey.WitHash.ScriptPubKey.GetWitScriptAddress(Network.Main));
+            CanSerializeInJsonCore(new Key().PubKey.WitHash.GetAddress(Network.BitcoinMain));
+            CanSerializeInJsonCore(new Key().PubKey.WitHash.ScriptPubKey.GetWitScriptAddress(Network.BitcoinMain));
             ECDSASignature sig = k.Sign(new uint256(RandomUtils.GetBytes(32)));
             CanSerializeInJsonCore(sig);
             CanSerializeInJsonCore(new TransactionSignature(sig, SigHash.All));
@@ -42,7 +42,7 @@ namespace NBitcoin.Tests
         private T CanSerializeInJsonCore<T>(T value)
         {
             string str = Serializer.ToString(value);
-            T obj2 = Serializer.ToObject<T>(str, Network.Main);
+            T obj2 = Serializer.ToObject<T>(str, Network.BitcoinMain);
             Assert.Equal(str, Serializer.ToString(obj2));
             return obj2;
         }
