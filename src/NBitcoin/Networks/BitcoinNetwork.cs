@@ -40,6 +40,7 @@ namespace NBitcoin
             if (network != null)
             {
                 Network.NetworksContainer.TryAdd(network.Name.ToLowerInvariant(), network);
+                NetworksContainer.Register(network);
                 return network;
             }
             else
