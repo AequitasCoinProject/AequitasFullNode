@@ -51,7 +51,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
-                var transaction = new Transaction(request.Hex);
+                var transaction = Transaction.Load(request.Hex, this.network);
                 return Content(transaction.ToString());
             }
             catch (Exception e)
@@ -179,7 +179,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
-                var transaction = new Transaction(request.Hex);
+                var transaction = Transaction.Load(request.Hex, this.network);
 
                 WalletSendTransactionModel model = new WalletSendTransactionModel
                 {
@@ -189,7 +189,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
                 foreach (var output in transaction.Outputs)
                 {
-                    if (WantedSystemMessageTemplate.Instance.CheckScriptPubKey(output.ScriptPubKey))
+                    if (WantedSystemMessageTemplate.Instance.CheckScriptPubKey(this.network, output.ScriptPubKey))
                     {
                         model.Outputs.Add(new TransactionOutputModel
                         {
@@ -580,7 +580,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     throw new Exception($"The reviewer '{request.ReviewerAddress}' was not found in the address book.");
                 }
 
-                TransactionBuilder tb = new TransactionBuilder();
+                TransactionBuilder tb = new TransactionBuilder(this.network);
                 tb.AddCoins((this.walletTransactionHandler as WalletTransactionHandler).GetCoinsForReviewersAddress(reviewerAddress));
                 tb.AddCoins(tx);
                 Transaction signedTx = tb.AddKeys(privateKeys.ToArray()).SignTransaction(tx);
@@ -625,9 +625,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
-                Transaction transaction = new Transaction(request.TransactionHex);
+                Transaction transaction = Transaction.Load(request.TransactionHex, this.network);
 
-                var wantedMessageOuts = transaction.Outputs.Where(txOut => WantedSystemMessageTemplate.Instance.CheckScriptPubKey(txOut.ScriptPubKey));
+                var wantedMessageOuts = transaction.Outputs.Where(txOut => WantedSystemMessageTemplate.Instance.CheckScriptPubKey(this.network, txOut.ScriptPubKey));
 
                 if (wantedMessageOuts.Count() == 0)
                 {
@@ -655,10 +655,10 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 {
                     throw new Exception($"The reviewer '{request.ReviewerAddress}' was not found in the address book.");
                 }
-                var multiSigParams = PayToMultiSigTemplate.Instance.ExtractScriptPubKeyParameters(reviewerAddress.ScriptPubKey);
+                var multiSigParams = PayToMultiSigTemplate.Instance.ExtractScriptPubKeyParameters(this.network, reviewerAddress.ScriptPubKey);
 
                 // try to combine the partially signed signatures                
-                TransactionBuilder tb = new TransactionBuilder();
+                TransactionBuilder tb = new TransactionBuilder(this.network);
                 tb.AddCoins((this.walletTransactionHandler as WalletTransactionHandler).GetCoinsForReviewersAddress(reviewerAddress));
 
                 var fullySignedTx = tb.CombineSignatures(wsmm.PartiallySignedTransactions.Select(stx => Transaction.Parse(stx.TransactionHex)).ToArray());

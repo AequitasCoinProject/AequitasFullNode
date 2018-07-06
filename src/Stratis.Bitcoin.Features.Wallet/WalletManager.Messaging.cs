@@ -9,7 +9,6 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 using Newtonsoft.Json;
-using Stratis.Bitcoin.Broadcasting;
 using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Features.Wallet.Interfaces;
 using Stratis.Bitcoin.Features.Wallet.Models;
@@ -46,7 +45,7 @@ namespace Stratis.Bitcoin.Features.Wallet
 
         public WantedSystemMessageModel AddWantedSystemMessageToMessageStore(Transaction transaction)
         {
-            var wantedMessageOuts = transaction.Outputs.AsIndexedOutputs().Where(txOut => WantedSystemMessageTemplate.Instance.CheckScriptPubKey(txOut.TxOut.ScriptPubKey));
+            var wantedMessageOuts = transaction.Outputs.AsIndexedOutputs().Where(txOut => WantedSystemMessageTemplate.Instance.CheckScriptPubKey(this.network, txOut.TxOut.ScriptPubKey));
 
             if (wantedMessageOuts.Count() == 0)
             {
@@ -214,7 +213,7 @@ namespace Stratis.Bitcoin.Features.Wallet
                     else
                     {
                         // we have to generate an ID for this new group
-                        pra.GroupId = new Key().ToHex();
+                        pra.GroupId = new Key().ToHex(this.network);
                     }
                 }
 
