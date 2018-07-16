@@ -13,7 +13,7 @@ namespace Stratis.Bitcoin.Consensus.Rules
     public abstract class ConsensusRules : IConsensusRules
     {
         /// <summary>A factory to creates logger instances for each rule.</summary>
-        private readonly ILoggerFactory loggerFactory;
+        public readonly ILoggerFactory LoggerFactory;
 
         /// <summary>Instance logger.</summary>
         private readonly ILogger logger;
@@ -75,7 +75,7 @@ namespace Stratis.Bitcoin.Consensus.Rules
             this.DateTimeProvider = dateTimeProvider;
             this.Chain = chain;
             this.NodeDeployments = nodeDeployments;
-            this.loggerFactory = loggerFactory;
+            this.LoggerFactory = loggerFactory;
             this.ConsensusSettings = consensusSettings;
             this.Checkpoints = checkpoints;
             this.ConsensusParams = this.Network.Consensus;
@@ -95,14 +95,19 @@ namespace Stratis.Bitcoin.Consensus.Rules
             foreach (ConsensusRule consensusRule in ruleRegistration.GetRules())
             {
                 consensusRule.Parent = this;
-                consensusRule.Logger = this.loggerFactory.CreateLogger(consensusRule.GetType().FullName);
+                consensusRule.Logger = this.LoggerFactory.CreateLogger(consensusRule.GetType().FullName);
                 consensusRule.Initialize();
-                
-                this.consensusRules.Add(consensusRule.GetType().FullName, new ConsensusRuleDescriptor(consensusRule));
-            }
 
-            this.validationRules.AddRange(this.consensusRules.Values.Where(w => w.RuleAttributes.OfType<ValidationRuleAttribute>().Any() || w.RuleAttributes.Count == 0));
-            this.executionRules.AddRange(this.consensusRules.Values.Where(w => w.RuleAttributes.OfType<ExecutionRuleAttribute>().Any()));
+                var rule = new ConsensusRuleDescriptor(consensusRule);
+
+                this.consensusRules.Add(consensusRule.GetType().FullName, rule);
+
+                if (rule.RuleAttributes.OfType<ExecutionRuleAttribute>().Any())
+                    this.executionRules.Add(rule);
+
+                if (rule.RuleAttributes.OfType<ValidationRuleAttribute>().Any() || rule.RuleAttributes.Count == 0)
+                    this.validationRules.Add(rule);
+            }
 
             return this;
         }
@@ -118,10 +123,11 @@ namespace Stratis.Bitcoin.Consensus.Rules
         }
 
         /// <inheritdoc/>
-        public async Task AcceptBlockAsync(ValidationContext validationContext)
+        public async Task AcceptBlockAsync(ValidationContext validationContext, ChainedHeader tip)
         {
             Guard.NotNull(validationContext, nameof(validationContext));
-            Guard.NotNull(validationContext.RuleContext, nameof(validationContext.RuleContext));
+
+            validationContext.RuleContext = this.CreateRuleContext(validationContext, tip);
 
             try
             {
@@ -130,11 +136,6 @@ namespace Stratis.Bitcoin.Consensus.Rules
             catch (ConsensusErrorException ex)
             {
                 validationContext.Error = ex.ConsensusError;
-            }
-
-            if (validationContext.Error != null)
-            {
-                // TODO invoke the error handler rule.
             }
         }
 
@@ -178,12 +179,27 @@ namespace Stratis.Bitcoin.Consensus.Rules
         public abstract Task<uint256> GetBlockHashAsync();
 
         /// <inheritdoc />
-        public abstract Task<uint256> RewindAsync();
+        public abstract Task<RewindState> RewindAsync();
 
         /// <inheritdoc />
         public T GetRule<T>() where T : ConsensusRule
         {
             return (T)this.Rules.Single(r => r.Rule is T).Rule;
         }
+    }
+
+    /// <summary>
+    /// A class that is used to store transitions of state of consensus underline storage.
+    /// </summary>
+    /// <remarks>
+    /// A transition state can have transition information of several consecutive block,
+    /// The <see cref="BlockHash"/> parameter represents the tip of the consecutive list of blocks.
+    /// </remarks>
+    public class RewindState
+    {
+        /// <summary>
+        /// The block hash that represents the tip of the transition.
+        /// </summary>
+        public uint256 BlockHash { get; set; }
     }
 }

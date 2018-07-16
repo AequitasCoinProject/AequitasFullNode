@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Linq;
 using Microsoft.AspNetCore.Mvc;
+using NBitcoin;
 using Stratis.Bitcoin.Controllers.Models;
 using Stratis.Bitcoin.Features.WatchOnlyWallet.Models;
 using Stratis.Bitcoin.Utilities.JsonErrors;
@@ -179,10 +180,11 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
                     Transactions = new List<TransactionModel>()
                 };
 
-                foreach (var transactionData in watchedAddress.Transactions)
-                {
-                    watchedAddressModel.Transactions.Add(new TransactionVerboseModel(transactionData.Value.Transaction, watchOnlyWallet.Network));
-                }
+                    foreach (KeyValuePair<string, TransactionData> transactionData in watchAddress.Value.Transactions)
+                    {
+                        Transaction transaction = watchOnlyWallet.Network.CreateTransaction(transactionData.Value.Hex);
+                        watchedAddressModel.Transactions.Add(new TransactionVerboseModel(transaction, watchOnlyWallet.Network));
+                    }
 
                 return this.Json(watchedAddressModel);
             }
@@ -192,17 +194,12 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
             }
         }
 
-        [Route("list-spendable-transaction-outs")]
-        [HttpPost]
-        public IActionResult ListSpendableTransactionOuts([FromBody] ListWatchedSpendableTransactionOutsRequest request)
-        {
-            Guard.NotNull(request, nameof(request));
-
-            // checks the request is valid
-            if (!this.ModelState.IsValid)
-            {
-                return BuildErrorResponse(this.ModelState);
-            }
+                foreach (KeyValuePair<string, TransactionData> transaction in watchOnlyWallet.WatchedTransactions)
+                {
+                    var watchedTransactionModel = new WatchedTransactionModel
+                    {
+                        Transaction = new TransactionVerboseModel(watchOnlyWallet.Network.CreateTransaction(transaction.Value.Hex), watchOnlyWallet.Network)
+                    };
 
             try
             {

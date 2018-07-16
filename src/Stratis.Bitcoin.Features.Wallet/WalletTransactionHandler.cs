@@ -44,11 +44,14 @@ namespace Stratis.Bitcoin.Features.Wallet
 
         private readonly MemoryCache privateKeyCache;
 
+        private readonly StandardTransactionPolicy transactionPolicy;
+
         public WalletTransactionHandler(
             ILoggerFactory loggerFactory,
             IWalletManager walletManager,
             IWalletFeePolicy walletFeePolicy,
-            Network network)
+            Network network,
+            StandardTransactionPolicy transactionPolicy)
         {
             this.Network = network;
             this.walletManager = walletManager;
@@ -56,6 +59,7 @@ namespace Stratis.Bitcoin.Features.Wallet
             this.coinType = (CoinType)network.Consensus.CoinType;
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
             this.privateKeyCache = new MemoryCache(new MemoryCacheOptions() { ExpirationScanFrequency = new TimeSpan(0, 1, 0) });
+            this.transactionPolicy = transactionPolicy;
         }
 
         /// <inheritdoc />
@@ -195,13 +199,31 @@ namespace Stratis.Bitcoin.Features.Wallet
             Guard.NotNull(context.Recipients, nameof(context.Recipients));
             Guard.NotNull(context.AccountReference, nameof(context.AccountReference));
 
-            context.TransactionBuilder = new TransactionBuilder(this.Network);
+            context.TransactionBuilder = new TransactionBuilder(this.Network)
+            {
+                CoinSelector = new DefaultCoinSelector
+                {
+                    GroupByScriptPubKey = context.UseAllInputs
+                },
+                // Smart contract calls allow dust. Should be an option on TransactionBuildContext in future.
+                DustPrevention = context.DustPrevention,
+                StandardTransactionPolicy = this.transactionPolicy
+            };
 
             this.AddRecipients(context);
             this.AddOpReturnOutput(context);
             this.AddCoins(context);
             this.AddSecrets(context);
-            this.FindChangeAddress(context);
+            // Also added for smart contract demo
+            if (!context.ChangeAddressSet)
+            {
+                this.FindChangeAddress(context);
+            }
+            else
+            {
+                context.TransactionBuilder.SetChange(context.ChangeAddress.ScriptPubKey);
+            }
+            // End smart contract change
             this.AddFee(context);
             this.AddMessage(context);
         }
@@ -338,7 +360,8 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// </remarks>
         private void AddRecipients(TransactionBuildContext context)
         {
-            if (context.Recipients.Any(a => a.Amount == Money.Zero))
+            // Adjusted to allow smart contract transactions through
+            if (context.Recipients.Any(a => a.Amount == Money.Zero && !a.ScriptPubKey.IsSmartContractExec()))
                 throw new WalletException("No amount specified.");
 
             if (context.Recipients.Any(a => a.SubtractFeeFromAmount))
@@ -409,6 +432,8 @@ namespace Stratis.Bitcoin.Features.Wallet
             this.AllowOtherInputs = false;
             this.Sign = !string.IsNullOrEmpty(walletPassword);
             this.OpReturnData = opReturnData;
+            this.UseAllInputs = true;
+            this.DustPrevention = true;
         }
 
         /// <summary>
@@ -452,6 +477,14 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// the rest of the coins go in to a change address that is under the senders control.
         /// </remarks>
         public HdAddress ChangeAddress { get; set; }
+
+        public bool ChangeAddressSet
+        {
+            get
+            {
+                return this.ChangeAddress != null;
+            }
+        }
 
         /// <summary>
         /// The total fee on the transaction.
@@ -525,6 +558,16 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// Optional data to be added as an extra OP_RETURN transaction output with Money.Zero value.
         /// </summary>
         public string OpReturnData { get; set; }
+
+        /// <summary>
+        /// Whether to use all inputs, to preserve privacy, or use only enough to meet the required amount.
+        /// </summary>
+        public bool UseAllInputs { get; set; } 
+
+        /// <summary>
+        /// Used to discern whether the transaction builder should use dust prevention or not.
+        /// </summary>
+        public bool DustPrevention { get; set; }
     }
 
     /// <summary>

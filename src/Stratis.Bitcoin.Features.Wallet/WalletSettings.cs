@@ -48,6 +48,7 @@ namespace Stratis.Bitcoin.Features.Wallet
             TextFileConfiguration config = nodeSettings.ConfigReader;
 
             this.SaveTransactionHex = config.GetOrDefault<bool>("savetrxhex", false, this.logger);
+            this.UnusedAddressesBuffer = config.GetOrDefault<int>("walletaddressbuffer", 20, this.logger);
 
             this.logger.LogTrace("(-)");
         }

@@ -2,7 +2,6 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using NBitcoin;
-using NBitcoin.JsonConverters;
 using Newtonsoft.Json;
 using Stratis.Bitcoin.Features.Wallet;
 using Stratis.Bitcoin.Utilities.JsonConverters;
@@ -157,10 +156,10 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
         public uint256 Id { get; set; }
 
         /// <summary>
-        /// A transaction affecting a script being watched.
+        /// Hexadecimal representation of a transaction affecting a script being watched.
         /// </summary>
-        [JsonIgnore]
-        public Transaction Transaction => Transaction.Parse(this.Hex);
+        [JsonProperty(PropertyName = "hex")]
+        public string Hex { get; set; }
 
         /// <summary>
         /// The hash of the block including this transaction.
@@ -175,12 +174,6 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
         [JsonProperty(PropertyName = "merkleProof", NullValueHandling = NullValueHandling.Ignore)]
         [JsonConverter(typeof(BitcoinSerializableJsonConverter))]
         public PartialMerkleTree MerkleProof { get; set; }
-
-        /// <summary>
-        /// Hexadecimal representation of a transaction affecting a script being watched.
-        /// </summary>
-        [JsonProperty(PropertyName = "hex")]
-        public string Hex { get; set; }
     }
 
     /// <summary>
@@ -237,9 +230,9 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
             var transactions = serializer.Deserialize<IEnumerable<TransactionData>>(reader);
 
             var transactionsDictionary = new ConcurrentDictionary<string, TransactionData>();
-            foreach (TransactionData transaction in transactions)
+            foreach (TransactionData transactionData in transactions)
             {
-                transactionsDictionary.TryAdd(transaction.Transaction.GetHash().ToString(), transaction);
+                transactionsDictionary.TryAdd(transactionData.Id.ToString(), transactionData);
             }
 
             return transactionsDictionary;

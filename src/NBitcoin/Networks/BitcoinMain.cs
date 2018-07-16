@@ -134,7 +134,19 @@ namespace NBitcoin.Networks
             Assert(this.Genesis.Header.HashMerkleRoot == uint256.Parse("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
         }
 
-        protected static Block CreateBitcoinGenesisBlock(ConsensusFactory consensusFactory, uint nTime, uint nNonce, uint nBits, int nVersion, Money genesisReward)
+        /// <summary> Bitcoin maximal value for the calculated time offset. If the value is over this limit, the time syncing feature will be switched off. </summary>
+        public const int BitcoinMaxTimeOffsetSeconds = 70 * 60;
+
+        /// <summary> Bitcoin default value for the maximum tip age in seconds to consider the node in initial block download (24 hours). </summary>
+        public const int BitcoinDefaultMaxTipAgeInSeconds = 24 * 60 * 60;
+
+        /// <summary> The name of the root folder containing the different Bitcoin blockchains (Main, TestNet, RegTest). </summary>
+        public const string BitcoinRootFolderName = "bitcoin";
+
+        /// <summary> The default name used for the Bitcoin configuration file. </summary>
+        public const string BitcoinDefaultConfigFilename = "bitcoin.conf";
+
+        public static Block CreateBitcoinGenesisBlock(ConsensusFactory consensusFactory, uint nTime, uint nNonce, uint nBits, int nVersion, Money genesisReward)
         {
             string pszTimestamp = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";
             var genesisOutputScript = new Script(Op.GetPushOp(Encoders.Hex.DecodeData("04678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5f")), OpcodeType.OP_CHECKSIG);
@@ -154,6 +166,7 @@ namespace NBitcoin.Networks
                 Value = genesisReward,
                 ScriptPubKey = genesisOutputScript
             });
+
             Block genesis = consensusFactory.CreateBlock();
             genesis.Header.BlockTime = Utils.UnixTimeToDateTime(nTime);
             genesis.Header.Bits = nBits;

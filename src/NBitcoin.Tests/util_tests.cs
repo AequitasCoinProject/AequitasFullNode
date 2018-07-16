@@ -7,7 +7,6 @@ using System.Text;
 using NBitcoin.BouncyCastle.Math;
 using NBitcoin.Crypto;
 using NBitcoin.DataEncoders;
-using NBitcoin.JsonConverters;
 using NBitcoin.OpenAsset;
 using Newtonsoft.Json.Linq;
 using Xunit;
@@ -627,14 +626,6 @@ namespace NBitcoin.Tests
             Assert.Equal(addr.Network, Network.BitcoinMain);
         }
 
-        public class DummyClass
-        {
-            public BitcoinExtPubKey ExtPubKey
-            {
-                get; set;
-            }
-        }
-
         [Fact]
         [Trait("UnitTest", "UnitTest")]
         public void CanDetectBase58WithoutAmbiguity()
@@ -662,10 +653,7 @@ namespace NBitcoin.Tests
             Assert.True(result.Network == Network.BitcoinRegTest);
 
             result = Network.Parse(address.Base58, null);
-            Assert.True(result.Network == Network.BitcoinTest);
-
-            string str = Serializer.ToString(new DummyClass() { ExtPubKey = new ExtKey().Neuter().GetWif(Network.BitcoinRegTest) }, Network.BitcoinRegTest);
-            Assert.NotNull(Serializer.ToObject<DummyClass>(str, Network.BitcoinRegTest));
+            Assert.True(result.Network == Network.TestNet);
         }
 
         [Fact]
