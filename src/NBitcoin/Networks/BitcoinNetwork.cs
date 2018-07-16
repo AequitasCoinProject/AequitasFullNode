@@ -11,6 +11,12 @@ namespace NBitcoin
 {
     public partial class Network
     {
+        public static Network Main => Network.GetNetwork("BitcoinMain") ?? new BitcoinNetwork().Init(NetworkInitializationMode.Main);
+
+        public static Network TestNet => Network.GetNetwork("BitcoinTest") ?? new BitcoinNetwork().Init(NetworkInitializationMode.Test);
+
+        public static Network RegTest => Network.GetNetwork("BitcoinRegTest") ?? new BitcoinNetwork().Init(NetworkInitializationMode.RegTest);
+
         public static Network BitcoinMain => Network.GetNetwork("BitcoinMain") ?? new BitcoinNetwork().Init(NetworkInitializationMode.Main);
 
         public static Network BitcoinTest => Network.GetNetwork("BitcoinTest") ?? new BitcoinNetwork().Init(NetworkInitializationMode.Test);

@@ -45,7 +45,7 @@ namespace Stratis.Bitcoin.Features.Wallet
 
         public WantedSystemMessageModel AddWantedSystemMessageToMessageStore(Transaction transaction)
         {
-            var wantedMessageOuts = transaction.Outputs.AsIndexedOutputs().Where(txOut => WantedSystemMessageTemplate.Instance.CheckScriptPubKey(this.network, txOut.TxOut.ScriptPubKey));
+            var wantedMessageOuts = transaction.Outputs.AsIndexedOutputs().Where(txOut => WantedSystemMessageTemplate.Instance.CheckScriptPubKey(txOut.TxOut.ScriptPubKey));
 
             if (wantedMessageOuts.Count() == 0)
             {

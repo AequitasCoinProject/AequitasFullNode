@@ -42,7 +42,7 @@ namespace Stratis.Bitcoin.Features.Wallet
             this.minTxFee = nodeSettings.MinTxFeeRate;
             this.fallbackFee = nodeSettings.FallbackTxFeeRate;
             this.payTxFee = new FeeRate(0);
-            this.maxTxFee = new Money(0.1M, Network.MoneyUnit("BTC"));
+            this.maxTxFee = new Money(10000000M, MoneyUnit.AtomicUnit);
             this.minRelayTxFee = nodeSettings.MinRelayTxFeeRate;
         }
 

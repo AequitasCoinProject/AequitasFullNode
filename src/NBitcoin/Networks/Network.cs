@@ -827,7 +827,7 @@ namespace NBitcoin
                 }
             }
 
-            throw new Exception($"The '{moneyUnitName}' money unit in unknown among the networks.");
+            throw new Exception($"The '{moneyUnitName}' money unit is unknown among the networks.");
         }
 
         protected IEnumerable<NetworkAddress> ConvertToNetworkAddresses(string[] seeds, int defaultPort)

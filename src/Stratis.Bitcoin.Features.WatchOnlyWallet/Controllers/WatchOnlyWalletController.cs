@@ -68,17 +68,20 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
 
                     foreach (var transactionData in watchAddress.Value.Transactions)
                     {
-                        watchedAddressModel.Transactions.Add(new TransactionBriefModel(transactionData.Value.Transaction, watchOnlyWallet.Network));
+                        Transaction transaction = watchOnlyWallet.Network.CreateTransaction(transactionData.Value.Hex);
+                        watchedAddressModel.Transactions.Add(new TransactionBriefModel(transaction, watchOnlyWallet.Network));
                     }
 
                     model.WatchedAddresses.Add(watchedAddressModel);
                 }
 
-                foreach (var transaction in watchOnlyWallet.WatchedTransactions)
+                foreach (var transactionData in watchOnlyWallet.WatchedTransactions)
                 {
+                    Transaction transaction = watchOnlyWallet.Network.CreateTransaction(transactionData.Value.Hex);
+
                     WatchedTransactionModel watchedTransactionModel = new WatchedTransactionModel
                     {
-                        Transaction = new TransactionBriefModel(transaction.Value.Transaction, watchOnlyWallet.Network)
+                        Transaction = new TransactionBriefModel(transaction, watchOnlyWallet.Network)
                     };
 
                     model.WatchedTransactions.Add(watchedTransactionModel);
@@ -180,11 +183,11 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
                     Transactions = new List<TransactionModel>()
                 };
 
-                    foreach (KeyValuePair<string, TransactionData> transactionData in watchAddress.Value.Transactions)
-                    {
-                        Transaction transaction = watchOnlyWallet.Network.CreateTransaction(transactionData.Value.Hex);
-                        watchedAddressModel.Transactions.Add(new TransactionVerboseModel(transaction, watchOnlyWallet.Network));
-                    }
+                foreach (KeyValuePair<string, TransactionData> transactionData in watchOnlyWallet.WatchedTransactions)
+                {
+                    Transaction transaction = watchOnlyWallet.Network.CreateTransaction(transactionData.Value.Hex);
+                    watchedAddressModel.Transactions.Add(new TransactionVerboseModel(transaction, watchOnlyWallet.Network));
+                }
 
                 return this.Json(watchedAddressModel);
             }
@@ -194,12 +197,17 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
             }
         }
 
-                foreach (KeyValuePair<string, TransactionData> transaction in watchOnlyWallet.WatchedTransactions)
-                {
-                    var watchedTransactionModel = new WatchedTransactionModel
-                    {
-                        Transaction = new TransactionVerboseModel(watchOnlyWallet.Network.CreateTransaction(transaction.Value.Hex), watchOnlyWallet.Network)
-                    };
+        [Route("list-spendable-transaction-outs")]
+        [HttpPost]
+        public IActionResult ListSpendableTransactionOuts([FromBody] ListWatchedSpendableTransactionOutsRequest request)
+        {
+            Guard.NotNull(request, nameof(request));
+
+            // checks the request is valid
+            if (!this.ModelState.IsValid)
+            {
+                return BuildErrorResponse(this.ModelState);
+            }
 
             try
             {
@@ -215,7 +223,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
                 List<SpendableTransactionOutModel> transactionOutList = new List<SpendableTransactionOutModel>();
                 foreach (TransactionData watchedTransaction in watchedAddress.Transactions.Values)
                 {
-                    Transaction tr = watchedTransaction.Transaction;
+                    Transaction tr = watchOnlyWallet.Network.CreateTransaction(watchedTransaction.Hex);
 
                     foreach (var txOut in tr.Outputs.AsIndexedOutputs())
                     {

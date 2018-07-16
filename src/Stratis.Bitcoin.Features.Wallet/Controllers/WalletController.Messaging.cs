@@ -51,7 +51,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
-                var transaction = Transaction.Load(request.Hex, this.network);
+                Transaction transaction = this.network.CreateTransaction(request.Hex);
                 return Content(transaction.ToString());
             }
             catch (Exception e)
@@ -179,7 +179,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
-                var transaction = Transaction.Load(request.Hex, this.network);
+                Transaction transaction = this.network.CreateTransaction(request.Hex);
 
                 WalletSendTransactionModel model = new WalletSendTransactionModel
                 {
@@ -189,7 +189,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
                 foreach (var output in transaction.Outputs)
                 {
-                    if (WantedSystemMessageTemplate.Instance.CheckScriptPubKey(this.network, output.ScriptPubKey))
+                    if (WantedSystemMessageTemplate.Instance.CheckScriptPubKey(output.ScriptPubKey))
                     {
                         model.Outputs.Add(new TransactionOutputModel
                         {
@@ -301,7 +301,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
-                Script scriptPubKey = Transaction.Parse(request.TransactionHex).Outputs[request.MessageOutputIndex].ScriptPubKey;
+                Script scriptPubKey = Transaction.Parse(request.TransactionHex, RawFormat.Satoshi).Outputs[request.MessageOutputIndex].ScriptPubKey;
                 RsaPrivateKey rsaPrivateKey = null;
                 if (!String.IsNullOrEmpty(request.RsaPrivateKeyHex))
                 {
@@ -543,7 +543,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             try
             {
                 // parse the transaction
-                Transaction tx = Transaction.Parse(request.TransactionHex);
+                Transaction tx = Transaction.Parse(request.TransactionHex, RawFormat.Satoshi);
 
                 // check if we have the message transaction in our message store
                 WalletManager wm = this.walletManager as WalletManager;
@@ -625,9 +625,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
-                Transaction transaction = Transaction.Load(request.TransactionHex, this.network);
+                Transaction transaction = this.network.CreateTransaction(request.TransactionHex);
 
-                var wantedMessageOuts = transaction.Outputs.Where(txOut => WantedSystemMessageTemplate.Instance.CheckScriptPubKey(this.network, txOut.ScriptPubKey));
+                var wantedMessageOuts = transaction.Outputs.Where(txOut => WantedSystemMessageTemplate.Instance.CheckScriptPubKey(txOut.ScriptPubKey));
 
                 if (wantedMessageOuts.Count() == 0)
                 {
@@ -655,13 +655,13 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 {
                     throw new Exception($"The reviewer '{request.ReviewerAddress}' was not found in the address book.");
                 }
-                var multiSigParams = PayToMultiSigTemplate.Instance.ExtractScriptPubKeyParameters(this.network, reviewerAddress.ScriptPubKey);
+                var multiSigParams = PayToMultiSigTemplate.Instance.ExtractScriptPubKeyParameters(reviewerAddress.ScriptPubKey);
 
                 // try to combine the partially signed signatures                
                 TransactionBuilder tb = new TransactionBuilder(this.network);
                 tb.AddCoins((this.walletTransactionHandler as WalletTransactionHandler).GetCoinsForReviewersAddress(reviewerAddress));
 
-                var fullySignedTx = tb.CombineSignatures(wsmm.PartiallySignedTransactions.Select(stx => Transaction.Parse(stx.TransactionHex)).ToArray());
+                var fullySignedTx = tb.CombineSignatures(wsmm.PartiallySignedTransactions.Select(stx => Transaction.Parse(stx.TransactionHex, RawFormat.Satoshi)).ToArray());
                 if (fullySignedTx != null)
                 {
                     var checkResults = fullySignedTx.Check();

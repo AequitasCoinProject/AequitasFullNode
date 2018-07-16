@@ -134,18 +134,6 @@ namespace NBitcoin.Networks
             Assert(this.Genesis.Header.HashMerkleRoot == uint256.Parse("0x4a5e1e4baab89f3a32518a88c31bc87f618f76673e2cc77ab2127b7afdeda33b"));
         }
 
-        /// <summary> Bitcoin maximal value for the calculated time offset. If the value is over this limit, the time syncing feature will be switched off. </summary>
-        public const int BitcoinMaxTimeOffsetSeconds = 70 * 60;
-
-        /// <summary> Bitcoin default value for the maximum tip age in seconds to consider the node in initial block download (24 hours). </summary>
-        public const int BitcoinDefaultMaxTipAgeInSeconds = 24 * 60 * 60;
-
-        /// <summary> The name of the root folder containing the different Bitcoin blockchains (Main, TestNet, RegTest). </summary>
-        public const string BitcoinRootFolderName = "bitcoin";
-
-        /// <summary> The default name used for the Bitcoin configuration file. </summary>
-        public const string BitcoinDefaultConfigFilename = "bitcoin.conf";
-
         public static Block CreateBitcoinGenesisBlock(ConsensusFactory consensusFactory, uint nTime, uint nNonce, uint nBits, int nVersion, Money genesisReward)
         {
             string pszTimestamp = "The Times 03/Jan/2009 Chancellor on brink of second bailout for banks";

@@ -22,12 +22,18 @@ namespace NBitcoin.Tests
 {
 	public class WantedSystemTests
 	{
+        private readonly Network network;
+        private readonly ConsensusFactory consensusFactory;
+
         public WantedSystemTests()
         {
+            this.network = Network.BitcoinMain;
+            this.consensusFactory = this.network.Consensus.ConsensusFactory;
+
             // These flags may get set due to static network initializers
             // which include the initializers for Stratis.
-            Transaction.TimeStamp = false;
-            Block.BlockSignature = false;
+            //Transaction.TimeStamp = false;
+            //Block.BlockSignature = false;
         }
 
         static Dictionary<string, OpcodeType> mapOpNames = new Dictionary<string, OpcodeType>();
@@ -93,7 +99,7 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void CanCompressMessageAsScript()
         {
-            var coinsView = new CoinsView();
+            var coinsView = new CoinsView(this.network);
             Transaction[] dummyTransactions = SetupDummyInputs(coinsView);
 
             string metadata = "{\"compression\": \"gzip\", \"encryption\": \"none\", \"rewardAddress\": \"\", signatureType: \"ECDSA\", \"messageHash\": \"\", \"messageSignature\": \"\"}";
@@ -125,7 +131,7 @@ namespace NBitcoin.Tests
             if (script.Length > 16505) throw new Exception("Push data can't be bigger than 16505 bytes.");
 
             Transaction t = BuildMessageTransaction(script.ToBytes(), dummyTransactions[0].GetHash());
-            coinsView.AddTransaction(dummyTransactions[1], 0);
+            coinsView.AddTransaction(this.consensusFactory.Consensus, dummyTransactions[1], 0);
 
             AssertCompressed(script, 696);
         }
@@ -189,7 +195,7 @@ namespace NBitcoin.Tests
             dummyTransactions[0].Outputs[0].ScriptPubKey = dummyTransactions[0].Outputs[0].ScriptPubKey + key[0].PubKey.ToBytes() + OpcodeType.OP_CHECKSIG;
             dummyTransactions[0].Outputs[1].Value = 50 * Money.CENT;
             dummyTransactions[0].Outputs[1].ScriptPubKey = dummyTransactions[0].Outputs[1].ScriptPubKey + key[1].PubKey.ToBytes() + OpcodeType.OP_CHECKSIG;
-            coinsRet.AddTransaction(dummyTransactions[0], 0);
+            coinsRet.AddTransaction(this.consensusFactory.Consensus, dummyTransactions[0], 0);
 
 
             dummyTransactions[1].Outputs.AddRange(Enumerable.Range(0, 2).Select(_ => new TxOut()));
@@ -197,7 +203,7 @@ namespace NBitcoin.Tests
             dummyTransactions[1].Outputs[0].ScriptPubKey = key[2].PubKey.GetAddress(Network.BitcoinMain).ScriptPubKey;
             dummyTransactions[1].Outputs[1].Value = 22 * Money.CENT;
             dummyTransactions[1].Outputs[1].ScriptPubKey = key[3].PubKey.GetAddress(Network.BitcoinMain).ScriptPubKey;
-            coinsRet.AddTransaction(dummyTransactions[1], 0);
+            coinsRet.AddTransaction(this.consensusFactory.Consensus, dummyTransactions[1], 0);
 
 
             return dummyTransactions;
