@@ -160,7 +160,15 @@ namespace Stratis.Bitcoin.Features.Wallet
             IEnumerable<Wallet> wallets = this.fileStorage.LoadByFileExtension(WalletFileExtension);
 
             foreach (Wallet wallet in wallets)
+            {
                 this.Wallets.Add(wallet);
+                foreach (HdAccount account in wallet.GetAccountsByCoinType(this.coinType))
+                {
+                    this.AddAddressesToMaintainBuffer(account, false);
+                    this.AddAddressesToMaintainBuffer(account, true);
+                }
+            }
+
 
             // Load data in memory for faster lookups.
             this.LoadKeysLookupLock();
@@ -1119,6 +1127,17 @@ namespace Stratis.Bitcoin.Features.Wallet
             }
 
             this.logger.LogTrace("()");
+        }
+
+        private IEnumerable<HdAddress> AddAddressesToMaintainBuffer(HdAccount account, bool isChange)
+        {
+            HdAddress lastUsedAddress = account.GetLastUsedAddress(isChange);
+            int lastUsedAddressIndex = lastUsedAddress?.Index ?? -1;
+            int addressesCount = isChange ? account.InternalAddresses.Count() : account.ExternalAddresses.Count();
+            int emptyAddressesCount = addressesCount - lastUsedAddressIndex - 1;
+            int addressesToAdd = this.walletSettings.UnusedAddressesBuffer - emptyAddressesCount;
+
+            return addressesToAdd > 0 ? account.CreateAddresses(this.network, addressesToAdd, isChange) : new List<HdAddress>();
         }
 
         /// <inheritdoc />
