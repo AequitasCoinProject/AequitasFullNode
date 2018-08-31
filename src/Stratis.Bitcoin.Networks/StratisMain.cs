@@ -35,7 +35,7 @@ namespace Stratis.Bitcoin.Networks
 
             this.CoinName = "Stratis";
             this.NetworkName = "Main";
-            //this.Name = "StratisMain";
+            this.MoneyUnits = GetMoneyUnitsMain();
             this.Magic = magic;
             this.DefaultPort = 16178;
             this.RPCPort = 16174;
@@ -204,6 +204,24 @@ namespace Stratis.Bitcoin.Networks
             genesis.Header.HashPrevBlock = uint256.Zero;
             genesis.UpdateMerkleRoot();
             return genesis;
+        }
+
+        protected MoneyUnits GetMoneyUnitsMain()
+        {
+            return new MoneyUnits("STRAT",
+                new MoneyUnit[] {
+                    new MoneyUnit("STRAT", 100000000),
+                    new MoneyUnit("s", 1)
+                });
+        }
+
+        protected MoneyUnits GetMoneyUnitsTest()
+        {
+            return new MoneyUnits("STRAT-TEST",
+                new MoneyUnit[] {
+                    new MoneyUnit("STRAT-TEST", 100000000),
+                    new MoneyUnit("s-test", 1)
+                });
         }
     }
 }

@@ -23,7 +23,7 @@ namespace Stratis.Bitcoin.Networks
 
             this.CoinName = "Stratis";
             this.NetworkName = "Test";
-            //this.Name = "StratisTest";
+            this.MoneyUnits = GetMoneyUnitsTest();
             this.Magic = magic;
             this.DefaultPort = 26178;
             this.RPCPort = 26174;

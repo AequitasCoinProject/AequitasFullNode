@@ -200,8 +200,10 @@ namespace Stratis.Bitcoin.Controllers.Models
         /// <param name="network">The network where the transaction occured.</param>
         public Vout(int n, TxOut txout, Network network)
         {
+            MoneyUnit moneyUnitBTC = new MoneyUnit("BTC", 100000000);
+
             this.N = n;
-            this.Value = txout.Value.ToDecimal(MoneyUnit.BTC);
+            this.Value = txout.Value.ToDecimal(moneyUnitBTC);
             this.ScriptPubKey = new ScriptPubKey(txout.ScriptPubKey, network);
         }
 

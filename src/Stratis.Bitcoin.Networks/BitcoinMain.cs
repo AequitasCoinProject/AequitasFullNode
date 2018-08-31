@@ -24,7 +24,7 @@ namespace Stratis.Bitcoin.Networks
         {
             this.CoinName = "Bitcoin";
             this.NetworkName = "Main";
-            //this.Name = "Main";
+            this.MoneyUnits = GetMoneyUnitsMainAndTest();
             this.AdditionalNames = new List<string> { "Mainnet" };
 
             this.RootFolderName = BitcoinRootFolderName;
@@ -189,6 +189,17 @@ namespace Stratis.Bitcoin.Networks
             genesis.Header.HashPrevBlock = uint256.Zero;
             genesis.UpdateMerkleRoot();
             return genesis;
+        }
+
+        protected MoneyUnits GetMoneyUnitsMainAndTest()
+        {
+            return new MoneyUnits("BTC",
+                new MoneyUnit[] {
+                    new MoneyUnit("BTC", 100000000),
+                    new MoneyUnit("milliBTC", 100000),
+                    new MoneyUnit("bit", 100),
+                    new MoneyUnit("satoshi", 1)
+                });
         }
     }
 }

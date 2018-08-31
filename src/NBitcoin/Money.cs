@@ -850,11 +850,11 @@ namespace NBitcoin
                 i++;
             }
             var unit = format[i];
-            MoneyUnit unitToUseInCalc = Network.BitcoinMain.MoneyUnits.DefaultUnit;
-            switch(unit)
+            MoneyUnit unitToUseInCalc = new MoneyUnit("BTC", 100000000);
+            switch (unit)
             {
                 case 'B':
-                    unitToUseInCalc = Network.BitcoinMain.MoneyUnits.DefaultUnit;
+                    unitToUseInCalc = new MoneyUnit("BTC", 100000000);
                     break;
             }
             var val = Convert.ToDecimal(arg) / (int)unitToUseInCalc.Multiplier;
