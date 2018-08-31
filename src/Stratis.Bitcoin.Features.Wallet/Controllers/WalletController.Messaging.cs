@@ -86,12 +86,12 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             try
             {
                 var destination = BitcoinAddress.Create(request.DestinationAddress, this.network).ScriptPubKey;
-                var context = new TransactionBuildContext(
-                    new WalletAccountReference(request.WalletName, request.AccountName),
-                    new[] { new Recipient { Amount = new Money(500, this.network.MoneyUnits.AtomicUnit), ScriptPubKey = destination } }.ToList())
-                {
+                var context = new TransactionBuildContext(this.network)
+                { 
+                    AccountReference = new WalletAccountReference(request.WalletName, request.AccountName),
+                    Recipients = new[] { new Recipient { Amount = new Money(500, this.network.MoneyUnits.AtomicUnit), ScriptPubKey = destination } }.ToList(),
                     FeeType = FeeType.Low,
-                    MinConfirmations = 0,
+                    MinConfirmations = 0,                    
                 };
 
                 return this.Json(this.walletTransactionHandler.EstimateFee(context));
@@ -125,11 +125,11 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 // in wanted message transactions the payer address must be the input address (of the Tipster or the Reviewers multi-sig address) and the transaction fee must be the parameter.
                 var payer = BitcoinAddress.Create(request.PayerAddress, this.network);
                 var destination = BitcoinAddress.Create(request.DestinationAddress, this.network).ScriptPubKey;
-                var context = new TransactionBuildContext(
-                    new WalletAccountReference(request.WalletName, request.AccountName),
-                    new[] { new Recipient { Amount = new Money(500, this.network.MoneyUnits.AtomicUnit), ScriptPubKey = destination } }.ToList(),
-                    request.WalletPassword)
+                var context = new TransactionBuildContext(this.network)
                 {
+                    AccountReference = new WalletAccountReference(request.WalletName, request.AccountName),
+                    Recipients = new[] { new Recipient { Amount = new Money(500, this.network.MoneyUnits.AtomicUnit), ScriptPubKey = destination } }.ToList(),
+                    WalletPassword = request.WalletPassword,
                     FeeType = FeeType.Low,
                     MinConfirmations = 0,
                     Shuffle = false,

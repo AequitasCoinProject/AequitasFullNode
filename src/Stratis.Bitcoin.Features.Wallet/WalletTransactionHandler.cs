@@ -210,7 +210,7 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// <param name="context">The context associated with the current transaction being built.</param>
         protected void AddSecrets(TransactionBuildContext context)
         {
-            if (string.IsNullOrEmpty(context.WalletPassword))
+            if (string.IsNullOrEmpty(context.WalletPassword) && context.Sign)
                 return;
 
             Wallet wallet = this.walletManager.GetWalletByName(context.AccountReference.WalletName);
@@ -398,6 +398,7 @@ namespace Stratis.Bitcoin.Features.Wallet
             this.MinConfirmations = 1;
             this.SelectedInputs = new List<OutPoint>();
             this.AllowOtherInputs = false;
+            this.Sign = true;
         }
 
         /// <summary>
@@ -446,6 +447,11 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// The total fee on the transaction.
         /// </summary>
         public Money TransactionFee { get; set; }
+
+        /// <summary>
+        /// The final transaction.
+        /// </summary>
+        public Transaction Transaction { get; set; }
 
         /// <summary>
         /// The password that protects the wallet in <see cref="WalletAccountReference"/>.
@@ -499,6 +505,11 @@ namespace Stratis.Bitcoin.Features.Wallet
         /// Should we encrypt the message?
         /// </summary>
         public bool EncryptMessage { get; set; }
+
+        /// <summary>
+        /// Specify whether to sign the transaction.
+        /// </summary>
+        public bool Sign { get; set; }
 
         /// <summary>
         /// Optional data to be added as an extra OP_RETURN transaction output with Money.Zero value.

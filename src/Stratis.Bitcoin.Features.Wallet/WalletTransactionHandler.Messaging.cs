@@ -51,7 +51,7 @@ namespace Stratis.Bitcoin.Features.Wallet
 
             this.InitializeTransactionBuilder(context);
 
-            context.TransactionBuilder = new TransactionBuilder(this.Network);
+            context.TransactionBuilder = new TransactionBuilder(this.network);
             //context.TransactionBuilder.Send(context.Recipients[0].ScriptPubKey, context.Recipients[0].Amount);
 
             // set (the payer's) input coins and change address
