@@ -185,7 +185,7 @@ namespace Stratis.Bitcoin.Features.RPC
                     jOptions.Add(new JProperty("reserveChangeKey", options.ReserveChangeKey));
 
                 if (options.FeeRate != null)
-                    jOptions.Add(new JProperty("feeRate", options.FeeRate.GetFee(1000).ToDecimal(Network.BitcoinMain.MoneyUnits.DefaultUnit)));
+                    jOptions.Add(new JProperty("feeRate", options.FeeRate.GetFee(1000).ToDecimal(this.Network.MoneyUnits.DefaultUnit)));
 
                 if (options.SubtractFeeFromOutputs != null)
                 {

@@ -22,7 +22,7 @@ namespace Stratis.Bitcoin.IntegrationTests.RPC
 
             NodeSettings nodeSettings = NodeSettings.Default();
             uint expectedProtocolVersion = (uint)nodeSettings.ProtocolVersion;
-            decimal expectedRelayFee = nodeSettings.MinRelayTxFeeRate.FeePerK.ToUnit(NBitcoin.MoneyUnit.BTC);
+            decimal expectedRelayFee = nodeSettings.MinRelayTxFeeRate.FeePerK.ToUnit(this.Network.MoneyUnits.DefaultUnit);
             Assert.NotNull(info);
             Assert.Equal(0, info.Blocks);
             Assert.NotEqual<uint>(0, info.Version);

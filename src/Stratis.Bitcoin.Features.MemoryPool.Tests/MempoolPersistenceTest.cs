@@ -245,7 +245,7 @@ namespace Stratis.Bitcoin.Features.MemoryPool.Tests
             {
                 int amountSat = 10 * i;
                 Transaction tx = this.MakeRandomTx(amountSat);
-                var entry = new TxMempoolEntry(tx, Money.FromUnit(0.1m, MoneyUnit.MilliBTC), DateTimeOffset.Now.ToUnixTimeSeconds(), i * 100, i, amountSat, i == 0, 10, null, new ConsensusOptions());
+                var entry = new TxMempoolEntry(tx, Money.FromUnit(0.1m, this.network.MoneyUnits.GetMoneyUnit("MilliBTC")), DateTimeOffset.Now.ToUnixTimeSeconds(), i * 100, i, amountSat, i == 0, 10, null, new ConsensusOptions());
                 entry.UpdateFeeDelta(numTx - i);
                 entries.Add(entry);
             }
@@ -254,7 +254,7 @@ namespace Stratis.Bitcoin.Features.MemoryPool.Tests
 
         private Transaction MakeRandomTx(int satAmount = 10)
         {
-            Money amount = Money.FromUnit(satAmount, MoneyUnit.Satoshi);
+            Money amount = Money.FromUnit(satAmount, this.network.MoneyUnits.AtomicUnit);
             var trx = this.network.CreateTransaction();
             trx.AddInput(new TxIn(Script.Empty));
             trx.AddOutput(amount, RandomScript());

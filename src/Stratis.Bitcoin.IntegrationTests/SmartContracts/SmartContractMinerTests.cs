@@ -792,7 +792,7 @@ namespace Stratis.Bitcoin.IntegrationTests.SmartContracts
                 ScriptSig = context.privateKey.ScriptPubKey
             };
             preTransaction.AddInput(txIn);
-            preTransaction.AddOutput(new TxOut(new Money(49, MoneyUnit.BTC), PayToPubkeyHashTemplate.Instance.GenerateScriptPubKey(context.privateKey.PubKey)));
+            preTransaction.AddOutput(new TxOut(new Money(49, context.network.MoneyUnits.DefaultUnit), PayToPubkeyHashTemplate.Instance.GenerateScriptPubKey(context.privateKey.PubKey)));
             preTransaction.Sign(context.network, context.privateKey, false);
 
             var entry = new TestMemPoolEntryHelper();

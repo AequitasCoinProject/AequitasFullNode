@@ -16,7 +16,8 @@ namespace Stratis.Bitcoin.Features.SmartContracts.Networks
         /// </summary>
         public SmartContractPosRegTest()
         {
-            this.Name = "SmartContractsPosRegTest";
+            this.CoinName = "SmartContracts";
+            this.NetworkName = "PosRegTest";
             this.RootFolderName = StratisMain.StratisRootFolderName;
             this.DefaultConfigFilename = StratisMain.StratisDefaultConfigFilename;
             this.Magic = 0xDAB5BFFA;

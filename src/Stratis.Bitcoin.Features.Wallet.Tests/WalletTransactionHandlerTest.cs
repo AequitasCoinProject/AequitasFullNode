@@ -300,9 +300,9 @@ namespace Stratis.Bitcoin.Features.Wallet.Tests
                 WalletPassword = "password",
                 Recipients = new[]
                 {
-                    new Recipient { Amount = new Money(50, MoneyUnit.BTC), ScriptPubKey = destinationKeys1.PubKey.ScriptPubKey },
-                    new Recipient { Amount = new Money(50, MoneyUnit.BTC), ScriptPubKey = destinationKeys2.PubKey.ScriptPubKey },
-                    new Recipient { Amount = new Money(49, MoneyUnit.BTC), ScriptPubKey = destinationKeys3.PubKey.ScriptPubKey }
+                    new Recipient { Amount = new Money(50, this.Network.MoneyUnits.DefaultUnit), ScriptPubKey = destinationKeys1.PubKey.ScriptPubKey },
+                    new Recipient { Amount = new Money(50, this.Network.MoneyUnits.DefaultUnit), ScriptPubKey = destinationKeys2.PubKey.ScriptPubKey },
+                    new Recipient { Amount = new Money(49, this.Network.MoneyUnits.DefaultUnit), ScriptPubKey = destinationKeys3.PubKey.ScriptPubKey }
                 }.ToList()
             };
 

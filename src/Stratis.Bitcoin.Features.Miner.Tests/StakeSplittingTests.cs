@@ -24,7 +24,7 @@ namespace Stratis.Bitcoin.Features.Miner.Tests
             // Aiming for target value around 4700.
             var amounts = new[] { 2000, 10 }
                 .Concat(Enumerable.Repeat(100_000, 3))
-                .Select(a => new Money(a, MoneyUnit.BTC))
+                .Select(a => new Money(a, this.network.MoneyUnits.DefaultUnit))
                 .ToArray();
 
             var shouldStakeSplitForThe100000Coin = this.posMinting.ShouldSplitStake(
@@ -40,7 +40,7 @@ namespace Stratis.Bitcoin.Features.Miner.Tests
         public void Given_A_Wallet_With_A_Few_Balanced_Coins_Then_Big_Coins_Below_Target_Should_Get_Split()
         {
             var amounts = Enumerable.Repeat(900, 40)
-                .Select(a => new Money(a, MoneyUnit.BTC))
+                .Select(a => new Money(a, this.network.MoneyUnits.DefaultUnit))
                 .ToArray();
 
             var shouldStakeSplit = this.posMinting.ShouldSplitStake(
@@ -58,7 +58,7 @@ namespace Stratis.Bitcoin.Features.Miner.Tests
             // Aiming for target value around 4700.
             var amounts = new[] { 2000, 10 }
                 .Concat(Enumerable.Repeat(100_000, 3))
-                .Select(a => new Money(a, MoneyUnit.BTC))
+                .Select(a => new Money(a, this.network.MoneyUnits.DefaultUnit))
                 .ToArray();
 
             var shouldStakeSplitForThe2000Coin = this.posMinting.ShouldSplitStake(
@@ -82,7 +82,7 @@ namespace Stratis.Bitcoin.Features.Miner.Tests
         public void Given_A_Coin_That_Needs_Splitting_CoinstakeTx_Should_Have_SplitFactor_Non_Zero_Outputs()
         {
             var amounts = Enumerable.Repeat(100_000, 3)
-                .Select(a => new Money(a, MoneyUnit.BTC))
+                .Select(a => new Money(a, this.network.MoneyUnits.DefaultUnit))
                 .ToList();
 
             var coinStakeContext = BuildNewCoinstakeContext();
@@ -104,7 +104,7 @@ namespace Stratis.Bitcoin.Features.Miner.Tests
         public void Given_A_Coin_That_Does_Not_Need_Splitting_CoinstakeTx_Should_Have_One_Non_Zero_Outputs()
         {
             var amounts = Enumerable.Repeat(50, 2000)
-                .Select(a => new Money(a, MoneyUnit.BTC))
+                .Select(a => new Money(a, this.network.MoneyUnits.DefaultUnit))
                 .ToList();
 
             var coinStakeContext = BuildNewCoinstakeContext();
@@ -147,7 +147,7 @@ namespace Stratis.Bitcoin.Features.Miner.Tests
         public void Given_A_Wallet_With_Big_Coins_Then_Splitting_Should_End_When_Target_Reached()
         {
             var amounts = Enumerable.Repeat(100_000, 3)
-                .Select(a => new Money(a, MoneyUnit.BTC))
+                .Select(a => new Money(a, this.network.MoneyUnits.DefaultUnit))
                 .ToList();
             var chainHeight = ChainHeight;
 
