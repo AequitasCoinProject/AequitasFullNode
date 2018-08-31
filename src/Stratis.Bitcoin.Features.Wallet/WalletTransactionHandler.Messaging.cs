@@ -51,7 +51,8 @@ namespace Stratis.Bitcoin.Features.Wallet
 
             this.InitializeTransactionBuilder(context);
 
-            context.TransactionBuilder = new TransactionBuilder(this.network);
+            // TODO: check it the following line is needed to make this method work
+            //context.TransactionBuilder = new TransactionBuilder(this.network);
             //context.TransactionBuilder.Send(context.Recipients[0].ScriptPubKey, context.Recipients[0].Amount);
 
             // set (the payer's) input coins and change address
@@ -65,7 +66,7 @@ namespace Stratis.Bitcoin.Features.Wallet
             else
             {
                 // we are going to pay for this transaction
-                var hdAccounts = wm.Wallets.SelectMany(w => w.GetAccountsByCoinType(this.coinType));
+                var hdAccounts = wm.Wallets.SelectMany(w => w.GetAccountsByCoinType((CoinType)this.network.Consensus.CoinType));
                 var internalAddresses = hdAccounts.SelectMany(a => a.InternalAddresses).ToList();
                 var externalAddresses = hdAccounts.SelectMany(a => a.ExternalAddresses).ToList();
                 var allKnownAddresses = internalAddresses.Union(externalAddresses);
