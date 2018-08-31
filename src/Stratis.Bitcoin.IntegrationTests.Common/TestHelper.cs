@@ -1,25 +1,34 @@
 ﻿using System;
 using System.Diagnostics;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
 using System.Threading;
-using NBitcoin;
+using System.Threading.Tasks;
 using Stratis.Bitcoin.Base;
 using Stratis.Bitcoin.IntegrationTests.Common.EnvironmentMockUpHelpers;
 using Stratis.Bitcoin.P2P.Peer;
+using Xunit;
 
 namespace Stratis.Bitcoin.IntegrationTests.Common
 {
     public class TestHelper
     {
-        public static void WaitLoop(Func<bool> act)
+        public static void WaitLoop(Func<bool> act, string failureReason = "Unknown Reason", int millisecondsTimeout = 150, CancellationToken cancellationToken = default(CancellationToken))
         {
-            var cancel = new CancellationTokenSource(Debugger.IsAttached ? 15 * 60 * 1000 : 30 * 1000);
+            cancellationToken = cancellationToken == default(CancellationToken)
+                ? new CancellationTokenSource(Debugger.IsAttached ? 15 * 60 * 1000 : 40 * 1000).Token
+                : cancellationToken;
+
             while (!act())
             {
-                cancel.Token.ThrowIfCancellationRequested();
-                Thread.Sleep(50);
+                try
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    Thread.Sleep(millisecondsTimeout);
+                }
+                catch (OperationCanceledException e)
+                {
+                    Assert.False(true, $"{failureReason}{Environment.NewLine}{e.Message}");
+                }
             }
         }
 
@@ -38,7 +47,10 @@ namespace Stratis.Bitcoin.IntegrationTests.Common
         {
             if (node.FullNode.Chain.Tip.HashBlock != node.FullNode.ChainBehaviorState.ConsensusTip.HashBlock) return false;
             if (node.FullNode.Chain.Tip.HashBlock != node.FullNode.GetBlockStoreTip().HashBlock) return false;
-            if (node.FullNode.Chain.Tip.HashBlock != node.FullNode.WalletManager().WalletTipHash) return false;
+
+            if (!node.FullNode.WalletManager().Wallets.IsEmpty)
+                if (node.FullNode.Chain.Tip.HashBlock != node.FullNode.WalletManager().WalletTipHash) return false;
+
             return true;
         }
 
@@ -51,34 +63,6 @@ namespace Stratis.Bitcoin.IntegrationTests.Common
         public static bool IsNodeConnected(CoreNode node)
         {
             return node.FullNode.ConnectionManager.ConnectedPeers.Any(p => p.IsConnected);
-        }
-
-        /// <summary>
-        /// Find ports that are free to use.
-        /// </summary>
-        /// <param name="ports">A list of ports to checked or fill/replace as necessary.</param>
-        public static void FindPorts(int[] ports)
-        {
-            int i = 0;
-            while (i < ports.Length)
-            {
-                uint port = RandomUtils.GetUInt32() % 4000;
-                port = port + 10000;
-                if (ports.Any(p => p == port))
-                    continue;
-
-                try
-                {
-                    var l = new TcpListener(IPAddress.Loopback, (int)port);
-                    l.Start();
-                    l.Stop();
-                    ports[i] = (int)port;
-                    i++;
-                }
-                catch (SocketException)
-                {
-                }
-            }
         }
     }
 }

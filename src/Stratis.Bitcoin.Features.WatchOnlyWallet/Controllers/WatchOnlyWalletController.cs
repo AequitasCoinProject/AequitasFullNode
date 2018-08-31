@@ -10,7 +10,6 @@ using Stratis.Bitcoin.Utilities.JsonErrors;
 using Stratis.Bitcoin.Utilities;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.Logging;
-using NBitcoin;
 
 namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
 {

@@ -4,6 +4,7 @@
     <Company>NStratis</Company>
     <Copyright>Copyright © Stratis Platform SA 2017</Copyright>
     <Description>The C# Bitcoin Library based on NBitcoin</Description>
+    <CodeAnalysisRuleSet>..\None.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   
   <PropertyGroup>
@@ -33,6 +34,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Networks\BitcoinNetwork.cs" />
+    <Compile Remove="Networks\BitcoinRegTest.cs" />
+    <Compile Remove="Networks\BitcoinTest.cs" />
+    <Compile Remove="Networks\StratisNetwork.cs" />
+    <Compile Remove="Networks\StratisRegTest.cs" />
     <Compile Remove="Protocol\AddressManager.cs" />
     <Compile Remove="Protocol\NodesGroup.cs" />
   </ItemGroup>

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO;
 using System.Net.Http;
+using Stratis.Bitcoin.Tests.Common;
 using Xunit;
 
 namespace NBitcoin.Tests
@@ -11,15 +12,15 @@ namespace NBitcoin.Tests
         [Trait("UnitTest", "UnitTest")]
         public void CanCalculatePowCorrectly()
         {
-            ConcurrentChain chain = new ConcurrentChain(Network.BitcoinMain);
+            var chain = new ConcurrentChain(KnownNetworks.Main);
             EnsureDownloaded("MainChain.dat", "https://aois.blob.core.windows.net/public/MainChain.dat");
             chain.Load(File.ReadAllBytes("MainChain.dat"));
             foreach(ChainedHeader block in chain.EnumerateAfter(chain.Genesis))
             {
-                Target thisWork = block.GetWorkRequired(Network.BitcoinMain);
-                Target thisWork2 = block.Previous.GetNextWorkRequired(Network.BitcoinMain);
+                Target thisWork = block.GetWorkRequired(KnownNetworks.Main);
+                Target thisWork2 = block.Previous.GetNextWorkRequired(KnownNetworks.Main);
                 Assert.Equal(thisWork, thisWork2);
-                Assert.True(block.CheckProofOfWorkAndTarget(Network.BitcoinMain));
+                Assert.True(block.CheckProofOfWorkAndTarget(KnownNetworks.Main));
             }
         }
 

@@ -10,7 +10,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
     /// <summary>
     /// Proof of stake override for the coinview rules - BIP68, MaxSigOps and BlockReward checks.
     /// </summary>
-    [ExecutionRule]
+    [FullValidationRule]
     public sealed class PosCoinviewRule : CoinViewRule
     {
         /// <summary>Provides functionality for checking validity of PoS blocks.</summary>
@@ -20,7 +20,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
         private IStakeChain stakeChain;
 
         /// <summary>The consensus of the parent Network.</summary>
-        private NBitcoin.Consensus consensus;
+        private IConsensus consensus;
 
         /// <inheritdoc />
         public override void Initialize()

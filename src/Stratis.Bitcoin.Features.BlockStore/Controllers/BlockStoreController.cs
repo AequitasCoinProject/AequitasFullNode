@@ -1,16 +1,14 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 using Stratis.Bitcoin.Base;
 using Stratis.Bitcoin.Features.BlockStore.Models;
 using Stratis.Bitcoin.Utilities;
 using Stratis.Bitcoin.Utilities.JsonErrors;
+using Stratis.Bitcoin.Utilities.ModelStateErrors;
 
 namespace Stratis.Bitcoin.Features.BlockStore.Controllers
 {
@@ -29,17 +27,27 @@ namespace Stratis.Bitcoin.Features.BlockStore.Controllers
         /// <summary>An interface that provides information about the chain and validation.</summary>
         private readonly IChainState chainState;
 
-        public BlockStoreController(ILoggerFactory loggerFactory, 
-            IBlockStoreCache blockStoreCache, IChainState chainState)
+        /// <summary>
+        /// Current network for the active controller instance.
+        /// </summary>
+        private readonly Network network;
+
+        public BlockStoreController(Network network,
+            ILoggerFactory loggerFactory,
+            IBlockStoreCache blockStoreCache,
+            IChainState chainState)
         {
+            Guard.NotNull(network, nameof(network));
             Guard.NotNull(loggerFactory, nameof(loggerFactory));
             Guard.NotNull(blockStoreCache, nameof(blockStoreCache));
             Guard.NotNull(chainState, nameof(chainState));
 
+            this.network = network;
             this.blockStoreCache = blockStoreCache;
             this.chainState = chainState;
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
         }
+
         /// <summary>
         /// Retrieves a given block given a block hash.
         /// </summary>
@@ -51,7 +59,7 @@ namespace Stratis.Bitcoin.Features.BlockStore.Controllers
         {
             if (!this.ModelState.IsValid)
             {
-                return BuildErrorResponse(this.ModelState);
+                return ModelStateErrors.BuildErrorResponse(this.ModelState);
             }
 
             this.logger.LogTrace("({0}:'{1}')", nameof(SearchByHashRequest.Hash), query.Hash);
@@ -59,11 +67,21 @@ namespace Stratis.Bitcoin.Features.BlockStore.Controllers
             try
             {
                 Block block = await this.blockStoreCache.GetBlockAsync(uint256.Parse(query.Hash)).ConfigureAwait(false);
-                if(block == null) return new NotFoundObjectResult("Block not found");
-                return query.OutputJson 
-                    ? this.Json(new BlockModel(block))
-                    : this.Json(block);
-            } 
+
+                if (block == null)
+                {
+                    return new NotFoundObjectResult("Block not found");
+                }
+
+                if (!query.OutputJson)
+                {
+                    return this.Json(block);
+                }
+
+                return query.ShowTransactionDetails
+                    ? this.Json(new BlockTransactionDetailsModel(block, this.network))
+                    : this.Json(new BlockModel(block));
+            }
             catch (Exception e)
             {
                 this.logger.LogError("Exception occurred: {0}", e.ToString());
@@ -89,19 +107,6 @@ namespace Stratis.Bitcoin.Features.BlockStore.Controllers
                 this.logger.LogError("Exception occurred: {0}", e.ToString());
                 return ErrorHelpers.BuildErrorResponse(HttpStatusCode.BadRequest, e.Message, e.ToString());
             }
-        }
-
-        /// <summary>
-        /// Builds an <see cref="IActionResult"/> containing errors contained in the <see cref="ControllerBase.ModelState"/>.
-        /// </summary>
-        /// <returns>A result containing the errors.</returns>
-        private static IActionResult BuildErrorResponse(ModelStateDictionary modelState)
-        {
-            List<ModelError> errors = modelState.Values.SelectMany(e => e.Errors).ToList();
-            return ErrorHelpers.BuildErrorResponse(
-                HttpStatusCode.BadRequest,
-                string.Join(Environment.NewLine, errors.Select(m => m.ErrorMessage)),
-                string.Join(Environment.NewLine, errors.Select(m => m.Exception?.Message)));
         }
     }
 }

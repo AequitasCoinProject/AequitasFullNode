@@ -73,11 +73,11 @@ namespace Stratis.Bitcoin.Configuration.Settings
                 throw new ConfigurationException("Invalid 'addnode' parameter.");
             }
 
-            int port = config.GetOrDefault<int>("port", nodeSettings.Network.DefaultPort, this.logger);
+            this.Port = config.GetOrDefault<int>("port", nodeSettings.Network.DefaultPort, this.logger);
             try
             {
                 this.Listen.AddRange(config.GetAll("bind")
-                        .Select(c => new NodeServerEndpoint(c.ToIPEndPoint(port), false)));
+                        .Select(c => new NodeServerEndpoint(c.ToIPEndPoint(this.Port), false)));
             }
             catch (FormatException)
             {
@@ -87,7 +87,7 @@ namespace Stratis.Bitcoin.Configuration.Settings
             try
             {
                 this.Listen.AddRange(config.GetAll("whitebind", this.logger)
-                        .Select(c => new NodeServerEndpoint(c.ToIPEndPoint(port), true)));
+                        .Select(c => new NodeServerEndpoint(c.ToIPEndPoint(this.Port), true)));
             }
             catch (FormatException)
             {
@@ -96,7 +96,7 @@ namespace Stratis.Bitcoin.Configuration.Settings
 
             if (this.Listen.Count == 0)
             {
-                this.Listen.Add(new NodeServerEndpoint(new IPEndPoint(IPAddress.Parse("0.0.0.0"), port), false));
+                this.Listen.Add(new NodeServerEndpoint(new IPEndPoint(IPAddress.Parse("0.0.0.0"), this.Port), false));
             }
 
             string externalIp = config.GetOrDefault<string>("externalip", null, this.logger);
@@ -104,7 +104,7 @@ namespace Stratis.Bitcoin.Configuration.Settings
             {
                 try
                 {
-                    this.ExternalEndpoint = externalIp.ToIPEndPoint(port);
+                    this.ExternalEndpoint = externalIp.ToIPEndPoint(this.Port);
                 }
                 catch (FormatException)
                 {
@@ -114,7 +114,7 @@ namespace Stratis.Bitcoin.Configuration.Settings
 
             if (this.ExternalEndpoint == null)
             {
-                this.ExternalEndpoint = new IPEndPoint(IPAddress.Loopback, nodeSettings.Network.DefaultPort);
+                this.ExternalEndpoint = new IPEndPoint(IPAddress.Loopback, this.Port);
             }
 
             this.BanTimeSeconds = config.GetOrDefault<int>("bantime", ConnectionManagerSettings.DefaultMisbehavingBantimeSeconds, this.logger);
@@ -122,8 +122,9 @@ namespace Stratis.Bitcoin.Configuration.Settings
             this.BurstModeTargetConnections = config.GetOrDefault("burstModeTargetConnections", 1, this.logger);
             this.SyncTimeEnabled = config.GetOrDefault<bool>("synctime", true, this.logger);
             this.RelayTxes = !config.GetOrDefault("blocksonly", DefaultBlocksOnly, this.logger);
+            this.IpRangeFiltering = config.GetOrDefault<bool>("IpRangeFiltering", true, this.logger);
 
-            var agentPrefix = config.GetOrDefault("agentprefix", string.Empty, this.logger).Replace("-", "");
+            var agentPrefix = config.GetOrDefault("agentprefix", string.Empty, this.logger).Replace("-", string.Empty);
             if (agentPrefix.Length > MaximumAgentPrefixLength)
                 agentPrefix = agentPrefix.Substring(0, MaximumAgentPrefixLength);
 
@@ -140,7 +141,6 @@ namespace Stratis.Bitcoin.Configuration.Settings
         /// <param name="network">The network to base the defaults off.</param>
         public static void BuildDefaultConfigurationFile(StringBuilder builder, Network network)
         {
-            var defaults = NodeSettings.Default(network: network);
             builder.AppendLine("####ConnectionManager Settings####");
             builder.AppendLine($"#The default network port to connect to. Default { network.DefaultPort }.");
             builder.AppendLine($"#port={network.DefaultPort}");
@@ -162,6 +162,9 @@ namespace Stratis.Bitcoin.Configuration.Settings
             builder.AppendLine($"#agentprefix=<string>");
             builder.AppendLine($"#Enable bandwidth saving setting to send and received confirmed blocks only. Defaults to { (DefaultBlocksOnly ? 1 : 0) }.");
             builder.AppendLine($"#blocksonly={ (DefaultBlocksOnly ? 1 : 0) }");
+            builder.AppendLine($"#bantime=<number>");
+            builder.AppendLine($"#Disallow connection to peers in same IP range. Default is 1 for remote hosts.");
+            builder.AppendLine($"#iprangefiltering=<0 or 1>");
         }
 
         /// <summary>
@@ -185,6 +188,7 @@ namespace Stratis.Bitcoin.Configuration.Settings
             builder.AppendLine($"-synctime=<0 or 1>        Sync with peers. Default 1.");
             builder.AppendLine($"-agentprefix=<string>     An optional prefix for the node's user agent that will be shared with peers in the version handshake.");
             builder.AppendLine($"-blocksonly=<0 or 1>      Enable bandwidth saving setting to send and received confirmed blocks only. Defaults to { DefaultBlocksOnly }.");
+            builder.AppendLine($"-iprangefiltering=<0 or 1> Disallow connection to peers in same IP range. Default is 1 for remote hosts.");
 
             defaults.Logger.LogInformation(builder.ToString());
         }
@@ -200,6 +204,9 @@ namespace Stratis.Bitcoin.Configuration.Settings
 
         /// <summary>External (or public) IP address of the node.</summary>
         public IPEndPoint ExternalEndpoint { get; internal set; }
+
+        /// <summary>Port of the node.</summary>
+        public int Port { get; internal set; }
 
         /// <summary>Number of seconds to keep misbehaving peers from reconnecting.</summary>
         public int BanTimeSeconds { get; internal set; }
@@ -218,5 +225,8 @@ namespace Stratis.Bitcoin.Configuration.Settings
 
         /// <summary><c>true</c> to enable bandwidth saving setting to send and received confirmed blocks only.</summary>
         public bool RelayTxes { get; set; }
+
+        /// <summary>Filter peers that are within the same IP range to prevent sybil attacks.</summary>
+        public bool IpRangeFiltering { get; internal set; }
     }
 }
