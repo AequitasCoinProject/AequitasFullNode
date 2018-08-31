@@ -25,7 +25,7 @@
 
   <ItemGroup>
     <PackageReference Include="ConcurrentHashSet" Version="1.0.2" />
-    <PackageReference Include="DBreeze" Version="1.91.3" />
+    <PackageReference Include="DBreeze" Version="1.91.5" />
     <PackageReference Include="NLog" Version="5.0.0-beta09" />
     <PackageReference Include="NLog.Extensions.Logging" Version="1.0.0-rtm-beta5" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.0.2" />
