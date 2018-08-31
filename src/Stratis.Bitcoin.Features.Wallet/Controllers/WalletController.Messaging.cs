@@ -26,6 +26,7 @@ using Stratis.Bitcoin.Features.Wallet.Models;
 using Stratis.Bitcoin.Interfaces;
 using Stratis.Bitcoin.Utilities;
 using Stratis.Bitcoin.Utilities.JsonErrors;
+using Stratis.Bitcoin.Utilities.ModelStateErrors;
 using Newtonsoft.Json;
 
 namespace Stratis.Bitcoin.Features.Wallet.Controllers
@@ -46,7 +47,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             // checks the request is valid
             if (!this.ModelState.IsValid)
             {
-                return BuildErrorResponse(this.ModelState);
+                return ModelStateErrors.BuildErrorResponse(this.ModelState);
             }
 
             try
@@ -79,7 +80,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             // checks the request is valid
             if (!this.ModelState.IsValid)
             {
-                return BuildErrorResponse(this.ModelState);
+                return ModelStateErrors.BuildErrorResponse(this.ModelState);
             }
 
             try
@@ -116,7 +117,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             // checks the request is valid
             if (!this.ModelState.IsValid)
             {
-                return BuildErrorResponse(this.ModelState);
+                return ModelStateErrors.BuildErrorResponse(this.ModelState);
             }
 
             try
@@ -171,7 +172,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             // checks the request is valid
             if (!this.ModelState.IsValid)
             {
-                return BuildErrorResponse(this.ModelState);
+                return ModelStateErrors.BuildErrorResponse(this.ModelState);
             }
 
             if (!this.connectionManager.ConnectedPeers.Any())
@@ -244,7 +245,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             // checks the request is valid
             if (!this.ModelState.IsValid)
             {
-                return BuildErrorResponse(this.ModelState);
+                return ModelStateErrors.BuildErrorResponse(this.ModelState);
             }
 
             try
@@ -296,7 +297,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             // checks the request is valid
             if (!this.ModelState.IsValid)
             {
-                return BuildErrorResponse(this.ModelState);
+                return ModelStateErrors.BuildErrorResponse(this.ModelState);
             }
 
             try
@@ -350,7 +351,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             // checks the request is valid
             if (!this.ModelState.IsValid)
             {
-                return BuildErrorResponse(this.ModelState);
+                return ModelStateErrors.BuildErrorResponse(this.ModelState);
             }
 
             try
@@ -477,7 +478,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             // checks the request is valid
             if (!this.ModelState.IsValid)
             {
-                return BuildErrorResponse(this.ModelState);
+                return ModelStateErrors.BuildErrorResponse(this.ModelState);
             }
 
             try
@@ -537,7 +538,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             // checks the request is valid
             if (!this.ModelState.IsValid)
             {
-                return BuildErrorResponse(this.ModelState);
+                return ModelStateErrors.BuildErrorResponse(this.ModelState);
             }
 
             try
@@ -620,7 +621,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             // checks the request is valid
             if (!this.ModelState.IsValid)
             {
-                return BuildErrorResponse(this.ModelState);
+                return ModelStateErrors.BuildErrorResponse(this.ModelState);
             }
 
             try
@@ -702,7 +703,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             // checks the request is valid
             if (!this.ModelState.IsValid)
             {
-                return BuildErrorResponse(this.ModelState);
+                return ModelStateErrors.BuildErrorResponse(this.ModelState);
             }
 
             try
@@ -738,7 +739,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             // checks the request is valid
             if (!this.ModelState.IsValid)
             {
-                return BuildErrorResponse(this.ModelState);
+                return ModelStateErrors.BuildErrorResponse(this.ModelState);
             }
 
             try
