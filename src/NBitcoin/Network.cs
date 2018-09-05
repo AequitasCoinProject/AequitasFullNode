@@ -379,9 +379,9 @@ namespace NBitcoin
         internal Base58Type? GetBase58Type(string base58)
         {
             var bytes = Encoders.Base58Check.DecodeData(base58);
-            for (int i = 0; i < this.base58Prefixes.Length; i++)
+            for (int i = 0; i < this.Base58Prefixes.Length; i++)
             {
-                var prefix = this.base58Prefixes[i];
+                var prefix = this.Base58Prefixes[i];
                 if (prefix == null)
                     continue;
                 if (bytes.Length < prefix.Length)
@@ -769,8 +769,6 @@ namespace NBitcoin
             }
             return true;
         }
-
-        internal byte[][] base58Prefixes = new byte[12][];
 
         internal Bech32Encoder[] bech32Encoders = new Bech32Encoder[2];
 
