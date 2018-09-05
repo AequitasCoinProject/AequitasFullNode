@@ -17,17 +17,18 @@ using Newtonsoft.Json.Linq;
 using System.Runtime.InteropServices;
 using System.IO.Compression;
 using NBitcoin.BitcoinCore;
+using NBitcoin;
 
-namespace NBitcoin.Tests
+namespace Stratis.Bitcoin.Features.Wallet.Tests
 {
-	public class WantedSystemTests
-	{
+	public class WantedSystemTests : WalletTestBase
+    {
         private readonly Network network;
         private readonly ConsensusFactory consensusFactory;
 
-        public WantedSystemTests()
+        public WantedSystemTests(Network network)
         {
-            this.network = Network.BitcoinMain;
+            this.network = network;
             this.consensusFactory = this.network.Consensus.ConsensusFactory;
 
             // These flags may get set due to static network initializers
