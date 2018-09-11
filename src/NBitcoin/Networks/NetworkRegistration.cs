@@ -40,6 +40,9 @@ namespace NBitcoin.Networks
                     throw new InvalidOperationException("A consensus needs to be provided.");
 
                 registeredNetworks.TryAdd(networkName.ToLowerInvariant(), network);
+
+                // this is only needed for backward compatibility (it might get deprecated later)
+                Network.NetworksContainer.TryAdd(networkName.ToLowerInvariant(), network);
             }
 
             return network;

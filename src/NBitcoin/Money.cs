@@ -273,20 +273,29 @@ namespace NBitcoin
         /// <returns></returns>
         public static bool TryParseBTC(string bitcoin, out Money nRet)
         {
+            return TryParseDefault(Network.GetNetwork("main"), bitcoin, out nRet);
+        }
+
+        public static bool TryParseDefault(Network network, string amount, out Money nRet)
+        {
             nRet = null;
 
             decimal value;
-            if(!decimal.TryParse(bitcoin, BitcoinStyle, CultureInfo.InvariantCulture, out value))
+            if (!decimal.TryParse(amount, BitcoinStyle, CultureInfo.InvariantCulture, out value))
             {
                 return false;
             }
 
             try
             {
-                nRet = new Money(value, Network.MoneyUnit("BTC"));
+                nRet = new Money(value, network == null ? MoneyUnit.AtomicUnit : network.MoneyUnits.DefaultUnit);
                 return true;
             }
-            catch(OverflowException)
+            catch (OverflowException)
+            {
+                return false;
+            }
+            catch (ArgumentException)
             {
                 return false;
             }

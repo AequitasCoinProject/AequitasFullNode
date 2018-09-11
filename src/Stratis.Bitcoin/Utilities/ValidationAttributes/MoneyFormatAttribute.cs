@@ -35,7 +35,7 @@ namespace Stratis.Bitcoin.Utilities.ValidationAttributes
                 return true;
             }
 
-            return Money.TryParseBTC(value.ToString(), out Money money);
+            return Money.TryParseDefault(null, value.ToString(), out Money money);
         }
     }
 }
