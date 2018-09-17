@@ -1,100 +1,33 @@
-﻿using NBitcoin.Crypto;
-using NBitcoin.DataEncoders;
-using NBitcoin.Protocol;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
+using System.IO.Compression;
 using System.Linq;
 #if !NOCONSENSUSLIB
 using System.Net.Http;
 #endif
-using System.Numerics;
-using System.Text;
-using System.Threading.Tasks;
 using Xunit;
-using Newtonsoft.Json.Linq;
-using System.Runtime.InteropServices;
-using System.IO.Compression;
-using NBitcoin.BitcoinCore;
 using NBitcoin;
+using NBitcoin.Crypto;
+using NBitcoin.BitcoinCore;
+using Org.BouncyCastle.Crypto;
+using Org.BouncyCastle.Crypto.Parameters;
+using Stratis.Bitcoin.Features.Wallet.Controllers;
+using Xunit.Abstractions;
 
 namespace Stratis.Bitcoin.Features.Wallet.Tests
 {
 	public class WantedSystemTests : WalletTestBase
     {
+        private readonly ITestOutputHelper _testOutputHelper;
+
         private readonly Network network;
-        private readonly ConsensusFactory consensusFactory;
 
-        public WantedSystemTests(Network network)
+        public WantedSystemTests(ITestOutputHelper testOutputHelper)// Network network)
         {
-            this.network = network;
-            this.consensusFactory = this.network.Consensus.ConsensusFactory;
-
-            // These flags may get set due to static network initializers
-            // which include the initializers for Stratis.
-            //Transaction.TimeStamp = false;
-            //Block.BlockSignature = false;
+            //this.network = network;
+            _testOutputHelper = testOutputHelper;
         }
-
-        static Dictionary<string, OpcodeType> mapOpNames = new Dictionary<string, OpcodeType>();
-		public static Script ParseScript(string s)
-		{
-			MemoryStream result = new MemoryStream();
-			if(mapOpNames.Count == 0)
-			{
-				mapOpNames = new Dictionary<string, OpcodeType>(Op._OpcodeByName);
-				foreach(var kv in mapOpNames.ToArray())
-				{
-					if(kv.Key.StartsWith("OP_", StringComparison.Ordinal))
-					{
-						var name = kv.Key.Substring(3, kv.Key.Length - 3);
-						mapOpNames.AddOrReplace(name, kv.Value);
-					}
-				}
-			}
-
-			var words = s.Split(' ', '\t', '\n');
-
-			foreach(string w in words)
-			{
-				if(w == "")
-					continue;
-				if(w.All(l => l.IsDigit()) ||
-					(w.StartsWith("-") && w.Substring(1).All(l => l.IsDigit())))
-				{
-
-					// Number
-					long n = long.Parse(w);
-					Op.GetPushOp(n).WriteTo(result);
-				}
-				else if(w.StartsWith("0x") && HexEncoder.IsWellFormed(w.Substring(2)))
-				{
-					// Raw hex data, inserted NOT pushed onto stack:
-					var raw = Encoders.Hex.DecodeData(w.Substring(2));
-					result.Write(raw, 0, raw.Length);
-				}
-				else if(w.Length >= 2 && w.StartsWith("'") && w.EndsWith("'"))
-				{
-					// Single-quoted string, pushed as data. NOTE: this is poor-man's
-					// parsing, spaces/tabs/newlines in single-quoted strings won't work.
-					var b = TestUtils.ToBytes(w.Substring(1, w.Length - 2));
-					Op.GetPushOp(b).WriteTo(result);
-				}
-				else if(mapOpNames.ContainsKey(w))
-				{
-					// opcode, e.g. OP_ADD or ADD:
-					result.WriteByte((byte)mapOpNames[w]);
-				}
-				else
-				{
-					Assert.True(false, "Invalid test");
-					return null;
-				}
-			}
-
-			return new Script(result.ToArray());
-		}
 
         [Fact]
         [Trait("UnitTest", "UnitTest")]
@@ -132,7 +65,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Tests
             if (script.Length > 16505) throw new Exception("Push data can't be bigger than 16505 bytes.");
 
             Transaction t = BuildMessageTransaction(script.ToBytes(), dummyTransactions[0].GetHash());
-            coinsView.AddTransaction(this.consensusFactory.Consensus, dummyTransactions[1], 0);
+            coinsView.AddTransaction(this.network.Consensus, dummyTransactions[1], 0);
 
             AssertCompressed(script, 696);
         }
@@ -151,19 +84,19 @@ namespace Stratis.Bitcoin.Features.Wallet.Tests
         }
 
         private Script AssertCompressed(Script script, int expectedSize)
-		{
-			var compressor = new ScriptCompressor(script);
-			var compressed = compressor.ToBytes();
-			Assert.Equal(expectedSize, compressed.Length);
+        {
+            var compressor = new ScriptCompressor(script);
+            var compressed = compressor.ToBytes();
+            Assert.Equal(expectedSize, compressed.Length);
 
-			compressor = new ScriptCompressor();
-			compressor.ReadWrite(compressed);
-			AssertEx.CollectionEquals(compressor.GetScript().ToBytes(), script.ToBytes());
+            compressor = new ScriptCompressor();
+            compressor.ReadWrite(compressed);
+            Assert.Equal(compressor.GetScript().ToBytes(), script.ToBytes());
 
-			var compressed2 = compressor.ToBytes();
-			AssertEx.CollectionEquals(compressed, compressed2);
-			return compressor.GetScript();
-		}
+            var compressed2 = compressor.ToBytes();
+            Assert.Equal(compressed, compressed2);
+            return compressor.GetScript();
+        }
 
         private Transaction BuildMessageTransaction(byte[] pushData, uint256 prevOutHash)
         {
@@ -196,18 +129,76 @@ namespace Stratis.Bitcoin.Features.Wallet.Tests
             dummyTransactions[0].Outputs[0].ScriptPubKey = dummyTransactions[0].Outputs[0].ScriptPubKey + key[0].PubKey.ToBytes() + OpcodeType.OP_CHECKSIG;
             dummyTransactions[0].Outputs[1].Value = 50 * Money.CENT;
             dummyTransactions[0].Outputs[1].ScriptPubKey = dummyTransactions[0].Outputs[1].ScriptPubKey + key[1].PubKey.ToBytes() + OpcodeType.OP_CHECKSIG;
-            coinsRet.AddTransaction(this.consensusFactory.Consensus, dummyTransactions[0], 0);
+            coinsRet.AddTransaction(this.network.Consensus, dummyTransactions[0], 0);
 
 
             dummyTransactions[1].Outputs.AddRange(Enumerable.Range(0, 2).Select(_ => new TxOut()));
             dummyTransactions[1].Outputs[0].Value = 21 * Money.CENT;
-            dummyTransactions[1].Outputs[0].ScriptPubKey = key[2].PubKey.GetAddress(Network.BitcoinMain).ScriptPubKey;
+            dummyTransactions[1].Outputs[0].ScriptPubKey = key[2].PubKey.GetAddress(Network.GetNetwork("BitcoinMain")).ScriptPubKey;
             dummyTransactions[1].Outputs[1].Value = 22 * Money.CENT;
-            dummyTransactions[1].Outputs[1].ScriptPubKey = key[3].PubKey.GetAddress(Network.BitcoinMain).ScriptPubKey;
-            coinsRet.AddTransaction(this.consensusFactory.Consensus, dummyTransactions[1], 0);
+            dummyTransactions[1].Outputs[1].ScriptPubKey = key[3].PubKey.GetAddress(Network.GetNetwork("BitcoinMain")).ScriptPubKey;
+            coinsRet.AddTransaction(this.network.Consensus, dummyTransactions[1], 0);
 
 
             return dummyTransactions;
+        }
+
+
+        [Fact]
+        [Trait("UnitTest", "UnitTest")]
+        public void TestRSAKeyGeneration()
+        {
+            string[] seeds = {
+                //"password",
+                //"B19vFoBiXzEB",
+                //"pF8M8xoE5eoF",
+                //"Hy40jrmpXdQx",
+                //"V2J6M7WvtbnvwRwQnxDlt0LNdCJiqgvl6sZ5",
+                "wfwEaOHczdyz5IXiKHuX4ZiuyNiwZ6tAa0gpuOnb1G1QWhkcRxDYRHMd6i5dcwlPuvYXGbXudrLd5neF5HecvcPjy74fvwEopor6",
+                "wfwEaOHczdyz5IXiKHuX4ZiuyNiwZ6tAa0gpuOnb1G1QWhkcRxDYRHMd6i5dcwlPuvYXGbXudrLd5neF5HecvcPjy74fvwEopor6",
+                "70P4W43s2j4Sm3PE03xBCtrzYfl0UIvhOnYa9Pl7CBBmBFGOFmB1cWO6bLbnzcIQpA6BpP8BpXPzh6KzgDXek2uxMLQQM26iR6SQ",
+                "bKnQtlUDemihGZOMwqT4pWVKe7zkWqp8oDKgzxBgklEXFwpugMbfUA4ruNJQSX8awetXIY7jYKqtLdVpBaP6kZU3PThc8Acw9om1",
+                "b58lTEJ1btzuu3FXKv4zD4bsRXLWr18GBwt2k27kM5XJCg1mUmcZ1vQLxCEgATmze3upKxSH745gjy9pws4jjpoPEfq80dj8LhOX"
+            };
+
+            for (int i = 0; i < seeds.Length; i++)
+            {
+                DateTime time = DateTime.UtcNow;
+                this._testOutputHelper.WriteLine($"Generating keys for '{seeds[i]}'");
+                GenerateKeys(seeds[i]);
+                this._testOutputHelper.WriteLine($"Generation completed in {(DateTime.UtcNow - time).TotalSeconds.ToString("0.000")} seconds.");
+                this._testOutputHelper.WriteLine("");
+            }
+
+        }
+
+        private void GenerateKeys(string seed)
+        {
+            // generate the RSA keypair for the address
+            AsymmetricCipherKeyPair rsaKeyPair = WalletController.GetRSAKeyPairFromSeed(seed);
+
+            RsaKeyParameters rsaPublicKey = rsaKeyPair.Public as RsaKeyParameters;
+            RsaPublicKey pbk = new RsaPublicKey()
+            {
+                Exponent = rsaPublicKey.Exponent.ToByteArrayUnsigned(),
+                Modulus = rsaPublicKey.Modulus.ToByteArrayUnsigned()
+            };
+
+            RsaPrivateCrtKeyParameters rsaPrivateKey = rsaKeyPair.Private as RsaPrivateCrtKeyParameters;
+            RsaPrivateKey prk = new RsaPrivateKey()
+            {
+                DP = rsaPrivateKey.DP.ToByteArrayUnsigned(),
+                DQ = rsaPrivateKey.DQ.ToByteArrayUnsigned(),
+                Exponent = rsaPrivateKey.Exponent.ToByteArrayUnsigned(),
+                Modulus = rsaPrivateKey.Modulus.ToByteArrayUnsigned(),
+                P = rsaPrivateKey.P.ToByteArrayUnsigned(),
+                PublicExponent = rsaPrivateKey.PublicExponent.ToByteArrayUnsigned(),
+                Q = rsaPrivateKey.Q.ToByteArrayUnsigned(),
+                QInv = rsaPrivateKey.QInv.ToByteArrayUnsigned()
+            };
+
+            this._testOutputHelper.WriteLine($"Public key: {pbk.ToHex()}");
+            this._testOutputHelper.WriteLine($"Private key: {prk.ToHex()}");
         }
     }
 }

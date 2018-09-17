@@ -921,35 +921,39 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
                     BigInteger e = this.parameters.PublicExponent;
 
-                    // TODO Consider generating safe primes for p, q (see DHParametersHelper.generateSafePrimes)
-                    // (then p-1 and q-1 will not consist of only small factors - see "Pollard's algorithm")
+                    // p should always be higher than q
+                    if (pStartValue.CompareTo(qStartValue) < 0)
+                    {
+                        BigInteger temp = pStartValue;
+                        pStartValue = qStartValue;
+                        qStartValue = temp;
+                    }
 
-                    int pIndex = 1;
-                    int qIndex = 0;
-                    //BigInteger p = ChooseRandomPrime(pBitlength, e);
-                    BigInteger p = ChooseNthPrime(pStartValue, e, pIndex, pBitLength);
-                    BigInteger q, n;
-                    q = qStartValue;
+                    BigInteger p = ChooseNthPrime(pStartValue, e, +1, pBitLength);
+                    BigInteger q = ChooseNthPrime(qStartValue, e, -1, qBitLength);
+                    BigInteger n;
 
                     //
                     // generate a modulus of the required length
                     //
+                    bool changeP = false;
                     for (; ; )
-                    {
-                        qIndex++;
-                        q = ChooseNthPrime(qStartValue, e, qIndex, qBitLength);
+                    {                        
+                        if (changeP)
+                        {
+                            p = ChooseNthPrime(p, e, +1, pBitLength);
+                        } else
+                        {                            
+                            q = ChooseNthPrime(q, e, -1, qBitLength);
+                        }
+                        changeP = !changeP;
 
                         // p and q should not be too close together (or equal!)
-                        BigInteger diff = q.Subtract(p).Abs();
+                        BigInteger diff = p.Subtract(q).Abs();
                         if (diff.BitLength < mindiffbits)
                         {
-                            for (int i=0; i<qBitLength; i++)
-                            {
-                                q = q.FlipBit(i);
-                            }
+                            Console.WriteLine($" -NOTE- The difference between the two primes are only {diff.BitLength} and the requirement is {mindiffbits}. Retrying...");
 
-                            qStartValue = q;
-                            qIndex = 0;
                             continue;
                         }
 
@@ -964,7 +968,19 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                             // if we get here our primes aren't big enough, make the largest
                             // of the two p and try again
                             //
-                            p = p.Max(q);
+                            Console.WriteLine($" -NOTE- The modulus bit strength is {n.BitLength} and the requirement is {strength}. Retrying...");
+
+                            if (!p.TestBit(p.BitLength - 2))
+                            {
+                                p = p.SetBit(p.BitLength - 2);
+                                changeP = true;
+                            }
+                            else if (!q.TestBit(q.BitLength - 2))
+                            {
+                                q = q.SetBit(q.BitLength - 2);
+                                changeP = false;
+                            }
+
                             continue;
                         }
 
@@ -976,8 +992,8 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                          */
                         if (WNafUtilities.GetNafWeight(n) < minWeight)
                         {
-                            pIndex++;
-                            p = ChooseNthPrime(pStartValue, e, pIndex, pBitLength);
+                            Console.WriteLine($" -NOTE- The NAF weight is {WNafUtilities.GetNafWeight(n)} and the requirement is {minWeight}. Retrying...");
+
                             continue;
                         }
 
@@ -1030,12 +1046,20 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 bool eIsKnownOddPrime = (e.BitLength <= SPECIAL_E_BITS) && Arrays.Contains(SPECIAL_E_VALUES, e.IntValue);
 
                 BigInteger p = new BigInteger(startValue.ToByteArray());
-                Console.WriteLine($" -NOTE- We are looking to the {n}. lower prime starting from {p.ToString()} with {bitLength} bits.");
+                //Console.WriteLine($" -NOTE- We are looking for the {n}. prime starting from {p.ToString()} with {bitLength} bits.");
 
                 int counter = 0;
 
                 while (true)
                 {
+                    if (p.BitLength > bitLength)
+                    {
+                        Console.WriteLine($" -NOTE- The bitrate raised from {bitLength} to {p.BitLength}, so we reset our p value.");
+
+                        p = new BigInteger(+1, Enumerable.Repeat((byte)0xFF, bitLength / 8).ToArray());
+                        p.ClearBit(bitLength - 1);
+                    }
+
                     if (p.BitLength < bitLength)
                     {
                         Console.WriteLine($" -NOTE- The bitrate dropped from {bitLength} to {p.BitLength}, so we reset our p value.");
@@ -1043,20 +1067,38 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                         p = new BigInteger(+1, Enumerable.Repeat((byte)0xFF, bitLength / 8).ToArray());
                     }
 
-                    // Subtract one from p in an efficient way
-                    int lsb = p.GetLowestSetBit();
-                    p = p.ClearBit(lsb);
-                    for (int i=0; i<lsb; i++)
+
+
+                    if (n > 0)
                     {
-                        p = p.SetBit(i);
+                        // Add one to p in an efficient way
+                        for (int i = 0; i < p.BitLength; i++)
+                        {
+                            if (!p.TestBit(i))
+                            {
+                                p = p.SetBit(i);
+                                break;
+                            }
+                            p = p.ClearBit(i);
+                        }
+                    }
+                    else if (n < 0)
+                    {
+                        // Subtract one from p in an efficient way
+                        int lsb = p.GetLowestSetBit();
+                        p = p.ClearBit(lsb);
+                        for (int i = 0; i < lsb; i++)
+                        {
+                            p = p.SetBit(i);
+                        }
                     }
 
-                    counter++;
-                    if (counter % 1500 == 0)
-                    {
-                        Console.WriteLine($" -NOTE- The number we are testing right now is {p.ToString()}, {n} more prime(s) to go.");
-                        counter = 0;
-                    }
+                    //counter++;
+                    //if (counter % 1500 == 0)
+                    //{
+                    //    Console.WriteLine($" -NOTE- The number we are testing right now is {p.ToString()}, {Math.Abs(n)} more prime(s) to go.");
+                    //    counter = 0;
+                    //}
 
                     if (!p.TestBit(0)) continue;
 
@@ -1069,11 +1111,17 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     if (!eIsKnownOddPrime && !e.Gcd(p.Subtract(One)).Equals(One))
                         continue;
 
-                    Console.WriteLine($" -NOTE- Potential prime '{p.ToString()}' was found. {n-1} more to go.");
-
                     // p is a prime
-                    n--;
-                    if (n <= 0) break;
+                    if (n > 0)
+                    {
+                        n--;
+                    } else if (n < 0) 
+                    {
+                        n++;
+                    }
+
+                    Console.WriteLine($" -NOTE- Potential prime '{p.ToString()}' was found. {Math.Abs(n)} more to go.");
+                    if (n == 0) break;
                 }
 
                 return p;
