@@ -24,9 +24,31 @@ namespace Stratis.Bitcoin.Utilities.JsonConverters
         {
             if (reader.Value == null)
                 return null;
-            DateTimeOffset result = Utils.UnixTimeToDateTime((ulong)(long)reader.Value);
+
+            DateTimeOffset? result = null;
+
+            if (reader.Value is string)
+            {
+                DateTimeOffset outResult;
+                DateTimeOffset.TryParseExact((string)reader.Value, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out outResult);
+                result = (outResult.Ticks == 0 ? (DateTimeOffset?)null : outResult);
+            }
+
+            if (reader.Value is DateTime)
+            {
+                result = new DateTimeOffset((DateTime)reader.Value);
+            }
+
+            if (result == null)
+            {
+                result = Utils.UnixTimeToDateTime((ulong)(long)reader.Value);
+            }
+
             if (objectType == typeof(DateTime))
-                return result.UtcDateTime;
+            {
+                return result.Value.UtcDateTime;
+            }
+
             return result;
         }
 
