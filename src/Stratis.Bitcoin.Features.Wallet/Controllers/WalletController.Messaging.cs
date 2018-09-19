@@ -1046,25 +1046,19 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 bool eIsKnownOddPrime = (e.BitLength <= SPECIAL_E_BITS) && Arrays.Contains(SPECIAL_E_VALUES, e.IntValue);
 
                 BigInteger p = new BigInteger(startValue.ToByteArray());
-                //Console.WriteLine($" -NOTE- We are looking for the {n}. prime starting from {p.ToString()} with {bitLength} bits.");
-
-                int counter = 0;
 
                 while (true)
                 {
                     if (p.BitLength > bitLength)
                     {
                         Console.WriteLine($" -NOTE- The bitrate raised from {bitLength} to {p.BitLength}, so we reset our p value.");
-
-                        p = new BigInteger(+1, Enumerable.Repeat((byte)0xFF, bitLength / 8).ToArray());
-                        p.ClearBit(bitLength - 1);
+                        p = p.ClearBit(bitLength);
                     }
 
                     if (p.BitLength < bitLength)
                     {
                         Console.WriteLine($" -NOTE- The bitrate dropped from {bitLength} to {p.BitLength}, so we reset our p value.");
-
-                        p = new BigInteger(+1, Enumerable.Repeat((byte)0xFF, bitLength / 8).ToArray());
+                        p = p.SetBit(bitLength - 1);
                     }
 
 
@@ -1072,7 +1066,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                     if (n > 0)
                     {
                         // Add one to p in an efficient way
-                        for (int i = 0; i < p.BitLength; i++)
+                        for (int i = 0; i <= p.BitLength; i++)
                         {
                             if (!p.TestBit(i))
                             {
@@ -1092,13 +1086,6 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                             p = p.SetBit(i);
                         }
                     }
-
-                    //counter++;
-                    //if (counter % 1500 == 0)
-                    //{
-                    //    Console.WriteLine($" -NOTE- The number we are testing right now is {p.ToString()}, {Math.Abs(n)} more prime(s) to go.");
-                    //    counter = 0;
-                    //}
 
                     if (!p.TestBit(0)) continue;
 
@@ -1120,7 +1107,6 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                         n++;
                     }
 
-                    Console.WriteLine($" -NOTE- Potential prime '{p.ToString()}' was found. {Math.Abs(n)} more to go.");
                     if (n == 0) break;
                 }
 

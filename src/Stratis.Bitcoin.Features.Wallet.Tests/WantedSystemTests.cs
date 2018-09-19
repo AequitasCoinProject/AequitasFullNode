@@ -149,16 +149,16 @@ namespace Stratis.Bitcoin.Features.Wallet.Tests
         public void TestRSAKeyGeneration()
         {
             string[] seeds = {
-                //"password",
-                //"B19vFoBiXzEB",
-                //"pF8M8xoE5eoF",
-                //"Hy40jrmpXdQx",
-                //"V2J6M7WvtbnvwRwQnxDlt0LNdCJiqgvl6sZ5",
+                "password", // 51 seconds
+                "B19vFoBiXzEB", // 26 seconds
+                "pF8M8xoE5eoF", // 25 seconds
+                "Hy40jrmpXdQx", // 23 seconds
+                "V2J6M7WvtbnvwRwQnxDlt0LNdCJiqgvl6sZ5", // 23 seconds
+                "wfwEaOHczdyz5IXiKHuX4ZiuyNiwZ6tAa0gpuOnb1G1QWhkcRxDYRHMd6i5dcwlPuvYXGbXudrLd5neF5HecvcPjy74fvwEopor6", // 34 seconds
                 "wfwEaOHczdyz5IXiKHuX4ZiuyNiwZ6tAa0gpuOnb1G1QWhkcRxDYRHMd6i5dcwlPuvYXGbXudrLd5neF5HecvcPjy74fvwEopor6",
-                "wfwEaOHczdyz5IXiKHuX4ZiuyNiwZ6tAa0gpuOnb1G1QWhkcRxDYRHMd6i5dcwlPuvYXGbXudrLd5neF5HecvcPjy74fvwEopor6",
-                "70P4W43s2j4Sm3PE03xBCtrzYfl0UIvhOnYa9Pl7CBBmBFGOFmB1cWO6bLbnzcIQpA6BpP8BpXPzh6KzgDXek2uxMLQQM26iR6SQ",
-                "bKnQtlUDemihGZOMwqT4pWVKe7zkWqp8oDKgzxBgklEXFwpugMbfUA4ruNJQSX8awetXIY7jYKqtLdVpBaP6kZU3PThc8Acw9om1",
-                "b58lTEJ1btzuu3FXKv4zD4bsRXLWr18GBwt2k27kM5XJCg1mUmcZ1vQLxCEgATmze3upKxSH745gjy9pws4jjpoPEfq80dj8LhOX"
+                "70P4W43s2j4Sm3PE03xBCtrzYfl0UIvhOnYa9Pl7CBBmBFGOFmB1cWO6bLbnzcIQpA6BpP8BpXPzh6KzgDXek2uxMLQQM26iR6SQ", // 34 seconds
+                "bKnQtlUDemihGZOMwqT4pWVKe7zkWqp8oDKgzxBgklEXFwpugMbfUA4ruNJQSX8awetXIY7jYKqtLdVpBaP6kZU3PThc8Acw9om1", // 34 seconds
+                "b58lTEJ1btzuu3FXKv4zD4bsRXLWr18GBwt2k27kM5XJCg1mUmcZ1vQLxCEgATmze3upKxSH745gjy9pws4jjpoPEfq80dj8LhOX" // 29 seconds
             };
 
             for (int i = 0; i < seeds.Length; i++)
