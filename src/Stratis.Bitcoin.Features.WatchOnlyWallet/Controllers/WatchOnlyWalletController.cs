@@ -148,7 +148,9 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers
         [HttpPost]
         public IActionResult WatchAndRescan([FromQuery]string address, [FromQuery]DateTimeOffset fromTime)
         {
-            if (Watch(address) == this.Ok())
+            var statusCode = Watch(address) as StatusCodeResult;
+
+            if ((statusCode != null) && (statusCode.StatusCode == this.Ok().StatusCode))
             {
                 return Rescan(fromTime);
             }
