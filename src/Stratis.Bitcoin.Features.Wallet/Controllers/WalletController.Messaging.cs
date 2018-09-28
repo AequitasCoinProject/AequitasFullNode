@@ -53,7 +53,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             try
             {
                 Transaction transaction = this.network.CreateTransaction(request.Hex);
-                return Content(transaction.ToString());
+                return Content(transaction.ToString(this.network));
             }
             catch (Exception e)
             {
