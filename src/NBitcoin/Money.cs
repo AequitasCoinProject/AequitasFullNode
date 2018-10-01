@@ -273,7 +273,13 @@ namespace NBitcoin
         /// <returns></returns>
         public static bool TryParseBTC(string bitcoin, out Money nRet)
         {
-            return TryParseDefault(Network.GetNetwork("main"), bitcoin, out nRet);
+            Network currentNetwork = Network.GetNetwork("main");
+            if (Network.GetNetworks().Count() == 1)
+            {
+                currentNetwork = Network.GetNetworks().First();
+            }
+
+            return TryParseDefault(currentNetwork, bitcoin, out nRet);
         }
 
         public static bool TryParseDefault(Network network, string amount, out Money nRet)
