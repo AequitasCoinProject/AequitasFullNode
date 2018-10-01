@@ -273,28 +273,62 @@ namespace NBitcoin
         /// <returns></returns>
         public static bool TryParseBTC(string bitcoin, out Money nRet)
         {
-            Network currentNetwork = Network.GetNetwork("main");
-            if (Network.GetNetworks().Count() == 1)
-            {
-                currentNetwork = Network.GetNetworks().First();
-            }
-
-            return TryParseDefault(currentNetwork, bitcoin, out nRet);
+            Network btcNetwork = Network.GetNetwork("main");
+            return TryParseDefault(btcNetwork, bitcoin + " BTC", out nRet);
         }
 
         public static bool TryParseDefault(Network network, string amount, out Money nRet)
         {
             nRet = null;
 
-            decimal value;
-            if (!decimal.TryParse(amount, BitcoinStyle, CultureInfo.InvariantCulture, out value))
+            Network[] networksToCheck = (network == null ? Network.GetNetworks().ToArray() : new Network[] { network });
+            string[] amountAndUnit = amount.Split(' ');
+
+            if ((amountAndUnit.Length != 1) && (amountAndUnit.Length != 2))
             {
+                return false;
+            }
+
+            MoneyUnit moneyUnit = null;
+            if (amountAndUnit.Length == 2)
+            {
+                foreach (Network unitsNetwork in networksToCheck)
+                {
+                    if (unitsNetwork == null) continue;
+
+                    moneyUnit = unitsNetwork.MoneyUnits.Units.FirstOrDefault(mu => mu.Name.ToLowerInvariant() == amountAndUnit[1].ToLowerInvariant());
+                    if (moneyUnit != null)
+                    {
+                        break;
+                    }
+                }
+            }
+            if (moneyUnit == null)
+            {
+                moneyUnit = MoneyUnit.AtomicUnit;
+            }
+
+            decimal value;
+            if (!decimal.TryParse(amountAndUnit[0], BitcoinStyle, CultureInfo.InvariantCulture, out value))
+            {
+                return false;
+            }
+
+            if (value < 0)
+            {
+                throw new FormatException("The money amount must be a positive number.");
+                return false;
+            }
+
+            if ((value * moneyUnit.Multiplier) - Math.Truncate(value * moneyUnit.Multiplier) > 0)
+            {
+                throw new FormatException("The money amount is defined in ambigous format. This could mean that you didn't use a unit name, or you used a value which is not properly expressable on the current network. Try to use unit names (like '0.12 BTC') or round the amount to have less decimal places. ");
                 return false;
             }
 
             try
             {
-                nRet = new Money(value, network == null ? MoneyUnit.AtomicUnit : network.MoneyUnits.DefaultUnit);
+                nRet = new Money(value, moneyUnit);
                 return true;
             }
             catch (OverflowException)
@@ -310,16 +344,16 @@ namespace NBitcoin
         /// <summary>
         /// Parse a bitcoin amount (Culture Invariant)
         /// </summary>
-        /// <param name="bitcoin"></param>
+        /// <param name="amount"></param>
         /// <returns></returns>
-        public static Money Parse(string bitcoin)
+        public static Money Parse(string amount)
         {
             Money result;
-            if(TryParseBTC(bitcoin, out result))
+            if(TryParseDefault(null, amount, out result))
             {
                 return result;
             }
-            throw new FormatException("Impossible to parse the string in a bitcoin amount");
+            throw new FormatException("Impossible to parse the string as a money amount");
         }
 
         private long _Satoshis;
