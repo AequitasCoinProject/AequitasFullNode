@@ -662,7 +662,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
                 TransactionBuilder tb = new TransactionBuilder(this.network);
                 tb.AddCoins((this.walletTransactionHandler as WalletTransactionHandler).GetCoinsForReviewersAddress(reviewerAddress));
 
-                var fullySignedTx = tb.CombineSignatures(wsmm.PartiallySignedTransactions.Select(stx => Transaction.Parse(stx.TransactionHex, RawFormat.Satoshi)).ToArray());
+                var fullySignedTx = tb.CombineSignatures(wsmm.PartiallySignedTransactions.Select(stx => this.network.CreateTransaction(stx.TransactionHex)).ToArray());
                 if (fullySignedTx != null)
                 {
                     var checkResults = fullySignedTx.Check();

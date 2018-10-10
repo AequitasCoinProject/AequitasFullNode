@@ -51,8 +51,8 @@ namespace Stratis.Bitcoin.Features.Wallet
             {
                 throw new Exception("The transaction you provided doesn't contain any Wanted System Messages.");
             }
-
-            var txClone = transaction.Clone();
+           
+            Transaction txClone = this.network.CreateTransaction(transaction.ToBytes());
             txClone.Inputs.ForEach(txIn => txIn.ScriptSig = null);
             uint256 transactionHash = txClone.GetHash();
 
@@ -100,7 +100,7 @@ namespace Stratis.Bitcoin.Features.Wallet
 
         public WantedSystemMessageModel AddPartiallySignedTxToMessageStore(Transaction transaction)
         {
-            var txClone = transaction.Clone();
+            Transaction txClone = this.network.CreateTransaction(transaction.ToBytes());
             txClone.Inputs.ForEach(txIn => txIn.ScriptSig = null);
             uint256 transactionHash = txClone.GetHash();
 
