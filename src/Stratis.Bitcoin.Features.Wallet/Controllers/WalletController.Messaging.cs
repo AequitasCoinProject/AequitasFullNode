@@ -302,7 +302,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
             try
             {
-                Script scriptPubKey = Transaction.Parse(request.TransactionHex, RawFormat.Satoshi).Outputs[request.MessageOutputIndex].ScriptPubKey;
+                Script scriptPubKey = this.network.CreateTransaction(request.TransactionHex).Outputs[request.MessageOutputIndex].ScriptPubKey;
                 RsaPrivateKey rsaPrivateKey = null;
                 if (!String.IsNullOrEmpty(request.RsaPrivateKeyHex))
                 {
@@ -544,7 +544,7 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
             try
             {
                 // parse the transaction
-                Transaction tx = Transaction.Parse(request.TransactionHex, RawFormat.Satoshi);
+                Transaction tx = this.network.CreateTransaction(request.TransactionHex);
 
                 // check if we have the message transaction in our message store
                 WalletManager wm = this.walletManager as WalletManager;
