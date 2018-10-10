@@ -37,6 +37,11 @@ namespace Stratis.Bitcoin.Features.Wallet
 
                 var reviewerAddress = wm.ReviewerAddresses[context.MessageRecipient];
 
+                if (String.IsNullOrEmpty(reviewerAddress.RsaPrivateKeyHex))
+                {
+                    throw new Exception($"The reviewers' address '{reviewerAddress.Address}' was recognized, but its private key information was not received from the '{reviewerAddress.PublicApiUrl}' address. This is usually means that the current, requesting node has no access rights to it, so: (A) you must use a different address from your local node OR (B) call this method on the node where the address was originally created on.");
+                }
+
                 context.TransactionBuilder.SendMessage(context.Message, context.MessageRecipient, context.MessageReplyToAddress, context.MessageRewardAddress, RsaPublicKey.FromHex(reviewerAddress.RsaPublicKeyHex), RsaPrivateKey.FromHex(reviewerAddress.RsaPrivateKeyHex));
             } else
             {
