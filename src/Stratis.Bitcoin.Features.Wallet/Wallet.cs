@@ -767,7 +767,10 @@ namespace Stratis.Bitcoin.Features.Wallet
         private void Transactions_CollectionChanged(object sender, System.Collections.Specialized.NotifyCollectionChangedEventArgs e)
         {
             TransactionData td = e.NewItems[0] as TransactionData;
-            Console.WriteLine($" -NOTE- Added a new transaction {td.Id} to the current wallet.");
+            if (td != null)
+            {
+                Console.WriteLine($" -NOTE- Added a new transaction {td.Id} to the current wallet.");
+            }
         }
 
         /// <summary>

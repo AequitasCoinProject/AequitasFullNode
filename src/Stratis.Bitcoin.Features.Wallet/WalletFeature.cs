@@ -126,7 +126,7 @@ namespace Stratis.Bitcoin.Features.Wallet
                 benchLog.AppendLine();
                 benchLog.AppendLine("======Wallets======");
 
-                foreach (string walletName in walletNames)
+                foreach (string walletName in walletNames.OrderBy(wn => wn))
                 {
                     var spendable = this.walletManager.GetSpendableTransactionsInWallet(walletName, 1);
                     var unspendable = this.walletManager.GetSpendableTransactionsInWallet(walletName, 0);

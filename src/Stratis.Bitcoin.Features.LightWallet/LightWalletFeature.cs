@@ -195,7 +195,7 @@ namespace Stratis.Bitcoin.Features.LightWallet
                 benchLog.AppendLine();
                 benchLog.AppendLine("======Wallets======");
 
-                foreach (string walletName in walletNames)
+                foreach (string walletName in walletNames.OrderBy(wn => wn))
                 {
                     IEnumerable<UnspentOutputReference> items = this.walletManager.GetSpendableTransactionsInWallet(walletName, 1);
                     benchLog.AppendLine("Wallet: " + (walletName + ",").PadRight(LoggingConfiguration.ColumnLength) + " Confirmed balance: " + new Money(items.Sum(s => s.Transaction.Amount)).ToString());
