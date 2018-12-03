@@ -212,27 +212,27 @@ namespace Stratis.Bitcoin.P2P.Peer
                     {
                         if (nextEarliestConnectionAttempt > DateTime.UtcNow)
                         {
-                        // do not try to connect again in the next second to avoid traffic jam
-                        postponeNextConnectionAttempUntil.AddOrReplace<string, DateTime>(endPointKey, nextEarliestConnectionAttempt.AddMilliseconds(500));
+                            // do not try to connect again in the next second to avoid traffic jam
+                            postponeNextConnectionAttempUntil.AddOrReplace<string, DateTime>(endPointKey, nextEarliestConnectionAttempt.AddMilliseconds(100));
                             return;
                         }
 
                         try
                         {
-                        // do not try to connect again in the next second if it was successful
-                        nextEarliestConnectionAttempt = DateTime.UtcNow.AddMilliseconds(500);
+                            // do not try to connect again in the next second if it was successful
+                            nextEarliestConnectionAttempt = DateTime.UtcNow.AddMilliseconds(500);
                             connectionAttemptCount++;
 
                             this.tcpClient.ConnectAsync(endPoint.Address, endPoint.Port).Wait(cancellation);
                         }
                         catch (Exception e)
                         {
-                        // Record the error occurring in the thread pool's context.
-                        error = e;
+                            // Record the error occurring in the thread pool's context.
+                            error = e;
                             connectionAttemptErrors++;
 
-                        // do not try to connect again in the next 600 seconds if there was an error
-                        postponeNextConnectionAttempUntil.AddOrReplace<string, DateTime>(endPointKey, DateTime.UtcNow.AddSeconds(600));
+                            // do not try to connect again in the next 60 seconds if there was an error
+                            postponeNextConnectionAttempUntil.AddOrReplace<string, DateTime>(endPointKey, DateTime.UtcNow.AddSeconds(60));
 
                             Console.WriteLine($" -NOTE- Connection stats  attempts: {connectionAttemptCount} postponed: {postponeNextConnectionAttempUntil.Count} errors: {connectionAttemptErrors} last-error: {endPointKey}:{e.Message}");
                         }

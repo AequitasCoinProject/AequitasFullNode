@@ -3,9 +3,11 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
+using System.Text;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 using Stratis.Bitcoin.Configuration;
+using Stratis.Bitcoin.Configuration.Logging;
 using Stratis.Bitcoin.Utilities;
 using Stratis.Bitcoin.Utilities.Extensions;
 
@@ -76,6 +78,7 @@ namespace Stratis.Bitcoin.P2P
 
                 this.peers.AddOrUpdate(peer.Endpoint, peer, (key, oldValue) => peer);
             });
+            peers = peers.OrderBy(p => new Random().Next()).ToList();
         }
 
         /// <inheritdoc />
@@ -83,8 +86,10 @@ namespace Stratis.Bitcoin.P2P
         {
             if (this.peers.Any() == false)
                 return;
-
-            ICollection<PeerAddress> snapshotOfPeersToSave = this.peers.Values;
+           
+            var validPeersToSave = this.Peers.OrderByDescending(p => (p.LastAttempt.HasValue ? p.LastAttempt.Value.Ticks : 0)).OrderByDescending(p => (p.LastConnectionSuccess.HasValue ? p.LastConnectionSuccess.Value.Ticks : 0)).Take(200);
+           
+            ICollection<PeerAddress> snapshotOfPeersToSave = validPeersToSave.ToList();
             var fileStorage = new FileStorage<List<PeerAddress>>(this.PeerFilePath.AddressManagerFilePath);
             fileStorage.SaveToFile(
                 snapshotOfPeersToSave
@@ -192,5 +197,23 @@ namespace Stratis.Bitcoin.P2P
         {
             this.SavePeers();
         }
+
+        public string GetPeerStats()
+        {
+            var builder = new StringBuilder();
+
+            int i = 1;
+            foreach (PeerAddress peer in this.Peers.OrderBy(p => (p.LastAttempt.HasValue ? p.LastAttempt.Value.Ticks : 0)))
+            {
+                builder.AppendLine(
+                    "Peer #"+(i++).ToString("000")+" of "+this.Peers.Count.ToString("000") + ":" + (peer.Endpoint + ", ").PadRight(LoggingConfiguration.ColumnLength + 32) +
+                    (" attempted:" + (peer.Attempted ? peer.LastAttempt.Value.ToString("yyyy-MM-dd HH:mm:ss") : "N/A") + ",").PadRight(LoggingConfiguration.ColumnLength + 11) +
+                    (" ban score:" + (peer.BanScore.HasValue ? peer.BanScore.Value.ToString() : "N/A") + ",").PadRight(LoggingConfiguration.ColumnLength + 0) +
+                    (" banned until:" + (peer.BanUntil.HasValue ? peer.BanUntil.Value.ToString("yyyy-MM-dd HH:mm:ss") : "N/A") + ",").PadRight(LoggingConfiguration.ColumnLength + 11));
+            }
+
+            return builder.ToString();
+        }
+
     }
 }

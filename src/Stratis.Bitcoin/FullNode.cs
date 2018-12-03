@@ -14,6 +14,7 @@ using Stratis.Bitcoin.Builder;
 using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Connection;
 using Stratis.Bitcoin.Interfaces;
+using Stratis.Bitcoin.P2P;
 using Stratis.Bitcoin.Utilities;
 
 namespace Stratis.Bitcoin
@@ -55,6 +56,9 @@ namespace Stratis.Bitcoin
 
         /// <inheritdoc />
         public DateTime StartTime { get; set; }
+
+        /// <summary>Component responsible for disconvering peers in P2P network.</summary>
+        public IPeerAddressManager PeerAddressManager { get; set; }
 
         /// <summary>Component responsible for connections to peers in P2P network.</summary>
         public IConnectionManager ConnectionManager { get; set; }
@@ -172,6 +176,7 @@ namespace Stratis.Bitcoin
             this.Signals = this.Services.ServiceProvider.GetService<Signals.Signals>();
             this.InitialBlockDownloadState = this.Services.ServiceProvider.GetService<IInitialBlockDownloadState>();
 
+            this.PeerAddressManager = this.Services.ServiceProvider.GetService<IPeerAddressManager>();
             this.ConnectionManager = this.Services.ServiceProvider.GetService<IConnectionManager>();
             this.bestChainSelector = this.Services.ServiceProvider.GetService<BestChainSelector>();
             this.loggerFactory = this.Services.ServiceProvider.GetService<NodeSettings>().LoggerFactory;
@@ -245,6 +250,13 @@ namespace Stratis.Bitcoin
                 // Now display the other stats.
                 foreach (IFeatureStats feature in this.Services.Features.OfType<IFeatureStats>())
                     feature.AddFeatureStats(benchLogs);
+
+                if (this.ConnectionManager.ConnectedPeers.Count() < 5)
+                {
+                    benchLogs.AppendLine();
+                    benchLogs.AppendLine("======Peers======");
+                    benchLogs.AppendLine(this.PeerAddressManager.GetPeerStats());
+                }
 
                 benchLogs.AppendLine();
                 benchLogs.AppendLine("======Connection======");
