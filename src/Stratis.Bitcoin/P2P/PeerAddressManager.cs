@@ -68,7 +68,7 @@ namespace Stratis.Bitcoin.P2P
             List<PeerAddress> loadedPeers = this.fileStorage.LoadByFileName(PeerFileName);
             this.logger.LogTrace("{0} peers were loaded.", loadedPeers.Count);
 
-            loadedPeers.OrderBy(p => new Random().Next()).ToList().ForEach(peer =>
+            loadedPeers.ForEach(peer =>
             {
                 // Ensure that any address already in store is mapped.
                 peer.Endpoint = peer.Endpoint.MapToIpv6();
@@ -92,10 +92,8 @@ namespace Stratis.Bitcoin.P2P
         {
             if (this.peers.Any() == false)
                 return;
-           
-            var validPeersToSave = this.Peers.OrderByDescending(p => (p.LastAttempt.HasValue ? p.LastAttempt.Value.Ticks : 0)).OrderByDescending(p => (p.LastConnectionSuccess.HasValue ? p.LastConnectionSuccess.Value.Ticks : 0)).Take(200);
-           
-            ICollection<PeerAddress> snapshotOfPeersToSave = validPeersToSave.ToList();
+
+            ICollection <PeerAddress> snapshotOfPeersToSave = this.Peers.OrderByDescending(p => (p.LastConnectionSuccess.HasValue ? p.LastConnectionSuccess.Value.Ticks : 0)).ToList();
             var fileStorage = new FileStorage<List<PeerAddress>>(this.PeerFilePath.AddressManagerFilePath);
             fileStorage.SaveToFile(
                 snapshotOfPeersToSave
@@ -216,11 +214,11 @@ namespace Stratis.Bitcoin.P2P
             var builder = new StringBuilder();
 
             int i = 1;
-            foreach (PeerAddress peer in this.Peers.OrderBy(p => (p.LastAttempt.HasValue ? p.LastAttempt.Value.Ticks : 0)))
+            foreach (PeerAddress peer in this.Peers.OrderBy(p => (p.LastConnectionSuccess.HasValue ? p.LastConnectionSuccess.Value.Ticks : (p.LastAttempt.HasValue ? p.LastAttempt.Value.Ticks : 0))))
             {
                 builder.AppendLine(
                     "Peer #"+(i++).ToString("000")+" of "+this.Peers.Count.ToString("000") + ":" + (peer.Endpoint + ", ").PadRight(LoggingConfiguration.ColumnLength + 32) +
-                    (" attempted:" + (peer.LastHandshakeAttempt.HasValue ? peer.LastHandshakeAttempt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : "N/A") + ",").PadRight(LoggingConfiguration.ColumnLength + 11) +
+                    (" connected:" + (peer.LastConnectionSuccess.HasValue ? peer.LastConnectionSuccess.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : "N/A") + ",").PadRight(LoggingConfiguration.ColumnLength + 11) +
                     (" attempts:" + (peer.ConnectionAttempts) + ",").PadRight(LoggingConfiguration.ColumnLength + 0) +
                     (" last error:" + (!String.IsNullOrEmpty(peer.LastError) ? peer.LastError : "N/A"))
                 );
