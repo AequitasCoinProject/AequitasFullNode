@@ -1,18 +1,13 @@
 ﻿using System;
-using System.Collections.Generic;
 using Mono.Cecil;
 using Stratis.SmartContracts.Core.Validation;
+using Stratis.SmartContracts.Executor.Reflection.ILRewrite;
 using Stratis.SmartContracts.Executor.Reflection.Loader;
 
 namespace Stratis.SmartContracts.Executor.Reflection
 {
     public interface IContractModuleDefinition : IDisposable
     {
-        /// <summary>
-        /// The <see cref="TypeDefinition"/>s contained in the module, excluding those that are compiler or framework generated.
-        /// </summary>
-        List<TypeDefinition> DevelopedTypes { get; }
-
         /// <summary>
         /// Returns the <see cref="TypeDefinition"/> of the contract denoted as the module's entry point with a <see cref="DeployAttribute"/>.
         /// If no entry point is defined, the first <see cref="TypeDefinition"/> will be chosen.
@@ -24,8 +19,6 @@ namespace Stratis.SmartContracts.Executor.Reflection
         /// </summary>
         ModuleDefinition ModuleDefinition { get; }
 
-        void InjectConstructorGas();
-
         /// <summary>
         /// Serializes the <see cref="ContractModuleDefinition.ModuleDefinition"/> to contract bytecode.
         /// </summary>
@@ -36,6 +29,15 @@ namespace Stratis.SmartContracts.Executor.Reflection
         /// </summary>
         SmartContractValidationResult Validate(ISmartContractValidator validator);
 
-        void InjectMethodGas(string typeName, MethodCall methodCall);
+        /// <summary>
+        /// Rewrite the ModuleDefintion using an ILRewriter.
+        /// </summary>
+        void Rewrite(IILRewriter rewriter);
+
+        /// <summary>
+        /// Returns the name of the property getter method for the property with this name on the given type,
+        /// or null if no property with this name exists.
+        /// </summary>        
+        string GetPropertyGetterMethodName(string typeName, string propertyName);
     }
 }

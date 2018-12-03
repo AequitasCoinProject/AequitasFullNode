@@ -11,6 +11,7 @@ using NBitcoin.Policy;
 using Stratis.Bitcoin.Features.Wallet.Interfaces;
 using Stratis.Bitcoin.Utilities;
 using Stratis.Bitcoin.Utilities.Extensions;
+using TracerAttributes;
 
 namespace Stratis.Bitcoin.Features.Wallet
 {
@@ -67,8 +68,7 @@ namespace Stratis.Bitcoin.Features.Wallet
             if (context.Shuffle)
                 context.TransactionBuilder.Shuffle();
 
-            bool sign = !string.IsNullOrEmpty(context.WalletPassword);
-            Transaction transaction = context.TransactionBuilder.BuildTransaction(sign);
+            Transaction transaction = context.TransactionBuilder.BuildTransaction(context.Sign);
 
             if (context.TransactionBuilder.Verify(transaction, out TransactionPolicyError[] errors))
                 return transaction;
@@ -185,6 +185,38 @@ namespace Stratis.Bitcoin.Features.Wallet
             return context.TransactionFee;
         }
 
+        /// <inheritdoc />
+        [NoTrace]
+        public void CacheSecret(WalletAccountReference walletAccount, string walletPassword, TimeSpan duration)
+        {
+            Guard.NotNull(walletAccount, nameof(walletAccount));
+            Guard.NotEmpty(walletPassword, nameof(walletPassword));
+            Guard.NotNull(duration, nameof(duration));
+
+            Wallet wallet = this.walletManager.GetWalletByName(walletAccount.WalletName);
+            string cacheKey = wallet.EncryptedSeed;
+
+            if (this.privateKeyCache.TryGetValue(cacheKey, out SecureString secretValue))
+            {
+                this.privateKeyCache.Set(cacheKey, secretValue, duration);
+            }
+            else
+            {
+                Key privateKey = Key.Parse(wallet.EncryptedSeed, walletPassword, wallet.Network);
+                this.privateKeyCache.Set(cacheKey, privateKey.ToString(wallet.Network).ToSecureString(), duration);
+            }
+        }
+
+        /// <inheritdoc />
+        public void ClearCachedSecret(WalletAccountReference walletAccount)
+        {
+            Guard.NotNull(walletAccount, nameof(walletAccount));
+
+            Wallet wallet = this.walletManager.GetWalletByName(walletAccount.WalletName);
+            string cacheKey = wallet.EncryptedSeed;
+            this.privateKeyCache.Remove(cacheKey);
+        }
+
         /// <summary>
         /// Initializes the context transaction builder from information in <see cref="TransactionBuildContext"/>.
         /// </summary>
@@ -194,6 +226,12 @@ namespace Stratis.Bitcoin.Features.Wallet
             Guard.NotNull(context, nameof(context));
             Guard.NotNull(context.Recipients, nameof(context.Recipients));
             Guard.NotNull(context.AccountReference, nameof(context.AccountReference));
+
+            // If inputs are selected by the user, we just choose them all.
+            if (context.SelectedInputs != null && context.SelectedInputs.Any())
+            {
+                context.TransactionBuilder.CoinSelector = new AllCoinsSelector();
+            }
 
             this.AddRecipients(context);
             this.AddOpReturnOutput(context);
@@ -225,6 +263,9 @@ namespace Stratis.Bitcoin.Features.Wallet
             }
             else
             {
+                if (string.IsNullOrEmpty(context.WalletPassword))
+                    return;
+
                 privateKey = Key.Parse(wallet.EncryptedSeed, context.WalletPassword, wallet.Network);
                 this.privateKeyCache.Set(cacheKey, privateKey.ToString(wallet.Network).ToSecureString(), new TimeSpan(0, 5, 0));
             }
@@ -279,7 +320,7 @@ namespace Stratis.Bitcoin.Features.Wallet
             if (balance < totalToSend)
                 throw new WalletException("Not enough funds.");
 
-            if (context.SelectedInputs.Any())
+            if (context.SelectedInputs != null && context.SelectedInputs.Any())
             {
                 // 'SelectedInputs' are inputs that must be included in the
                 // current transaction. At this point we check the given
@@ -312,7 +353,7 @@ namespace Stratis.Bitcoin.Features.Wallet
 
                 // If threshold is reached and the total value is above the target
                 // then its safe to stop adding UTXOs to the coin list.
-                // The primery goal is to reduce the time it takes to build a trx
+                // The primary goal is to reduce the time it takes to build a trx
                 // when the wallet is bloated with UTXOs.
                 if (index > SendCountThresholdLimit && sum > totalToSend)
                     break;

@@ -787,14 +787,14 @@ namespace Stratis.Bitcoin.Features.Wallet.Controllers
 
                 WalletAccountReference account = new WalletAccountReference(requestWalletName, requestAccountName);
 
-                List<SpendableTransactionModel> transactionList = new List<SpendableTransactionModel>();
+                List<DetailedSpendableTransactionModel> transactionList = new List<DetailedSpendableTransactionModel>();
                 foreach (var spendableOutput in this.walletManager.GetSpendableTransactionsInAccount(account, request.MinConfirmations).OrderByDescending(a => a.Transaction.Amount))
                 {
                     if (spendableOutput.Transaction.Amount == 0) continue;
 
                     if (!String.IsNullOrWhiteSpace(request.Address) && (spendableOutput.Address.Address.ToString() != request.Address)) continue;
 
-                    transactionList.Add(new SpendableTransactionModel()
+                    transactionList.Add(new DetailedSpendableTransactionModel()
                     {
                         Address = spendableOutput.Address.Address.ToString(),
                         TransactionHash = spendableOutput.Transaction.Id,

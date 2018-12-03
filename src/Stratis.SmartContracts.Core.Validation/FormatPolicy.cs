@@ -1,10 +1,10 @@
 ﻿using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using Stratis.ModuleValidation.Net;
-using Stratis.ModuleValidation.Net.Format;
+using Stratis.SmartContracts.Core.Validation.Validators.Method;
 using Stratis.SmartContracts.Core.Validation.Validators.Module;
 using Stratis.SmartContracts.Core.Validation.Validators.Type;
+using Stratis.SmartContracts.Standards;
 
 namespace Stratis.SmartContracts.Core.Validation
 {
@@ -22,12 +22,15 @@ namespace Stratis.SmartContracts.Core.Validation
             Runtime,
             Core,
             typeof(SmartContract).Assembly,
-            typeof(Enumerable).Assembly
+            typeof(Enumerable).Assembly,
+            typeof(IStandardToken).Assembly
         };
 
         public static ValidationPolicy Default = new ValidationPolicy()
             .ModuleDefValidator(new AssemblyReferenceValidator(AllowedAssemblies))
+            .ModuleDefValidator(new ContractToDeployValidator())
             .TypeDefValidator(new StaticConstructorValidator(), NestedTypePolicy.Ignore)
+            .TypeDefValidator(new GenericTypeValidator())
             .TypeDefValidator(new NamespaceValidator())
             .TypeDefValidator(new SingleConstructorValidator(), NestedTypePolicy.Ignore)
             .TypeDefValidator(new ConstructorParamValidator(), NestedTypePolicy.Ignore)
@@ -37,6 +40,9 @@ namespace Stratis.SmartContracts.Core.Validation
             .NestedTypeDefValidator(new TypeHasNestedTypesValidator())
             .NestedTypeDefValidator(new NestedTypesAreValueTypesValidator())
             .MethodDefValidator(new TryCatchValidator())
-            .MethodDefValidator(new MethodParamValidator());
-    }
+            .MethodDefValidator(new MethodParamValidator())
+            .MethodDefValidator(new GenericMethodValidator())
+            .InstructionValidator(new MultiDimensionalArrayValidator())
+            .InstructionValidator(new NewObjValidator());
+    }   
 }

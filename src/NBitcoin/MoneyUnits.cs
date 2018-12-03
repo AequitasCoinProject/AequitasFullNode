@@ -29,6 +29,22 @@ namespace NBitcoin
                 return new MoneyUnit(1);
             }
         }
+
+        public static MoneyUnit BTC
+        {
+            get
+            {
+                return new MoneyUnit("BTC", 100000000);
+            }
+        }
+
+        public static MoneyUnit Satoshi
+        {
+            get
+            {
+                return new MoneyUnit("Satoshi", 1);
+            }
+        }
     }
 
     public class MoneyUnits

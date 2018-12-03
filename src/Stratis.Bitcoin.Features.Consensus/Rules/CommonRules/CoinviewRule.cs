@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using NBitcoin;
 using Stratis.Bitcoin.Base.Deployments;
+using Stratis.Bitcoin.Consensus;
 using Stratis.Bitcoin.Consensus.Rules;
 using Stratis.Bitcoin.Utilities;
 
@@ -16,7 +17,7 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
     /// <exception cref="ConsensusErrors.BadTransactionNonFinal">Thrown if transaction's height or time is lower then provided by SequenceLock for this block.</exception>
     /// <exception cref="ConsensusErrors.BadBlockSigOps">Thrown if signature operation cost is greater then maximum block signature operation cost.</exception>
     /// <exception cref="ConsensusErrors.BadTransactionScriptError">Thrown if not all inputs are valid (no double spends, scripts & sigs, amounts).</exception>
-    public abstract class CoinViewRule : ConsensusRule
+    public abstract class CoinViewRule : FullValidationConsensusRule
     {
         /// <summary>Consensus options.</summary>
         public ConsensusOptions ConsensusOptions { get; private set; }
@@ -27,57 +28,37 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
         /// <inheritdoc />
         public override void Initialize()
         {
-            this.Logger.LogTrace("()");
-
             this.Consensus = this.Parent.Network.Consensus;
             this.ConsensusOptions = this.Parent.Network.Consensus.Options;
-
-            this.Logger.LogTrace("(-)");
         }
 
         /// <inheritdoc />
         public override async Task RunAsync(RuleContext context)
         {
-            this.Logger.LogTrace("()");
-
-            Block block = context.ValidationContext.Block;
-            ChainedHeader index = context.ValidationContext.ChainedHeader;
+            Block block = context.ValidationContext.BlockToValidate;
+            ChainedHeader index = context.ValidationContext.ChainedHeaderToValidate;
             DeploymentFlags flags = context.Flags;
             UnspentOutputSet view = (context as UtxoRuleContext).UnspentOutputSet;
-
-            this.Parent.PerformanceCounter.AddProcessedBlocks(1);
 
             long sigOpsCost = 0;
             Money fees = Money.Zero;
             var checkInputs = new List<Task<bool>>();
             for (int txIndex = 0; txIndex < block.Transactions.Count; txIndex++)
             {
-                this.Parent.PerformanceCounter.AddProcessedTransactions(1);
                 Transaction tx = block.Transactions[txIndex];
+
                 if (!context.SkipValidation)
                 {
-                    if (!this.IsProtocolTransaction(tx))
+                    if (!tx.IsCoinBase && !view.HaveInputs(tx))
                     {
-                        if (!view.HaveInputs(tx))
-                        {
-                            this.Logger.LogTrace("(-)[BAD_TX_NO_INPUT]");
-                            ConsensusErrors.BadTransactionMissingInput.Throw();
-                        }
+                        this.Logger.LogTrace("(-)[BAD_TX_NO_INPUT]");
+                        ConsensusErrors.BadTransactionMissingInput.Throw();
+                    }
 
-                        var prevheights = new int[tx.Inputs.Count];
-                        // Check that transaction is BIP68 final.
-                        // BIP68 lock checks (as opposed to nLockTime checks) must
-                        // be in ConnectBlock because they require the UTXO set.
-                        for (int j = 0; j < tx.Inputs.Count; j++)
-                        {
-                            prevheights[j] = (int)view.AccessCoins(tx.Inputs[j].PrevOut.Hash).Height;
-                        }
-
-                        if (!tx.CheckSequenceLocks(prevheights, index, flags.LockTimeFlags))
-                        {
-                            this.Logger.LogTrace("(-)[BAD_TX_NON_FINAL]");
-                            ConsensusErrors.BadTransactionNonFinal.Throw();
-                        }
+                    if (!this.IsTxFinal(tx, context))
+                    {
+                        this.Logger.LogTrace("(-)[BAD_TX_NON_FINAL]");
+                        ConsensusErrors.BadTransactionNonFinal.Throw();
                     }
 
                     // GetTransactionSignatureOperationCost counts 3 types of sigops:
@@ -91,31 +72,20 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
                         ConsensusErrors.BadBlockSigOps.Throw();
                     }
 
-                    if (!this.IsProtocolTransaction(tx))
+                    if (!tx.IsCoinBase)
                     {
                         this.CheckInputs(tx, view, index.Height);
-                        fees += view.GetValueIn(tx) - tx.TotalOut;
+
+                        if (!tx.IsCoinStake)
+                            fees += view.GetValueIn(tx) - tx.TotalOut;
+
                         var txData = new PrecomputedTransactionData(tx);
                         for (int inputIndex = 0; inputIndex < tx.Inputs.Count; inputIndex++)
                         {
-                            this.Parent.PerformanceCounter.AddProcessedInputs(1);
                             TxIn input = tx.Inputs[inputIndex];
                             int inputIndexCopy = inputIndex;
                             TxOut txout = view.GetOutputFor(input);
-                            var checkInput = new Task<bool>(() =>
-                            {
-                                var checker = new TransactionChecker(tx, inputIndexCopy, txout.Value, txData);
-                                var ctx = new ScriptEvaluationContext(this.Parent.Network);
-                                ctx.ScriptVerify = flags.ScriptFlags;
-                                bool verifyScriptResult = ctx.VerifyScript(input.ScriptSig, txout.ScriptPubKey, checker);
-
-                                if (verifyScriptResult == false)
-                                {
-                                    this.Logger.LogTrace("Verify script for transaction '{0}' failed, ScriptSig = '{1}', ScriptPubKey = '{2}', script evaluation error = '{3}'", tx.GetHash(), input.ScriptSig, txout.ScriptPubKey, ctx.Error);
-                                }
-
-                                return verifyScriptResult;
-                            });
+                            var checkInput = new Task<bool>(() => this.CheckInput(tx, inputIndexCopy, txout, txData, input, flags));
                             checkInput.Start();
                             checkInputs.Add(checkInput);
                         }
@@ -139,8 +109,37 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
                 }
             }
             else this.Logger.LogTrace("BIP68, SigOp cost, and block reward validation skipped for block at height {0}.", index.Height);
+        }
 
-            this.Logger.LogTrace("(-)");
+        /// <summary>Checks if transaction if final.</summary>
+        protected virtual bool IsTxFinal(Transaction transaction, RuleContext context)
+        {
+            return transaction.IsFinal(context.ValidationContext.ChainedHeaderToValidate);
+        }
+
+        /// <summary>
+        /// Verify that an input may be validly spent as part of the given transaction in the given block.
+        /// </summary>
+        /// <param name="tx">Transaction to check.</param>
+        /// <param name="inputIndexCopy">Index of the input to check.</param>
+        /// <param name="txout">Output the input is spending.</param>
+        /// <param name="txData">Transaction data for the transaction being checked.</param>
+        /// <param name="input">Input to check.</param>
+        /// <param name="flags">Deployment flags</param>
+        /// <returns>Whether the input is valid.</returns>
+        protected virtual bool CheckInput(Transaction tx, int inputIndexCopy, TxOut txout, PrecomputedTransactionData txData, TxIn input, DeploymentFlags flags)
+        {
+            var checker = new TransactionChecker(tx, inputIndexCopy, txout.Value, txData);
+            var ctx = new ScriptEvaluationContext(this.Parent.Network);
+            ctx.ScriptVerify = flags.ScriptFlags;
+            bool verifyScriptResult = ctx.VerifyScript(input.ScriptSig, txout.ScriptPubKey, checker);
+
+            if (verifyScriptResult == false)
+            {
+                this.Logger.LogTrace("Verify script for transaction '{0}' failed, ScriptSig = '{1}', ScriptPubKey = '{2}', script evaluation error = '{3}'", tx.GetHash(), input.ScriptSig, txout.ScriptPubKey, ctx.Error);
+            }
+
+            return verifyScriptResult;
         }
 
         /// <summary>
@@ -150,14 +149,10 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
         /// <param name="transaction">Transaction which outputs will be added to the context's <see cref="UnspentOutputSet"/> and which inputs will be removed from it.</param>
         protected void UpdateUTXOSet(RuleContext context, Transaction transaction)
         {
-            this.Logger.LogTrace("()");
-
-            ChainedHeader index = context.ValidationContext.ChainedHeader;
+            ChainedHeader index = context.ValidationContext.ChainedHeaderToValidate;
             UnspentOutputSet view = (context as UtxoRuleContext).UnspentOutputSet;
 
             view.Update(transaction, index.Height);
-
-            this.Logger.LogTrace("(-)");
         }
 
         /// <summary>
@@ -192,8 +187,6 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
         /// <exception cref="ConsensusErrors.BadTransactionPrematureCoinbaseSpending">Thrown if transaction tries to spend coins that are not mature.</exception>
         public void CheckCoinbaseMaturity(UnspentOutputs coins, int spendHeight)
         {
-            this.Logger.LogTrace("({0}:'{1}/{2}',{3}:{4})", nameof(coins), coins.TransactionId, coins.Height, nameof(spendHeight), spendHeight);
-
             // If prev is coinbase, check that it's matured
             if (coins.IsCoinbase)
             {
@@ -204,8 +197,6 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
                     ConsensusErrors.BadTransactionPrematureCoinbaseSpending.Throw();
                 }
             }
-
-            this.Logger.LogTrace("(-)");
         }
 
         /// <summary>
@@ -229,8 +220,6 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
         /// <exception cref="ConsensusErrors.BadTransactionFeeOutOfRange">Thrown if fees value is out of range.</exception>
         public void CheckInputs(Transaction transaction, UnspentOutputSet inputs, int spendHeight)
         {
-            this.Logger.LogTrace("({0}:{1})", nameof(spendHeight), spendHeight);
-
             if (!inputs.HaveInputs(transaction))
                 ConsensusErrors.BadTransactionMissingInput.Throw();
 
@@ -252,28 +241,29 @@ namespace Stratis.Bitcoin.Features.Consensus.Rules.CommonRules
                 }
             }
 
-            if (valueIn < transaction.TotalOut)
+            if (!transaction.IsProtocolTransaction())
             {
-                this.Logger.LogTrace("(-)[TX_IN_BELOW_OUT]");
-                ConsensusErrors.BadTransactionInBelowOut.Throw();
-            }
+                if (valueIn < transaction.TotalOut)
+                {
+                    this.Logger.LogTrace("(-)[TX_IN_BELOW_OUT]");
+                    ConsensusErrors.BadTransactionInBelowOut.Throw();
+                }
 
-            // Tally transaction fees.
-            Money txFee = valueIn - transaction.TotalOut;
-            if (txFee < 0)
-            {
-                this.Logger.LogTrace("(-)[NEGATIVE_FEE]");
-                ConsensusErrors.BadTransactionNegativeFee.Throw();
-            }
+                // Check transaction fees.
+                Money txFee = valueIn - transaction.TotalOut;
+                if (txFee < 0)
+                {
+                    this.Logger.LogTrace("(-)[NEGATIVE_FEE]");
+                    ConsensusErrors.BadTransactionNegativeFee.Throw();
+                }
 
-            fees += txFee;
-            if (!this.MoneyRange(fees))
-            {
-                this.Logger.LogTrace("(-)[BAD_FEE]");
-                ConsensusErrors.BadTransactionFeeOutOfRange.Throw();
+                fees += txFee;
+                if (!this.MoneyRange(fees))
+                {
+                    this.Logger.LogTrace("(-)[BAD_FEE]");
+                    ConsensusErrors.BadTransactionFeeOutOfRange.Throw();
+                }
             }
-
-            this.Logger.LogTrace("(-)");
         }
 
         /// <summary>

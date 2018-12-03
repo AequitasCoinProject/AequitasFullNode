@@ -211,10 +211,10 @@ namespace Stratis.Bitcoin.Features.Wallet.Models
 
         public string AccountName { set; get; }
 
-        public ICollection<SpendableTransactionModel> SpendableTransactions { set; get; }
+        public ICollection<DetailedSpendableTransactionModel> SpendableTransactions { set; get; }
     }
 
-    public class SpendableTransactionModel
+    public class DetailedSpendableTransactionModel
     {
         public string Address { set; get; }
 

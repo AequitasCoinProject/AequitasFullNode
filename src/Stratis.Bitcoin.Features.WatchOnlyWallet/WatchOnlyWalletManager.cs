@@ -59,7 +59,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
             this.blockRepository = blockRepository;
             this.rescanState = new RescanState();
         }
-        
+
         /// <inheritdoc />
         public void Dispose()
         {
@@ -354,8 +354,8 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
                 this.rescanState.ProgressPercentage = 0.0;
 
                 // request blocks from the BlockStore
-                uint256 currentBlockHash = this.blockRepository.BlockHash;
-                var task = this.blockRepository.GetAsync(currentBlockHash);
+                uint256 currentBlockHash = this.blockRepository.TipHashAndHeight.Hash;
+                var task = this.blockRepository.GetBlockAsync(currentBlockHash);
                 task.Wait();
                 var block = task.Result as Block;
 
@@ -366,7 +366,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
                 {
                     while (true)
                     {
-                        var getBlockTask = this.blockRepository.GetAsync(currentBlockHash);
+                        var getBlockTask = this.blockRepository.GetBlockAsync(currentBlockHash);
                         getBlockTask.Wait();
                         var newBlock = getBlockTask.Result as Block;
 

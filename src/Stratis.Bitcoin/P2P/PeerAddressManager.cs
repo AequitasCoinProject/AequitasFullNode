@@ -10,6 +10,7 @@ using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Configuration.Logging;
 using Stratis.Bitcoin.Utilities;
 using Stratis.Bitcoin.Utilities.Extensions;
+using TracerAttributes;
 
 namespace Stratis.Bitcoin.P2P
 {
@@ -45,6 +46,9 @@ namespace Stratis.Bitcoin.P2P
         /// <summary>Peer selector instance, used to select peers to connect to.</summary>
         public IPeerSelector PeerSelector { get; private set; }
 
+        /// <summary>An object capable of storing a list of <see cref="PeerAddress"/>s to the file system.</summary>
+        private readonly FileStorage<List<PeerAddress>> fileStorage;
+
         /// <summary>Constructor used by dependency injection.</summary>
         public PeerAddressManager(IDateTimeProvider dateTimeProvider, DataFolder peerFilePath, ILoggerFactory loggerFactory, ISelfEndpointTracker selfEndpointTracker)
         {
@@ -54,14 +58,17 @@ namespace Stratis.Bitcoin.P2P
             this.peers = new ConcurrentDictionary<IPEndPoint, PeerAddress>();
             this.PeerFilePath = peerFilePath;
             this.PeerSelector = new PeerSelector(this.dateTimeProvider, this.loggerFactory, this.peers, selfEndpointTracker);
+            this.fileStorage = new FileStorage<List<PeerAddress>>(this.PeerFilePath.AddressManagerFilePath);
         }
 
         /// <inheritdoc />
+        [NoTrace]
         public void LoadPeers()
         {
-            var fileStorage = new FileStorage<List<PeerAddress>>(this.PeerFilePath.AddressManagerFilePath);
-            List<PeerAddress> peers = fileStorage.LoadByFileName(PeerFileName);
-            peers.ForEach(peer =>
+            List<PeerAddress> loadedPeers = this.fileStorage.LoadByFileName(PeerFileName);
+            this.logger.LogTrace("{0} peers were loaded.", loadedPeers.Count);
+
+            loadedPeers.OrderBy(p => new Random().Next()).ToList().ForEach(peer =>
             {
                 // Ensure that any address already in store is mapped.
                 peer.Endpoint = peer.Endpoint.MapToIpv6();
@@ -78,7 +85,6 @@ namespace Stratis.Bitcoin.P2P
 
                 this.peers.AddOrUpdate(peer.Endpoint, peer, (key, oldValue) => peer);
             });
-            peers = peers.OrderBy(p => new Random().Next()).ToList();
         }
 
         /// <inheritdoc />
@@ -111,7 +117,7 @@ namespace Stratis.Bitcoin.P2P
         /// <inheritdoc/>
         public void RemovePeer(IPEndPoint endPoint)
         {
-           this.peers.TryRemove(endPoint.MapToIpv6(), out PeerAddress address);
+            this.peers.TryRemove(endPoint.MapToIpv6(), out PeerAddress address);
         }
 
         /// <inheritdoc/>
@@ -192,6 +198,13 @@ namespace Stratis.Bitcoin.P2P
             return null;
         }
 
+        /// <inheritdoc/>
+        public List<PeerAddress> FindPeersByIp(IPEndPoint endPoint)
+        {
+            IEnumerable<KeyValuePair<IPEndPoint, PeerAddress>> peers = this.peers.Skip(0).Where(p => p.Key.MatchIpOnly(endPoint));
+            return peers.Select(p => p.Value).ToList();
+        }
+
         /// <inheritdoc />
         public void Dispose()
         {
@@ -207,9 +220,10 @@ namespace Stratis.Bitcoin.P2P
             {
                 builder.AppendLine(
                     "Peer #"+(i++).ToString("000")+" of "+this.Peers.Count.ToString("000") + ":" + (peer.Endpoint + ", ").PadRight(LoggingConfiguration.ColumnLength + 32) +
-                    (" attempted:" + (peer.Attempted ? peer.LastAttempt.Value.ToString("yyyy-MM-dd HH:mm:ss") : "N/A") + ",").PadRight(LoggingConfiguration.ColumnLength + 11) +
-                    (" ban score:" + (peer.BanScore.HasValue ? peer.BanScore.Value.ToString() : "N/A") + ",").PadRight(LoggingConfiguration.ColumnLength + 0) +
-                    (" banned until:" + (peer.BanUntil.HasValue ? peer.BanUntil.Value.ToString("yyyy-MM-dd HH:mm:ss") : "N/A") + ",").PadRight(LoggingConfiguration.ColumnLength + 11));
+                    (" attempted:" + (peer.LastHandshakeAttempt.HasValue ? peer.LastHandshakeAttempt.Value.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") : "N/A") + ",").PadRight(LoggingConfiguration.ColumnLength + 11) +
+                    (" attempts:" + (peer.ConnectionAttempts) + ",").PadRight(LoggingConfiguration.ColumnLength + 0) +
+                    (" last error:" + (!String.IsNullOrEmpty(peer.LastError) ? peer.LastError : "N/A"))
+                );
             }
 
             return builder.ToString();

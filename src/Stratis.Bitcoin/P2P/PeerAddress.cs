@@ -221,6 +221,10 @@ namespace Stratis.Bitcoin.P2P
         [JsonIgnore]
         public DateTime? LastDiscoveredFrom { get; private set; }
 
+        [JsonIgnore]
+        public string LastError { get; set; }
+
+
         /// <summary>
         /// Resets the amount of <see cref="ConnectionAttempts"/>.
         /// <para>

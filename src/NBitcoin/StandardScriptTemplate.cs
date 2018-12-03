@@ -18,6 +18,7 @@ namespace NBitcoin
         TX_NULL_DATA,
         TX_SEGWIT,
         TX_MESSAGE,
+        TX_COLDSTAKE
     };
 
     public class TxNullDataTemplate : ScriptTemplate

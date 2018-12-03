@@ -14,7 +14,7 @@
     <GenerateAssemblyCopyrightAttribute>false</GenerateAssemblyCopyrightAttribute>
     <GenerateAssemblyVersionAttribute>false</GenerateAssemblyVersionAttribute>
     <GenerateAssemblyFileVersionAttribute>false</GenerateAssemblyFileVersionAttribute>
-    <Version>1.1.12-beta</Version>
+    <Version>1.2.6-beta</Version>
     <GeneratePackageOnBuild>False</GeneratePackageOnBuild>
     <CodeAnalysisRuleSet>..\Stratis.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
@@ -25,7 +25,7 @@
 
   <ItemGroup>
     <PackageReference Include="ConcurrentHashSet" Version="1.0.2" />
-    <PackageReference Include="DBreeze" Version="1.91.5" />
+    <PackageReference Include="DBreeze" Version="1.92.0" />
     <PackageReference Include="NLog" Version="5.0.0-beta09" />
     <PackageReference Include="NLog.Extensions.Logging" Version="1.0.0-rtm-beta5" />
     <PackageReference Include="StyleCop.Analyzers" Version="1.0.2" />
@@ -43,12 +43,13 @@
     <PackageReference Include="System.Xml.XmlSerializer" Version="4.3.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="2.1.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="2.1.1" />
+    <PackageReference Include="Tracer.Fody" Version="2.2.0" />
 
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\FodyNlogAdapter\FodyNlogAdapter.csproj" />
     <ProjectReference Include="..\NBitcoin\NBitcoin.csproj" />
-    <ProjectReference Include="..\Stratis.Bitcoin.Networks\Stratis.Bitcoin.Networks.csproj" />
   </ItemGroup>
 
   <ItemGroup>

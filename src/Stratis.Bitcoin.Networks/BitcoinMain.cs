@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using NBitcoin;
 using NBitcoin.DataEncoders;
+using Stratis.Bitcoin.Networks.Deployments;
 
 namespace Stratis.Bitcoin.Networks
 {
@@ -34,6 +35,8 @@ namespace Stratis.Bitcoin.Networks
             // a large 4-byte int at any alignment.
             this.Magic = 0xD9B4BEF9;
             this.DefaultPort = 8333;
+            this.DefaultMaxOutboundConnections = 8;
+            this.DefaultMaxInboundConnections = 117;
             this.RPCPort = 8332;
             this.MaxTimeOffsetSeconds = BitcoinMaxTimeOffsetSeconds;
             this.MaxTipAge = BitcoinDefaultMaxTipAgeInSeconds;
@@ -62,14 +65,14 @@ namespace Stratis.Bitcoin.Networks
                 [BuriedDeployments.BIP66] = 363725
             };
 
-            var bip9Deployments = new BIP9DeploymentsArray
+            var bip9Deployments = new BitcoinBIP9Deployments
             {
-                [BIP9Deployments.TestDummy] = new BIP9DeploymentsParameters(28, 1199145601, 1230767999),
-                [BIP9Deployments.CSV] = new BIP9DeploymentsParameters(0, 1462060800, 1493596800),
-                [BIP9Deployments.Segwit] = new BIP9DeploymentsParameters(1, 1479168000, 1510704000)
+                [BitcoinBIP9Deployments.TestDummy] = new BIP9DeploymentsParameters(28, 1199145601, 1230767999),
+                [BitcoinBIP9Deployments.CSV] = new BIP9DeploymentsParameters(0, 1462060800, 1493596800),
+                [BitcoinBIP9Deployments.Segwit] = new BIP9DeploymentsParameters(1, 1479168000, 1510704000)
             };
 
-            this.Consensus = new Consensus(
+            this.Consensus = new NBitcoin.Consensus(
                 consensusFactory: consensusFactory,
                 consensusOptions: new ConsensusOptions(), // Default - set to Bitcoin params.
                 coinType: 0,

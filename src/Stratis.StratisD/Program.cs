@@ -14,6 +14,8 @@ using Stratis.Bitcoin.Features.RPC;
 using Stratis.Bitcoin.Features.Wallet;
 using Stratis.Bitcoin.Features.Notifications;
 using Stratis.Bitcoin.Features.WatchOnlyWallet;
+using Stratis.Bitcoin.Features.ColdStaking;
+using Stratis.Bitcoin.Networks;
 using Stratis.Bitcoin.Utilities;
 
 namespace Stratis.StratisD
@@ -24,7 +26,10 @@ namespace Stratis.StratisD
         {
             try
             {
-                var nodeSettings = new NodeSettings(protocolVersion:ProtocolVersion.ALT_PROTOCOL_VERSION, args:args);
+                var nodeSettings = new NodeSettings(networksSelector: Networks.Stratis, protocolVersion: ProtocolVersion.PROVEN_HEADER_VERSION, args: args)
+                {
+                    MinProtocolVersion = ProtocolVersion.ALT_PROTOCOL_VERSION
+                };
 
                 IFullNode node = new FullNodeBuilder()
                     .UseNodeSettings(nodeSettings)
@@ -35,6 +40,7 @@ namespace Stratis.StratisD
                     .UseBlockNotification()
                     .UseTransactionNotification()
                     .UseWatchOnlyWallet()
+                    //.UseColdStakingWallet()
                     //.AddPowPosMining()
                     .UseApi()
                     .UseApps()
@@ -46,7 +52,7 @@ namespace Stratis.StratisD
             }
             catch (Exception ex)
             {
-                Console.WriteLine("There was a problem initializing the node. Details: '{0}'", ex.Message);
+                Console.WriteLine("There was a problem initializing the node. Details: '{0}'", ex.ToString());
             }
         }
     }
