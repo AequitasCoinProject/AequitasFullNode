@@ -148,16 +148,8 @@ namespace Stratis.Bitcoin.Features.Wallet
                         log.AppendLine(($"{walletName}/{account.Name}" + ",").PadRight(LoggingConfiguration.ColumnLength + 10)
                                                   + (" Confirmed balance: " + accountBalance.AmountConfirmed.ToString()).PadRight(LoggingConfiguration.ColumnLength + 20)
                                                   + " Unconfirmed balance: " + accountBalance.AmountUnconfirmed.ToString());
-
-                        var spendable = this.walletManager.GetSpendableTransactionsInWallet(walletName, 1);
-                        var unspendable = this.walletManager.GetSpendableTransactionsInWallet(walletName, 0);
-
-                        log.AppendLine(
-                            "Wallet: " + (walletName + ",").PadRight(LoggingConfiguration.ColumnLength)
-                            + " Confirmed balance: " + new Money(spendable.Sum(s => s.Transaction.Amount)).ToString()
-                            + $" (+{(new Money(unspendable.Sum(s => s.Transaction.Amount)) - new Money(spendable.Sum(s => s.Transaction.Amount))).ToString()} unconfirmed)"
-                            );                                                  
                     }
+                    log.AppendLine();
                 }
             }
         }
