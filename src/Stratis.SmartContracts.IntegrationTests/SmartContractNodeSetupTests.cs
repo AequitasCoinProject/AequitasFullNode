@@ -29,7 +29,9 @@ namespace Stratis.SmartContracts.IntegrationTests
         {
             public FakeSmartContractMain()
             {
-                this.Name = "MainnetName"; // Doesn't contain "test" so IsTest() returns false.
+                this.CoinName = "SmartContracts";
+                this.NetworkName = "Fake";
+                //this.Name = "MainnetName"; // Doesn't contain "test" so IsTest() returns false.
             }
         }
     }

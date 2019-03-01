@@ -20,6 +20,8 @@ namespace Stratis.Bitcoin.Features.Wallet
 {
     public partial class WalletTransactionHandler : IWalletTransactionHandler
     {
+        private int SendCountThresholdLimit = 32;
+
         private void AddMessage(TransactionBuildContext context)
         {
             if (context.Message == null) return;
@@ -167,7 +169,7 @@ namespace Stratis.Bitcoin.Features.Wallet
                 sum += item.Amount;
                 index++;
 
-                if (index > SendCountThresholdLimit)
+                if (index > this.SendCountThresholdLimit)
                     break;
             }
 

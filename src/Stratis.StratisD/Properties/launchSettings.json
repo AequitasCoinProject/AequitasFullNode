@@ -2,11 +2,11 @@
   "profiles": {
     "Stratis.StratisD": {
       "commandName": "Project",
-      "commandLineArgs": "-datadir=n:\\Blockchains\\StratisNode\\"
+      "commandLineArgs": "-datadir=n:\\Blockchains\\StratisNode.v2\\"
     },
     "Stratis.StratisD Test": {
       "commandName": "Project",
-      "commandLineArgs": "-testnet -datadir=n:\\Blockchains\\StratisNode\\"
+      "commandLineArgs": "-testnet -datadir=n:\\Blockchains\\StratisNode.v2\\"
     },
     "Stratis.StratisD Test with Default wallet": {
       "commandName": "Project",

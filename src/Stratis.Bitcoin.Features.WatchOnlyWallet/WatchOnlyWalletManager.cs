@@ -53,8 +53,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
 
         private RescanState rescanState;
 
-        public WatchOnlyWalletManager(IDateTimeProvider dateTimeProvider, ILoggerFactory loggerFactory, Network network, DataFolder dataFolder, IBlockRepository blockRepository = null)
-        public WatchOnlyWalletManager(IDateTimeProvider dateTimeProvider, ILoggerFactory loggerFactory, Network network, DataFolder dataFolder, ISignals signals)
+        public WatchOnlyWalletManager(IDateTimeProvider dateTimeProvider, ILoggerFactory loggerFactory, Network network, DataFolder dataFolder, ISignals signals, IBlockRepository blockRepository = null)
         {
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
             this.network = network;

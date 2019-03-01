@@ -6,7 +6,6 @@ using Stratis.Bitcoin.Builder.Feature;
 using Stratis.Bitcoin.Features.BlockStore;
 using Stratis.Bitcoin.Features.Notifications;
 using Stratis.Bitcoin.Features.WatchOnlyWallet.Controllers;
-using Stratis.Bitcoin.Features.WatchOnlyWallet.Notifications;
 using Stratis.Bitcoin.Interfaces;
 
 namespace Stratis.Bitcoin.Features.WatchOnlyWallet

@@ -26,7 +26,10 @@ namespace Stratis.Bitcoin.IntegrationTests
         {
             public StratisOverrideRegTest(string name = null) : base()
             {
-                this.Name = name ?? Guid.NewGuid().ToString();
+                this.CoinName = "Stratis";
+                this.NetworkName = "OverrideRegTest";
+
+                this.NetworkName += (name == null ? Guid.NewGuid().ToString() : name);
             }
         }
 

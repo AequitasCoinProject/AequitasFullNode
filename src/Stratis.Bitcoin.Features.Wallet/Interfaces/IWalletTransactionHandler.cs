@@ -44,21 +44,6 @@ namespace Stratis.Bitcoin.Features.Wallet.Interfaces
         Money EstimateFee(TransactionBuildContext context);
 
         /// <summary>
-        /// Cache the secret for a specific wallet.
-        /// If the secret is already in the cache extends its expiry according to <c>duration</c>.
-        /// </summary>
-        /// <param name="walletAccount">The account to cache the secret.</param>
-        /// <param name="walletPassword">The password for the wallet.</param>
-        /// <param name="duration">How long to cache secret for.</param>
-        void CacheSecret(WalletAccountReference walletAccount, string walletPassword, TimeSpan duration);
-
-        /// <summary>
-        /// Clears a secret that is stored in a cache for a specific wallet.
-        /// </summary>
-        /// <param name="walletAccount">The account to clear the cache for the secret.</param>
-        void ClearCachedSecret(WalletAccountReference walletAccount);
-
-        /// <summary>
         /// Builds a new, unsigned Wanted System Message transaction based on information from the <see cref="TransactionBuildContext"/>.
         /// </summary>
         /// <param name="context">The context that is used to build a new transaction.</param>
