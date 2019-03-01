@@ -18,30 +18,19 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
     {
         private readonly IWatchOnlyWalletManager walletManager;
 
-        private readonly Signals.Signals signals;
-
-        private IDisposable blockSubscriberdDisposable;
-
-        private IDisposable transactionSubscriberdDisposable;
-
         /// <summary>
         /// Initializes a new instance of the <see cref="WatchOnlyWalletFeature"/> class.
         /// </summary>
         /// <param name="walletManager">The wallet manager.</param>
         /// <param name="signals">The signals.</param>
-        public WatchOnlyWalletFeature(IWatchOnlyWalletManager walletManager, Signals.Signals signals)
+        public WatchOnlyWalletFeature(IWatchOnlyWalletManager walletManager)
         {
             this.walletManager = walletManager;
-            this.signals = signals;
         }
 
         /// <inheritdoc />
         public override Task InitializeAsync()
         {
-            // subscribe to receiving blocks and transactions
-            this.blockSubscriberdDisposable = this.signals.SubscribeForBlocksConnected(new BlockObserver(this.walletManager));
-            this.transactionSubscriberdDisposable = this.signals.SubscribeForTransactions(new TransactionObserver(this.walletManager));
-
             this.walletManager.Initialize();
             return Task.CompletedTask;
         }
@@ -49,9 +38,6 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
         /// <inheritdoc />
         public override void Dispose()
         {
-            this.blockSubscriberdDisposable.Dispose();
-            this.transactionSubscriberdDisposable.Dispose();
-
             this.walletManager.Dispose();
         }
     }

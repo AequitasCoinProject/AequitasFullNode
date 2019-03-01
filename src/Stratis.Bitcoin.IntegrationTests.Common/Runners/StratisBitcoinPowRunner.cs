@@ -10,6 +10,7 @@ using Stratis.Bitcoin.Features.Miner;
 using Stratis.Bitcoin.Features.RPC;
 using Stratis.Bitcoin.Features.Wallet;
 using Stratis.Bitcoin.IntegrationTests.Common.EnvironmentMockUpHelpers;
+using Stratis.Bitcoin.Interfaces;
 using Stratis.Bitcoin.P2P;
 
 namespace Stratis.Bitcoin.IntegrationTests.Common.Runners
@@ -40,10 +41,8 @@ namespace Stratis.Bitcoin.IntegrationTests.Common.Runners
                             .UseWallet()
                             .AddRPC()
                             .UseApi()
+                            .UseTestChainedHeaderTree()
                             .MockIBD();
-
-            if (this.InterceptorDisconnect != null)
-                builder = builder.InterceptBlockDisconnected(this.InterceptorDisconnect);
 
             if (this.ServiceToOverride != null)
                 builder.OverrideService<BaseFeature>(this.ServiceToOverride);
@@ -51,7 +50,12 @@ namespace Stratis.Bitcoin.IntegrationTests.Common.Runners
             if (!this.EnablePeerDiscovery)
             {
                 builder.RemoveImplementation<PeerConnectorDiscovery>();
-                builder.ReplaceService<IPeerDiscovery>(new PeerDiscoveryDisabled());
+                builder.ReplaceService<IPeerDiscovery, BaseFeature>(new PeerDiscoveryDisabled());
+            }
+
+            if (this.AlwaysFlushBlocks)
+            {
+                builder.ReplaceService<IBlockStoreQueueFlushCondition, BlockStoreFeature>(new BlockStoreAlwaysFlushCondition());
             }
 
             this.FullNode = (FullNode)builder.Build();

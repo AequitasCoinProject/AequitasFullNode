@@ -6,6 +6,8 @@ using NBitcoin;
 using Stratis.Bitcoin.Configuration;
 using Stratis.Bitcoin.Features.BlockStore;
 using Stratis.Bitcoin.Features.Wallet;
+using Stratis.Bitcoin.Primitives;
+using Stratis.Bitcoin.Signals;
 using Stratis.Bitcoin.Utilities;
 
 namespace Stratis.Bitcoin.Features.WatchOnlyWallet
@@ -40,6 +42,8 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
         private readonly IDateTimeProvider dateTimeProvider;
         private readonly IBlockRepository blockRepository;
 
+        private readonly ISignals signals;
+
         /// <summary>
         /// Provides a rapid lookup of transactions appearing in the watch-only wallet.
         /// This includes both transactions under watched addresses, as well as stored
@@ -50,6 +54,7 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
         private RescanState rescanState;
 
         public WatchOnlyWalletManager(IDateTimeProvider dateTimeProvider, ILoggerFactory loggerFactory, Network network, DataFolder dataFolder, IBlockRepository blockRepository = null)
+        public WatchOnlyWalletManager(IDateTimeProvider dateTimeProvider, ILoggerFactory loggerFactory, Network network, DataFolder dataFolder, ISignals signals)
         {
             this.logger = loggerFactory.CreateLogger(this.GetType().FullName);
             this.network = network;
@@ -58,11 +63,15 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
             this.dateTimeProvider = dateTimeProvider;
             this.blockRepository = blockRepository;
             this.rescanState = new RescanState();
+            this.signals = signals;
         }
 
         /// <inheritdoc />
         public void Dispose()
         {
+            this.signals.OnBlockConnected.Detach(this.OnBlockConnected);
+            this.signals.OnTransactionReceived.Detach(this.OnTransactionAvailable);
+
             this.SaveWatchOnlyWallet();
         }
 
@@ -72,7 +81,20 @@ namespace Stratis.Bitcoin.Features.WatchOnlyWallet
             // load the watch only wallet into memory
             this.Wallet = this.LoadWatchOnlyWallet();
 
+            this.signals.OnBlockConnected.Attach(this.OnBlockConnected);
+            this.signals.OnTransactionReceived.Attach(this.OnTransactionAvailable);
+
             this.LoadTransactionLookup();
+        }
+
+        private void OnTransactionAvailable(Transaction transaction)
+        {
+            this.ProcessTransaction(transaction);
+        }
+
+        private void OnBlockConnected(ChainedHeaderBlock chainedheaderblock)
+        {
+            this.ProcessBlock(chainedheaderblock.Block);
         }
 
         /// <inheritdoc />

@@ -12,7 +12,7 @@ public class StandardToken : SmartContract, IStandardToken
     /// </summary>
     /// <param name="smartContractState">The execution state for the contract.</param>
     /// <param name="totalSupply">The total token supply.</param>
-    public StandardToken(ISmartContractState smartContractState, uint totalSupply) 
+    public StandardToken(ISmartContractState smartContractState, ulong totalSupply)
         : base(smartContractState)
     {
         this.TotalSupply = totalSupply;
@@ -20,25 +20,25 @@ public class StandardToken : SmartContract, IStandardToken
     }
 
     /// <inheritdoc />
-    public uint TotalSupply
+    public ulong TotalSupply
     {
-        get => PersistentState.GetUInt32(nameof(this.TotalSupply));
-        private set => PersistentState.SetUInt32(nameof(this.TotalSupply), value);
+        get => PersistentState.GetUInt64(nameof(this.TotalSupply));
+        private set => PersistentState.SetUInt64(nameof(this.TotalSupply), value);
     }
 
     /// <inheritdoc />
-    public uint GetBalance(Address address)
+    public ulong GetBalance(Address address)
     {
-        return PersistentState.GetUInt32($"Balance:{address}");
+        return PersistentState.GetUInt64($"Balance:{address}");
     }
 
-    private void SetBalance(Address address, uint value)
+    private void SetBalance(Address address, ulong value)
     {
-        PersistentState.SetUInt32($"Balance:{address}", value);
+        PersistentState.SetUInt64($"Balance:{address}", value);
     }
 
     /// <inheritdoc />
-    public bool Transfer(Address to, uint amount)
+    public bool TransferTo(Address to, ulong amount)
     {
         if (amount == 0)
         {
@@ -47,18 +47,16 @@ public class StandardToken : SmartContract, IStandardToken
             return true;
         }
 
-        uint senderBalance = GetBalance(Message.Sender);
-        
+        ulong senderBalance = GetBalance(Message.Sender);
+
         if (senderBalance < amount)
         {
             return false;
         }
 
-        uint toBalance = GetBalance(to);
-
         SetBalance(Message.Sender, senderBalance - amount);
 
-        SetBalance(to, checked(toBalance + amount));
+        SetBalance(to, checked(GetBalance(to) + amount));
 
         Log(new TransferLog { From = Message.Sender, To = to, Amount = amount });
 
@@ -66,7 +64,7 @@ public class StandardToken : SmartContract, IStandardToken
     }
 
     /// <inheritdoc />
-    public bool TransferFrom(Address from, Address to, uint amount)
+    public bool TransferFrom(Address from, Address to, ulong amount)
     {
         if (amount == 0)
         {
@@ -75,20 +73,19 @@ public class StandardToken : SmartContract, IStandardToken
             return true;
         }
 
-        uint senderAllowance = Allowance(from, Message.Sender);
-        uint fromBalance = GetBalance(from);
+        ulong senderAllowance = Allowance(from, Message.Sender);
+        ulong fromBalance = GetBalance(from);
 
         if (senderAllowance < amount || fromBalance < amount)
         {
             return false;
         }
 
-        uint toBalance = GetBalance(to);
-
         SetApproval(from, Message.Sender, senderAllowance - amount);
+
         SetBalance(from, fromBalance - amount);
 
-        SetBalance(to, checked(toBalance + amount));
+        SetBalance(to, checked(GetBalance(to) + amount));
 
         Log(new TransferLog { From = from, To = to, Amount = amount });
 
@@ -96,24 +93,29 @@ public class StandardToken : SmartContract, IStandardToken
     }
 
     /// <inheritdoc />
-    public bool Approve(Address spender, uint amount)
+    public bool Approve(Address spender, ulong currentAmount, ulong amount)
     {
+        if (Allowance(Message.Sender, spender) != currentAmount)
+        {
+            return false;
+        }
+
         SetApproval(Message.Sender, spender, amount);
 
-        Log(new ApprovalLog { Owner = Message.Sender, Spender = spender, Amount = amount});
+        Log(new ApprovalLog { Owner = Message.Sender, Spender = spender, Amount = amount, OldAmount = currentAmount });
 
         return true;
     }
 
-    private void SetApproval(Address owner, Address spender, uint value)
+    private void SetApproval(Address owner, Address spender, ulong value)
     {
-        PersistentState.SetUInt32($"Allowance:{owner}:{spender}", value);
+        PersistentState.SetUInt64($"Allowance:{owner}:{spender}", value);
     }
 
     /// <inheritdoc />
-    public uint Allowance(Address owner, Address spender)
+    public ulong Allowance(Address owner, Address spender)
     {
-        return PersistentState.GetUInt32($"Allowance:{owner}:{spender}");
+        return PersistentState.GetUInt64($"Allowance:{owner}:{spender}");
     }
 
     public struct TransferLog
@@ -124,7 +126,7 @@ public class StandardToken : SmartContract, IStandardToken
         [Index]
         public Address To;
 
-        public uint Amount;
+        public ulong Amount;
     }
 
     public struct ApprovalLog
@@ -135,6 +137,8 @@ public class StandardToken : SmartContract, IStandardToken
         [Index]
         public Address Spender;
 
-        public uint Amount;
+        public ulong OldAmount;
+
+        public ulong Amount;
     }
 }
